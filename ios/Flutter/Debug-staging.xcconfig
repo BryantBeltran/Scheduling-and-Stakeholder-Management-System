@@ -1,0 +1,10 @@
+// ==============================================================================
+// iOS FLAVOR CONFIGURATION - STAGING DEBUG
+// ==============================================================================
+
+#include? "Pods/Target Support Files/Pods-Runner/Pods-Runner.debug-staging.xcconfig"
+#include "Flutter/Debug.xcconfig"
+
+PRODUCT_NAME = SSMS Staging
+PRODUCT_BUNDLE_IDENTIFIER = com.example.schedulingAndStakeholderManagementSystem.staging
+FLUTTER_FLAVOR = staging

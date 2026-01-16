@@ -1,0 +1,10 @@
+// ==============================================================================
+// iOS FLAVOR CONFIGURATION - PRODUCTION DEBUG
+// ==============================================================================
+
+#include? "Pods/Target Support Files/Pods-Runner/Pods-Runner.debug-prod.xcconfig"
+#include "Flutter/Debug.xcconfig"
+
+PRODUCT_NAME = Scheduling & Stakeholder
+PRODUCT_BUNDLE_IDENTIFIER = com.example.schedulingAndStakeholderManagementSystem
+FLUTTER_FLAVOR = prod
