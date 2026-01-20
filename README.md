@@ -4,11 +4,12 @@ A Flutter-based event and stakeholder management application with multi-environm
 
 ## Features
 
-- **User Authentication** - Role-based access control with admin, manager, and viewer roles
-- **Event Management** - Create, edit, and track events with status and priority
-- **Stakeholder Management** - Track stakeholders and their participation in events
-- **Dashboard** - Overview with statistics and upcoming events
-- **Multi-Environment** - Dev, staging, and production flavors
+- User Authentication - Role-based access control with admin, manager, and viewer roles
+- Event Management - Create, edit, and track events with status and priority
+- Stakeholder Management - Track stakeholders and their participation in events
+- Dashboard - Overview with statistics and upcoming events
+- Multi-Environment - Dev, staging, and production flavors
+- Cloud Functions Backend - Serverless API using Firebase Cloud Functions
 
 ## Getting Started
 
@@ -112,10 +113,19 @@ lib/
 
 ## Architecture
 
-- **Service-based architecture** with separation of concerns
-- **Material Design 3** theming throughout
-- **StreamController** for reactive state (Provider/Riverpod ready)
-- **Singleton pattern** for services
+- Service-based architecture with separation of concerns
+- Material Design 3 theming throughout
+- StreamController for reactive state (Provider/Riverpod ready)
+- Singleton pattern for services
+
+## Backend
+
+The backend uses Firebase Cloud Functions for serverless API endpoints. See [functions/README.md](functions/README.md) for detailed documentation on:
+
+- Available API endpoints
+- Local development setup
+- Deployment instructions
+- Function examples and usage
 
 ## Testing
 
