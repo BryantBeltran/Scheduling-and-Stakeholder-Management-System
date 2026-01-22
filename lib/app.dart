@@ -12,6 +12,7 @@ import 'config/app_config.dart';
 import 'theme/app_theme.dart';
 import 'screens/auth/login_screen.dart';
 import 'screens/auth/register_screen.dart';
+import 'screens/auth/register_password_screen.dart';
 import 'screens/auth/forgot_password_screen.dart';
 import 'screens/home/home_screen.dart';
 import 'screens/dev/dev_screen_navigator.dart';
@@ -41,6 +42,16 @@ class SchedulingApp extends StatelessWidget {
         '/register': (context) => const RegisterScreen(),
         '/forgot-password': (context) => const ForgotPasswordScreen(),
         '/home': (context) => const HomeScreen(),
+      },
+      onGenerateRoute: (settings) {
+        if (settings.name == '/register-password') {
+          final args = settings.arguments as Map<String, dynamic>?;
+          final email = args?['email'] ?? '';
+          return MaterialPageRoute(
+            builder: (context) => RegisterPasswordScreen(email: email),
+          );
+        }
+        return null;
       },
       // Add a banner for non-prod environments
       builder: (context, child) {
