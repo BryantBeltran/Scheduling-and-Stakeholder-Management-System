@@ -12,14 +12,8 @@ class EventListScreen extends StatefulWidget {
 class _EventListScreenState extends State<EventListScreen> {
   final _eventService = EventService();
   final _searchController = TextEditingController();
-  List<EventModel> _filteredEvents = [];
   EventStatus? _filterStatus;
-
-  @override
-  void initState() {
-    super.initState();
-    _filteredEvents = _eventService.events;
-  }
+  String _searchQuery = '';
 
   @override
   void dispose() {
@@ -27,26 +21,25 @@ class _EventListScreenState extends State<EventListScreen> {
     super.dispose();
   }
 
-  void _filterEvents() {
-    setState(() {
-      var events = _eventService.events;
+  List<EventModel> _filterEvents(List<EventModel> events) {
+    var filtered = events;
 
-      // Apply status filter
-      if (_filterStatus != null) {
-        events = events.where((e) => e.status == _filterStatus).toList();
-      }
+    // Apply status filter
+    if (_filterStatus != null) {
+      filtered = filtered.where((e) => e.status == _filterStatus).toList();
+    }
 
-      // Apply search filter
-      if (_searchController.text.isNotEmpty) {
-        final query = _searchController.text.toLowerCase();
-        events = events.where((e) {
-          return e.title.toLowerCase().contains(query) ||
-              (e.description?.toLowerCase().contains(query) ?? false);
-        }).toList();
-      }
+    // Apply search filter
+    if (_searchQuery.isNotEmpty) {
+      final query = _searchQuery.toLowerCase();
+      filtered = filtered.where((e) {
+        return e.title.toLowerCase().contains(query) ||
+            (e.description?.toLowerCase().contains(query) ?? false) ||
+            e.location.name.toLowerCase().contains(query);
+      }).toList();
+    }
 
-      _filteredEvents = events;
-    });
+    return filtered;
   }
 
   @override
@@ -75,13 +68,17 @@ class _EventListScreenState extends State<EventListScreen> {
                     ? IconButton(
                         icon: const Icon(Icons.clear),
                         onPressed: () {
-                          _searchController.clear();
-                          _filterEvents();
+                          setState(() {
+                            _searchController.clear();
+                            _searchQuery = '';
+                          });
                         },
                       )
                     : null,
               ),
-              onChanged: (_) => _filterEvents(),
+              onChanged: (value) {
+                setState(() => _searchQuery = value);
+              },
             ),
           ),
 
@@ -96,16 +93,28 @@ class _EventListScreenState extends State<EventListScreen> {
                   deleteIcon: const Icon(Icons.close, size: 18),
                   onDeleted: () {
                     setState(() => _filterStatus = null);
-                    _filterEvents();
                   },
                 ),
               ),
             ),
 
-          // Events list
+          // Events list with StreamBuilder
           Expanded(
-            child: _filteredEvents.isEmpty
-                ? Center(
+            child: StreamBuilder<List<EventModel>>(
+              stream: _eventService.eventsStream,
+              builder: (context, snapshot) {
+                if (snapshot.connectionState == ConnectionState.waiting) {
+                  return const Center(child: CircularProgressIndicator());
+                }
+
+                if (snapshot.hasError) {
+                  return Center(
+                    child: Text('Error: ${snapshot.error}'),
+                  );
+                }
+
+                if (!snapshot.hasData || snapshot.data!.isEmpty) {
+                  return Center(
                     child: Column(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
@@ -124,14 +133,43 @@ class _EventListScreenState extends State<EventListScreen> {
                         ),
                       ],
                     ),
-                  )
-                : ListView.builder(
-                    itemCount: _filteredEvents.length,
-                    itemBuilder: (context, index) {
-                      final event = _filteredEvents[index];
-                      return _EventListItem(event: event);
-                    },
-                  ),
+                  );
+                }
+
+                final filteredEvents = _filterEvents(snapshot.data!);
+
+                if (filteredEvents.isEmpty) {
+                  return Center(
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(
+                          Icons.search_off,
+                          size: 64,
+                          color: Colors.grey[400],
+                        ),
+                        const SizedBox(height: 16),
+                        Text(
+                          'No matching events',
+                          style: TextStyle(
+                            fontSize: 16,
+                            color: Colors.grey[600],
+                          ),
+                        ),
+                      ],
+                    ),
+                  );
+                }
+
+                return ListView.builder(
+                  itemCount: filteredEvents.length,
+                  itemBuilder: (context, index) {
+                    final event = filteredEvents[index];
+                    return _EventListItem(event: event);
+                  },
+                );
+              },
+            ),
           ),
         ],
       ),
@@ -161,7 +199,6 @@ class _EventListScreenState extends State<EventListScreen> {
                   groupValue: _filterStatus,
                   onChanged: (value) {
                     setState(() => _filterStatus = value);
-                    _filterEvents();
                     Navigator.pop(context);
                   },
                 ),
@@ -174,7 +211,6 @@ class _EventListScreenState extends State<EventListScreen> {
                     groupValue: _filterStatus,
                     onChanged: (value) {
                       setState(() => _filterStatus = value);
-                      _filterEvents();
                       Navigator.pop(context);
                     },
                   ),

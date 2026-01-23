@@ -12,14 +12,8 @@ class StakeholderListScreen extends StatefulWidget {
 class _StakeholderListScreenState extends State<StakeholderListScreen> {
   final _stakeholderService = StakeholderService();
   final _searchController = TextEditingController();
-  List<StakeholderModel> _filteredStakeholders = [];
   StakeholderType? _filterType;
-
-  @override
-  void initState() {
-    super.initState();
-    _filteredStakeholders = _stakeholderService.stakeholders;
-  }
+  String _searchQuery = '';
 
   @override
   void dispose() {
@@ -27,22 +21,25 @@ class _StakeholderListScreenState extends State<StakeholderListScreen> {
     super.dispose();
   }
 
-  void _filterStakeholders() {
-    setState(() {
-      var stakeholders = _stakeholderService.stakeholders;
+  List<StakeholderModel> _filterStakeholders(List<StakeholderModel> stakeholders) {
+    var filtered = stakeholders;
 
-      // Apply type filter
-      if (_filterType != null) {
-        stakeholders = stakeholders.where((s) => s.type == _filterType).toList();
-      }
+    // Apply type filter
+    if (_filterType != null) {
+      filtered = filtered.where((s) => s.type == _filterType).toList();
+    }
 
-      // Apply search filter
-      if (_searchController.text.isNotEmpty) {
-        stakeholders = _stakeholderService.searchStakeholders(_searchController.text);
-      }
+    // Apply search filter
+    if (_searchQuery.isNotEmpty) {
+      final query = _searchQuery.toLowerCase();
+      filtered = filtered.where((s) =>
+        s.name.toLowerCase().contains(query) ||
+        s.email.toLowerCase().contains(query) ||
+        (s.organization?.toLowerCase().contains(query) ?? false)
+      ).toList();
+    }
 
-      _filteredStakeholders = stakeholders;
-    });
+    return filtered;
   }
 
   @override
@@ -71,13 +68,17 @@ class _StakeholderListScreenState extends State<StakeholderListScreen> {
                     ? IconButton(
                         icon: const Icon(Icons.clear),
                         onPressed: () {
-                          _searchController.clear();
-                          _filterStakeholders();
+                          setState(() {
+                            _searchController.clear();
+                            _searchQuery = '';
+                          });
                         },
                       )
                     : null,
               ),
-              onChanged: (_) => _filterStakeholders(),
+              onChanged: (value) {
+                setState(() => _searchQuery = value);
+              },
             ),
           ),
 
@@ -92,16 +93,28 @@ class _StakeholderListScreenState extends State<StakeholderListScreen> {
                   deleteIcon: const Icon(Icons.close, size: 18),
                   onDeleted: () {
                     setState(() => _filterType = null);
-                    _filterStakeholders();
                   },
                 ),
               ),
             ),
 
-          // Stakeholders list
+          // Stakeholders list with StreamBuilder
           Expanded(
-            child: _filteredStakeholders.isEmpty
-                ? Center(
+            child: StreamBuilder<List<StakeholderModel>>(
+              stream: _stakeholderService.stakeholdersStream,
+              builder: (context, snapshot) {
+                if (snapshot.connectionState == ConnectionState.waiting) {
+                  return const Center(child: CircularProgressIndicator());
+                }
+
+                if (snapshot.hasError) {
+                  return Center(
+                    child: Text('Error: ${snapshot.error}'),
+                  );
+                }
+
+                if (!snapshot.hasData || snapshot.data!.isEmpty) {
+                  return Center(
                     child: Column(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
@@ -120,14 +133,43 @@ class _StakeholderListScreenState extends State<StakeholderListScreen> {
                         ),
                       ],
                     ),
-                  )
-                : ListView.builder(
-                    itemCount: _filteredStakeholders.length,
-                    itemBuilder: (context, index) {
-                      final stakeholder = _filteredStakeholders[index];
-                      return _StakeholderListItem(stakeholder: stakeholder);
-                    },
-                  ),
+                  );
+                }
+
+                final filteredStakeholders = _filterStakeholders(snapshot.data!);
+
+                if (filteredStakeholders.isEmpty) {
+                  return Center(
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(
+                          Icons.search_off,
+                          size: 64,
+                          color: Colors.grey[400],
+                        ),
+                        const SizedBox(height: 16),
+                        Text(
+                          'No matching stakeholders',
+                          style: TextStyle(
+                            fontSize: 16,
+                            color: Colors.grey[600],
+                          ),
+                        ),
+                      ],
+                    ),
+                  );
+                }
+
+                return ListView.builder(
+                  itemCount: filteredStakeholders.length,
+                  itemBuilder: (context, index) {
+                    final stakeholder = filteredStakeholders[index];
+                    return _StakeholderListItem(stakeholder: stakeholder);
+                  },
+                );
+              },
+            ),
           ),
         ],
       ),
@@ -157,7 +199,6 @@ class _StakeholderListScreenState extends State<StakeholderListScreen> {
                   groupValue: _filterType,
                   onChanged: (value) {
                     setState(() => _filterType = value);
-                    _filterStakeholders();
                     Navigator.pop(context);
                   },
                 ),
@@ -170,7 +211,6 @@ class _StakeholderListScreenState extends State<StakeholderListScreen> {
                     groupValue: _filterType,
                     onChanged: (value) {
                       setState(() => _filterType = value);
-                      _filterStakeholders();
                       Navigator.pop(context);
                     },
                   ),
