@@ -12,14 +12,8 @@ class StakeholderListScreen extends StatefulWidget {
 class _StakeholderListScreenState extends State<StakeholderListScreen> {
   final _stakeholderService = StakeholderService();
   final _searchController = TextEditingController();
-  List<StakeholderModel> _filteredStakeholders = [];
   StakeholderType? _filterType;
-
-  @override
-  void initState() {
-    super.initState();
-    _filteredStakeholders = _stakeholderService.stakeholders;
-  }
+  String _searchQuery = '';
 
   @override
   void dispose() {
@@ -27,22 +21,25 @@ class _StakeholderListScreenState extends State<StakeholderListScreen> {
     super.dispose();
   }
 
-  void _filterStakeholders() {
-    setState(() {
-      var stakeholders = _stakeholderService.stakeholders;
+  List<StakeholderModel> _filterStakeholders(List<StakeholderModel> stakeholders) {
+    var filtered = stakeholders;
 
-      // Apply type filter
-      if (_filterType != null) {
-        stakeholders = stakeholders.where((s) => s.type == _filterType).toList();
-      }
+    // Apply type filter
+    if (_filterType != null) {
+      filtered = filtered.where((s) => s.type == _filterType).toList();
+    }
 
-      // Apply search filter
-      if (_searchController.text.isNotEmpty) {
-        stakeholders = _stakeholderService.searchStakeholders(_searchController.text);
-      }
+    // Apply search filter
+    if (_searchQuery.isNotEmpty) {
+      final query = _searchQuery.toLowerCase();
+      filtered = filtered.where((s) =>
+        s.name.toLowerCase().contains(query) ||
+        s.email.toLowerCase().contains(query) ||
+        (s.organization?.toLowerCase().contains(query) ?? false)
+      ).toList();
+    }
 
-      _filteredStakeholders = stakeholders;
-    });
+    return filtered;
   }
 
   @override
@@ -50,41 +47,101 @@ class _StakeholderListScreenState extends State<StakeholderListScreen> {
     return Scaffold(
       appBar: AppBar(
         title: const Text('Stakeholders'),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.filter_list),
-            onPressed: _showFilterDialog,
-          ),
-        ],
+        elevation: 0,
       ),
       body: Column(
         children: [
-          // Search bar
+          // Search bar with modern styling
           Padding(
             padding: const EdgeInsets.all(16),
             child: TextField(
               controller: _searchController,
               decoration: InputDecoration(
-                hintText: 'Search stakeholders...',
-                prefixIcon: const Icon(Icons.search),
+                hintText: 'Search Stakeholders',
+                hintStyle: TextStyle(color: Colors.grey[400]),
+                prefixIcon: Icon(Icons.search, color: Colors.grey[600]),
                 suffixIcon: _searchController.text.isNotEmpty
                     ? IconButton(
                         icon: const Icon(Icons.clear),
                         onPressed: () {
-                          _searchController.clear();
-                          _filterStakeholders();
+                          setState(() {
+                            _searchController.clear();
+                            _searchQuery = '';
+                          });
                         },
                       )
                     : null,
+                filled: true,
+                fillColor: Colors.grey[100],
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                  borderSide: BorderSide.none,
+                ),
+                contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
               ),
-              onChanged: (_) => _filterStakeholders(),
+              onChanged: (value) {
+                setState(() => _searchQuery = value);
+              },
             ),
           ),
 
-          // Filter chip
+          // Filter and Sort buttons with results count
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16),
+            child: StreamBuilder<List<StakeholderModel>>(
+              stream: _stakeholderService.stakeholdersStream,
+              builder: (context, snapshot) {
+                final count = snapshot.hasData ? _filterStakeholders(snapshot.data!).length : 0;
+                return Row(
+                  children: [
+                    OutlinedButton.icon(
+                      onPressed: _showFilterDialog,
+                      icon: const Icon(Icons.filter_list, size: 18),
+                      label: const Text('Filter'),
+                      style: OutlinedButton.styleFrom(
+                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    OutlinedButton.icon(
+                      onPressed: () {
+                        // TODO: Implement sort
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(content: Text('Sort coming soon!')),
+                        );
+                      },
+                      icon: const Icon(Icons.sort, size: 18),
+                      label: const Text('Sort'),
+                      style: OutlinedButton.styleFrom(
+                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                      ),
+                    ),
+                    const Spacer(),
+                    Text(
+                      '$count results',
+                      style: TextStyle(
+                        color: Colors.grey[600],
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                  ],
+                );
+              },
+            ),
+          ),
+          
+          const SizedBox(height: 8),
+
+          // Active filter chip
           if (_filterType != null)
             Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16),
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
               child: Align(
                 alignment: Alignment.centerLeft,
                 child: Chip(
@@ -92,16 +149,28 @@ class _StakeholderListScreenState extends State<StakeholderListScreen> {
                   deleteIcon: const Icon(Icons.close, size: 18),
                   onDeleted: () {
                     setState(() => _filterType = null);
-                    _filterStakeholders();
                   },
                 ),
               ),
             ),
 
-          // Stakeholders list
+          // Stakeholders list with StreamBuilder
           Expanded(
-            child: _filteredStakeholders.isEmpty
-                ? Center(
+            child: StreamBuilder<List<StakeholderModel>>(
+              stream: _stakeholderService.stakeholdersStream,
+              builder: (context, snapshot) {
+                if (snapshot.connectionState == ConnectionState.waiting) {
+                  return const Center(child: CircularProgressIndicator());
+                }
+
+                if (snapshot.hasError) {
+                  return Center(
+                    child: Text('Error: ${snapshot.error}'),
+                  );
+                }
+
+                if (!snapshot.hasData || snapshot.data!.isEmpty) {
+                  return Center(
                     child: Column(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
@@ -120,23 +189,55 @@ class _StakeholderListScreenState extends State<StakeholderListScreen> {
                         ),
                       ],
                     ),
-                  )
-                : ListView.builder(
-                    itemCount: _filteredStakeholders.length,
-                    itemBuilder: (context, index) {
-                      final stakeholder = _filteredStakeholders[index];
-                      return _StakeholderListItem(stakeholder: stakeholder);
-                    },
-                  ),
+                  );
+                }
+
+                final filteredStakeholders = _filterStakeholders(snapshot.data!);
+
+                if (filteredStakeholders.isEmpty) {
+                  return Center(
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(
+                          Icons.search_off,
+                          size: 64,
+                          color: Colors.grey[400],
+                        ),
+                        const SizedBox(height: 16),
+                        Text(
+                          'No matching stakeholders',
+                          style: TextStyle(
+                            fontSize: 16,
+                            color: Colors.grey[600],
+                          ),
+                        ),
+                      ],
+                    ),
+                  );
+                }
+
+                return ListView.builder(
+                  padding: const EdgeInsets.all(16),
+                  itemCount: filteredStakeholders.length,
+                  itemBuilder: (context, index) {
+                    final stakeholder = filteredStakeholders[index];
+                    return Padding(
+                      padding: const EdgeInsets.only(bottom: 12),
+                      child: _StakeholderCard(stakeholder: stakeholder),
+                    );
+                  },
+                );
+              },
+            ),
           ),
         ],
       ),
-      floatingActionButton: FloatingActionButton.extended(
+      floatingActionButton: FloatingActionButton(
         onPressed: () {
           Navigator.of(context).pushNamed('/stakeholder/create');
         },
-        icon: const Icon(Icons.person_add),
-        label: const Text('Add Stakeholder'),
+        child: const Icon(Icons.person_add),
       ),
     );
   }
@@ -146,34 +247,30 @@ class _StakeholderListScreenState extends State<StakeholderListScreen> {
       context: context,
       builder: (context) {
         return AlertDialog(
-          title: const Text('Filter Stakeholders'),
+          title: const Text('Filter by Type'),
+          contentPadding: const EdgeInsets.symmetric(vertical: 8),
           content: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              ListTile(
-                title: const Text('All Types'),
-                leading: Radio<StakeholderType?>(
-                  value: null,
+              _FilterOption(
+                title: 'All Types',
+                value: null,
+                groupValue: _filterType,
+                onChanged: (value) {
+                  setState(() => _filterType = value);
+                  Navigator.pop(context);
+                },
+              ),
+              const Divider(height: 1),
+              ...StakeholderType.values.map((type) {
+                return _FilterOption(
+                  title: type.name.replaceFirst(type.name[0], type.name[0].toUpperCase()),
+                  value: type,
                   groupValue: _filterType,
                   onChanged: (value) {
                     setState(() => _filterType = value);
-                    _filterStakeholders();
                     Navigator.pop(context);
                   },
-                ),
-              ),
-              ...StakeholderType.values.map((type) {
-                return ListTile(
-                  title: Text(type.name),
-                  leading: Radio<StakeholderType?>(
-                    value: type,
-                    groupValue: _filterType,
-                    onChanged: (value) {
-                      setState(() => _filterType = value);
-                      _filterStakeholders();
-                      Navigator.pop(context);
-                    },
-                  ),
                 );
               }),
             ],
@@ -184,53 +281,116 @@ class _StakeholderListScreenState extends State<StakeholderListScreen> {
   }
 }
 
-class _StakeholderListItem extends StatelessWidget {
+class _FilterOption extends StatelessWidget {
+  final String title;
+  final StakeholderType? value;
+  final StakeholderType? groupValue;
+  final ValueChanged<StakeholderType?> onChanged;
+
+  const _FilterOption({
+    required this.title,
+    required this.value,
+    required this.groupValue,
+    required this.onChanged,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return RadioListTile<StakeholderType?>(
+      title: Text(title),
+      value: value,
+      groupValue: groupValue,
+      onChanged: onChanged,
+      contentPadding: const EdgeInsets.symmetric(horizontal: 24),
+    );
+  }
+}
+
+class _StakeholderCard extends StatelessWidget {
   final StakeholderModel stakeholder;
 
-  const _StakeholderListItem({required this.stakeholder});
+  const _StakeholderCard({required this.stakeholder});
 
   @override
   Widget build(BuildContext context) {
     return Card(
-      child: ListTile(
-        leading: CircleAvatar(
-          backgroundColor: _getTypeColor(stakeholder.type),
-          child: Text(
-            stakeholder.name[0].toUpperCase(),
-            style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
-          ),
-        ),
-        title: Text(
-          stakeholder.name,
-          style: const TextStyle(fontWeight: FontWeight.bold),
-        ),
-        subtitle: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const SizedBox(height: 4),
-            if (stakeholder.organization != null)
-              Text(
-                stakeholder.organization!,
-                style: const TextStyle(fontSize: 13),
-              ),
-            Text(
-              stakeholder.email,
-              style: TextStyle(fontSize: 12, color: Colors.grey[600]),
-            ),
-            const SizedBox(height: 4),
-            Row(
-              children: [
-                _TypeChip(type: stakeholder.type),
-                const SizedBox(width: 8),
-                _StatusChip(status: stakeholder.participationStatus),
-              ],
-            ),
-          ],
-        ),
-        trailing: const Icon(Icons.chevron_right),
+      elevation: 0,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(12),
+        side: BorderSide(color: Colors.grey[200]!),
+      ),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(12),
         onTap: () {
           Navigator.of(context).pushNamed('/stakeholder/details', arguments: stakeholder.id);
         },
+        child: Padding(
+          padding: const EdgeInsets.all(16),
+          child: Row(
+            children: [
+              // Avatar with colored background
+              CircleAvatar(
+                radius: 28,
+                backgroundColor: _getTypeColor(stakeholder.type).withOpacity(0.15),
+                child: Icon(
+                  Icons.person,
+                  color: _getTypeColor(stakeholder.type),
+                  size: 28,
+                ),
+              ),
+              const SizedBox(width: 16),
+              // Info section
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      stakeholder.name,
+                      style: const TextStyle(
+                        fontWeight: FontWeight.bold,
+                        fontSize: 16,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    if (stakeholder.organization != null)
+                      Text(
+                        stakeholder.organization!,
+                        style: TextStyle(
+                          fontSize: 14,
+                          color: Colors.grey[700],
+                        ),
+                      ),
+                    const SizedBox(height: 6),
+                    Row(
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                          decoration: BoxDecoration(
+                            color: _getTypeColor(stakeholder.type).withOpacity(0.1),
+                            borderRadius: BorderRadius.circular(6),
+                            border: Border.all(
+                              color: _getTypeColor(stakeholder.type).withOpacity(0.3),
+                            ),
+                          ),
+                          child: Text(
+                            stakeholder.type.name,
+                            style: TextStyle(
+                              fontSize: 11,
+                              fontWeight: FontWeight.w600,
+                              color: _getTypeColor(stakeholder.type),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+              // Chevron icon
+              Icon(Icons.chevron_right, color: Colors.grey[400]),
+            ],
+          ),
+        ),
       ),
     );
   }

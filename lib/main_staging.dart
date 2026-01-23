@@ -14,10 +14,14 @@
 
 import 'package:flutter/material.dart';
 import 'config/app_config.dart';
+import 'services/services.dart';
 import 'app.dart';
 
-void main() {
+void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  
+  // Initialize Firebase
+  await FirebaseService.initialize();
   
   // Initialize staging configuration
   AppConfig.initialize(AppFlavor.staging);

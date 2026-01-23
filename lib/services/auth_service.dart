@@ -7,117 +7,110 @@
 // - Singleton pattern for service management
 //
 // Implementation Details:
-// - Mock authentication for development/testing (replace with Firebase in prod)
+// - Firebase Authentication integration
 // - StreamController for reactive auth state changes
 // - Singleton pattern ensures single auth instance across app
 // - Email/password validation before authentication
 //
-// Changes from standard patterns:
-// - Mock implementation returns immediate success for development
-// - Custom AuthException class instead of FirebaseAuthException
-// - Stream-based auth state management for reactive UI updates
-// - Auto-generates user IDs using timestamps (replace with server-side in prod)
-//
-// TODO for Production:
-// - Replace mock auth with Firebase Authentication
-// - Implement proper error handling with Firebase error codes
-// - Add OAuth providers (Google, Apple, Microsoft)
-// - Implement secure token storage
+// Reference: https://firebase.google.com/docs/auth/flutter/start
 // ==============================================================================
 
 import 'dart:async';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import '../models/models.dart';
 
-/// Mock authentication service for development
-/// Replace with Firebase Auth or other auth provider in production
+/// Firebase Authentication service
 class AuthService {
   static final AuthService _instance = AuthService._internal();
   factory AuthService() => _instance;
-  AuthService._internal() {
-    // Emit initial null state so StreamBuilder doesn't stay in waiting state
-    _authStateController.add(null);
-  }
+  AuthService._internal();
 
+  final FirebaseAuth _auth = FirebaseAuth.instance;
+  final FirebaseFirestore _firestore = FirebaseFirestore.instance;
+  
   UserModel? _currentUser;
-  final _authStateController = StreamController<UserModel?>.broadcast();
+  StreamSubscription<User?>? _authStateSubscription;
 
   /// Stream of authentication state changes.
   ///
   /// Listen to this stream to react to login/logout events.
   /// Emits `UserModel` when logged in, `null` when logged out.
-  ///
-  /// Example:
-  /// ```dart
-  /// authService.authStateChanges.listen((user) {
-  ///   if (user != null) {
-  ///     print('Logged in as ${user.email}');
-  ///   } else {
-  ///     print('Logged out');
-  ///   }
-  /// });
-  /// ```
-  Stream<UserModel?> get authStateChanges => _authStateController.stream;
+  Stream<UserModel?> get authStateChanges {
+    return _auth.authStateChanges().asyncMap((User? firebaseUser) async {
+      if (firebaseUser == null) {
+        _currentUser = null;
+        return null;
+      }
+      
+      // Fetch user data from Firestore
+      final userDoc = await _firestore.collection('users').doc(firebaseUser.uid).get();
+      
+      if (userDoc.exists) {
+        _currentUser = UserModel.fromJson({
+          'id': firebaseUser.uid,
+          ...userDoc.data()!,
+        });
+      } else {
+        // Create user document if it doesn't exist
+        _currentUser = UserModel(
+          id: firebaseUser.uid,
+          email: firebaseUser.email!,
+          displayName: firebaseUser.displayName ?? firebaseUser.email!.split('@').first,
+          role: UserRole.member,
+          permissions: UserModel.getDefaultPermissions(UserRole.member),
+          createdAt: DateTime.now(),
+          lastLoginAt: DateTime.now(),
+        );
+        
+        await _firestore.collection('users').doc(firebaseUser.uid).set(_currentUser!.toJson());
+      }
+      
+      return _currentUser;
+    });
+  }
 
   /// Returns the currently authenticated user, or `null` if not logged in.
-  ///
-  /// Use this to access user information throughout the app.
   UserModel? get currentUser => _currentUser;
 
   /// Returns `true` if a user is currently authenticated.
-  ///
-  /// Shorthand for `currentUser != null`.
   bool get isAuthenticated => _currentUser != null;
 
   /// Authenticates a user with email and password.
-  ///
-  /// Returns a [UserModel] on successful authentication.
-  /// Throws [AuthException] if authentication fails.
-  ///
-  /// Validates:
-  /// - Email and password are not empty
-  /// - Password is at least 6 characters
-  ///
-  /// Example:
-  /// ```dart
-  /// try {
-  ///   final user = await authService.signInWithEmailAndPassword(
-  ///     email: 'user@example.com',
-  ///     password: 'password123',
-  ///   );
-  ///   print('Welcome ${user.displayName}!');
-  /// } on AuthException catch (e) {
-  ///   print('Login failed: ${e.message}');
-  /// }
-  /// ```
   Future<UserModel> signInWithEmailAndPassword({
     required String email,
     required String password,
   }) async {
-    // Simulate network delay
-    await Future.delayed(const Duration(seconds: 1));
+    try {
+      if (email.isEmpty || password.isEmpty) {
+        throw AuthException('Email and password are required');
+      }
 
-    // Mock authentication - replace with actual auth logic
-    if (email.isEmpty || password.isEmpty) {
-      throw AuthException('Email and password are required');
+      if (password.length < 6) {
+        throw AuthException('Password must be at least 6 characters');
+      }
+
+      final userCredential = await _auth.signInWithEmailAndPassword(
+        email: email,
+        password: password,
+      );
+
+      // Update last login time
+      await _firestore.collection('users').doc(userCredential.user!.uid).update({
+        'lastLoginAt': FieldValue.serverTimestamp(),
+      });
+
+      // Fetch user data
+      final userDoc = await _firestore.collection('users').doc(userCredential.user!.uid).get();
+      _currentUser = UserModel.fromJson({
+        'id': userCredential.user!.uid,
+        ...userDoc.data()!,
+      });
+
+      return _currentUser!;
+    } on FirebaseAuthException catch (e) {
+      throw AuthException(_getAuthErrorMessage(e.code));
     }
-
-    if (password.length < 6) {
-      throw AuthException('Password must be at least 6 characters');
-    }
-
-    // Create mock user
-    _currentUser = UserModel(
-      id: 'user_${DateTime.now().millisecondsSinceEpoch}',
-      email: email,
-      displayName: email.split('@').first,
-      role: UserRole.member,
-      permissions: UserModel.getDefaultPermissions(UserRole.member),
-      createdAt: DateTime.now(),
-      lastLoginAt: DateTime.now(),
-    );
-
-    _authStateController.add(_currentUser);
-    return _currentUser!;
   }
 
   /// Sign up with email and password
@@ -126,51 +119,62 @@ class AuthService {
     required String password,
     required String displayName,
   }) async {
-    // Simulate network delay
-    await Future.delayed(const Duration(seconds: 1));
+    try {
+      if (email.isEmpty || password.isEmpty || displayName.isEmpty) {
+        throw AuthException('All fields are required');
+      }
 
-    // Validate input
-    if (email.isEmpty || password.isEmpty || displayName.isEmpty) {
-      throw AuthException('All fields are required');
+      if (!email.contains('@')) {
+        throw AuthException('Please enter a valid email');
+      }
+
+      if (password.length < 6) {
+        throw AuthException('Password must be at least 6 characters');
+      }
+
+      final userCredential = await _auth.createUserWithEmailAndPassword(
+        email: email,
+        password: password,
+      );
+
+      // Update display name
+      await userCredential.user!.updateDisplayName(displayName);
+
+      // Create user document in Firestore
+      _currentUser = UserModel(
+        id: userCredential.user!.uid,
+        email: email,
+        displayName: displayName,
+        role: UserRole.member,
+        permissions: UserModel.getDefaultPermissions(UserRole.member),
+        createdAt: DateTime.now(),
+        lastLoginAt: DateTime.now(),
+      );
+
+      await _firestore.collection('users').doc(userCredential.user!.uid).set(_currentUser!.toJson());
+
+      return _currentUser!;
+    } on FirebaseAuthException catch (e) {
+      throw AuthException(_getAuthErrorMessage(e.code));
     }
-
-    if (!email.contains('@')) {
-      throw AuthException('Please enter a valid email');
-    }
-
-    if (password.length < 6) {
-      throw AuthException('Password must be at least 6 characters');
-    }
-
-    // Create new user
-    _currentUser = UserModel(
-      id: 'user_${DateTime.now().millisecondsSinceEpoch}',
-      email: email,
-      displayName: displayName,
-      role: UserRole.member,
-      permissions: UserModel.getDefaultPermissions(UserRole.member),
-      createdAt: DateTime.now(),
-      lastLoginAt: DateTime.now(),
-    );
-
-    _authStateController.add(_currentUser);
-    return _currentUser!;
   }
 
   /// Sign out current user
   Future<void> signOut() async {
-    await Future.delayed(const Duration(milliseconds: 500));
+    await _auth.signOut();
     _currentUser = null;
-    _authStateController.add(null);
   }
 
   /// Reset password
   Future<void> resetPassword(String email) async {
-    await Future.delayed(const Duration(seconds: 1));
-    if (email.isEmpty || !email.contains('@')) {
-      throw AuthException('Please enter a valid email');
+    try {
+      if (email.isEmpty || !email.contains('@')) {
+        throw AuthException('Please enter a valid email');
+      }
+      await _auth.sendPasswordResetEmail(email: email);
+    } on FirebaseAuthException catch (e) {
+      throw AuthException(_getAuthErrorMessage(e.code));
     }
-    // In production, send password reset email
   }
 
   /// Update user profile
@@ -182,20 +186,52 @@ class AuthService {
       throw AuthException('User not authenticated');
     }
 
-    await Future.delayed(const Duration(milliseconds: 500));
+    final updates = <String, dynamic>{};
+    if (displayName != null) updates['displayName'] = displayName;
+    if (photoUrl != null) updates['photoUrl'] = photoUrl;
+
+    await _firestore.collection('users').doc(_currentUser!.id).update(updates);
+
+    if (displayName != null) {
+      await _auth.currentUser!.updateDisplayName(displayName);
+    }
+    if (photoUrl != null) {
+      await _auth.currentUser!.updatePhotoURL(photoUrl);
+    }
 
     _currentUser = _currentUser!.copyWith(
       displayName: displayName ?? _currentUser!.displayName,
       photoUrl: photoUrl ?? _currentUser!.photoUrl,
     );
 
-    _authStateController.add(_currentUser);
     return _currentUser!;
+  }
+
+  /// Get user-friendly error message
+  String _getAuthErrorMessage(String code) {
+    switch (code) {
+      case 'user-not-found':
+        return 'No user found with this email';
+      case 'wrong-password':
+        return 'Incorrect password';
+      case 'email-already-in-use':
+        return 'An account already exists with this email';
+      case 'weak-password':
+        return 'Password is too weak';
+      case 'invalid-email':
+        return 'Invalid email address';
+      case 'user-disabled':
+        return 'This account has been disabled';
+      case 'too-many-requests':
+        return 'Too many failed attempts. Please try again later';
+      default:
+        return 'Authentication failed. Please try again';
+    }
   }
 
   /// Dispose resources
   void dispose() {
-    _authStateController.close();
+    _authStateSubscription?.cancel();
   }
 }
 

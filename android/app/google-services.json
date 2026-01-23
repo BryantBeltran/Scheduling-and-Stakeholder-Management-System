@@ -1,0 +1,48 @@
+{
+  "project_info": {
+    "project_number": "144390773762",
+    "project_id": "stakeholder-management-367ba",
+    "storage_bucket": "stakeholder-management-367ba.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:144390773762:android:8b6a327dc3dd82971e5b1b",
+        "android_client_info": {
+          "package_name": "com.example.scheduling_and_stakeholder_management_system"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAvtHP3vh55MqiIDRfHk6dpHqAbDJbsCog"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    },
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:144390773762:android:d6c8cec64784e4f51e5b1b",
+        "android_client_info": {
+          "package_name": "com.example.scheduling_and_stakeholder_management_system.dev"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAvtHP3vh55MqiIDRfHk6dpHqAbDJbsCog"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
