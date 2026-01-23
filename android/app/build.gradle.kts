@@ -89,8 +89,7 @@ android {
         
         debug {
             // Debug builds are automatically signed with debug key
-            applicationIdSuffix = ".debug"
-            versionNameSuffix = "-debug"
+            // Note: No applicationIdSuffix to match Firebase configuration
         }
     }
 }

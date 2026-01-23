@@ -19,8 +19,14 @@ import 'app.dart';
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   
-  // Initialize Firebase
-  await FirebaseService.initialize();
+  try {
+    // Initialize Firebase
+    await FirebaseService.initialize();
+    debugPrint('Firebase initialized successfully');
+  } catch (e, stackTrace) {
+    debugPrint('Firebase initialization failed: $e');
+    debugPrint('Stack trace: $stackTrace');
+  }
   
   // Initialize development configuration
   AppConfig.initialize(AppFlavor.dev);
