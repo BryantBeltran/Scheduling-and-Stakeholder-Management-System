@@ -12,112 +12,115 @@ class ProfileScreen extends StatelessWidget {
     return Scaffold(
       appBar: AppBar(
         title: const Text('Profile'),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.settings),
-            onPressed: () {
-              // TODO: Navigate to settings
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(content: Text('Settings coming soon!')),
-              );
-            },
-          ),
-        ],
+        elevation: 0,
+        backgroundColor: Colors.transparent,
       ),
       body: ListView(
+        padding: const EdgeInsets.all(16),
         children: [
-          // Profile header
-          Container(
-            padding: const EdgeInsets.all(24),
-            child: Column(
-              children: [
-                CircleAvatar(
-                  radius: 50,
-                  backgroundColor: Theme.of(context).primaryColor,
-                  child: Text(
-                    user?.displayName[0].toUpperCase() ?? 'U',
+          // Profile header card
+          Card(
+            elevation: 0,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(16),
+              side: BorderSide(color: Colors.grey[200]!),
+            ),
+            child: Padding(
+              padding: const EdgeInsets.all(24),
+              child: Column(
+                children: [
+                  // Avatar
+                  Container(
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      border: Border.all(
+                        color: Theme.of(context).primaryColor.withOpacity(0.2),
+                        width: 3,
+                      ),
+                    ),
+                    child: CircleAvatar(
+                      radius: 50,
+                      backgroundColor: Theme.of(context).primaryColor.withOpacity(0.1),
+                      child: Text(
+                        user?.displayName[0].toUpperCase() ?? 'U',
+                        style: TextStyle(
+                          fontSize: 40,
+                          color: Theme.of(context).primaryColor,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  // Username
+                  Text(
+                    user?.displayName ?? 'Username',
                     style: const TextStyle(
-                      fontSize: 40,
-                      color: Colors.white,
+                      fontSize: 24,
                       fontWeight: FontWeight.bold,
                     ),
                   ),
-                ),
-                const SizedBox(height: 16),
-                Text(
-                  user?.displayName ?? 'User',
-                  style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                    fontWeight: FontWeight.bold,
+                  const SizedBox(height: 12),
+                  // Role badge
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+                    decoration: BoxDecoration(
+                      color: Theme.of(context).primaryColor,
+                      borderRadius: BorderRadius.circular(20),
+                    ),
+                    child: Text(
+                      user?.role.name.replaceFirst(
+                        user.role.name[0],
+                        user.role.name[0].toUpperCase(),
+                      ) ?? 'Member',
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontWeight: FontWeight.w600,
+                        fontSize: 14,
+                      ),
+                    ),
                   ),
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  user?.email ?? '',
-                  style: TextStyle(
-                    color: Colors.grey[600],
-                    fontSize: 16,
-                  ),
-                ),
-                const SizedBox(height: 8),
-                Chip(
-                  label: Text(user?.role.name ?? 'member'),
-                  backgroundColor: Theme.of(context).primaryColor.withAlpha(50),
-                ),
-              ],
+                ],
+              ),
             ),
           ),
 
-          const Divider(),
+          const SizedBox(height: 24),
 
           // Menu items
-          ListTile(
-            leading: const Icon(Icons.person_outline),
-            title: const Text('Edit Profile'),
-            trailing: const Icon(Icons.chevron_right),
+          _ProfileMenuItem(
+            icon: Icons.person_outline,
+            title: 'Edit Profile',
             onTap: () {
               ScaffoldMessenger.of(context).showSnackBar(
                 const SnackBar(content: Text('Edit profile coming soon!')),
               );
             },
           ),
-          
-          ListTile(
-            leading: const Icon(Icons.notifications_outlined),
-            title: const Text('Notifications'),
-            trailing: const Icon(Icons.chevron_right),
+          const SizedBox(height: 12),
+          _ProfileMenuItem(
+            icon: Icons.notifications_outlined,
+            title: 'Notifications',
             onTap: () {
               ScaffoldMessenger.of(context).showSnackBar(
                 const SnackBar(content: Text('Notifications settings coming soon!')),
               );
             },
           ),
-
-          ListTile(
-            leading: const Icon(Icons.security),
-            title: const Text('Privacy & Security'),
-            trailing: const Icon(Icons.chevron_right),
+          const SizedBox(height: 12),
+          _ProfileMenuItem(
+            icon: Icons.security,
+            title: 'Privacy & Security',
             onTap: () {
               ScaffoldMessenger.of(context).showSnackBar(
                 const SnackBar(content: Text('Privacy settings coming soon!')),
               );
             },
           ),
-
-          ListTile(
-            leading: const Icon(Icons.help_outline),
-            title: const Text('Help & Support'),
-            trailing: const Icon(Icons.chevron_right),
-            onTap: () {
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(content: Text('Help center coming soon!')),
-              );
-            },
-          ),
-
-          ListTile(
-            leading: const Icon(Icons.info_outline),
-            title: const Text('About'),
-            trailing: const Icon(Icons.chevron_right),
+          const SizedBox(height: 12),
+          _ProfileMenuItem(
+            icon: Icons.info_outline,
+            title: 'About',
             onTap: () {
               showAboutDialog(
                 context: context,
@@ -128,21 +131,22 @@ class ProfileScreen extends StatelessWidget {
             },
           ),
 
-          const Divider(),
+          const SizedBox(height: 24),
 
-          // Sign out
-          ListTile(
-            leading: const Icon(Icons.logout, color: Colors.red),
-            title: const Text(
-              'Sign Out',
-              style: TextStyle(color: Colors.red),
-            ),
+          // Sign out button
+          _ProfileMenuItem(
+            icon: Icons.logout,
+            title: 'Sign Out',
+            isDestructive: true,
             onTap: () async {
               final confirm = await showDialog<bool>(
                 context: context,
                 builder: (context) => AlertDialog(
                   title: const Text('Sign Out'),
                   content: const Text('Are you sure you want to sign out?'),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(16),
+                  ),
                   actions: [
                     TextButton(
                       onPressed: () => Navigator.pop(context, false),
@@ -150,6 +154,9 @@ class ProfileScreen extends StatelessWidget {
                     ),
                     TextButton(
                       onPressed: () => Navigator.pop(context, true),
+                      style: TextButton.styleFrom(
+                        foregroundColor: Colors.red,
+                      ),
                       child: const Text('Sign Out'),
                     ),
                   ],
@@ -164,9 +171,58 @@ class ProfileScreen extends StatelessWidget {
               }
             },
           ),
-
-          const SizedBox(height: 32),
         ],
+      ),
+    );
+  }
+}
+
+class _ProfileMenuItem extends StatelessWidget {
+  final IconData icon;
+  final String title;
+  final VoidCallback onTap;
+  final bool isDestructive;
+
+  const _ProfileMenuItem({
+    required this.icon,
+    required this.title,
+    required this.onTap,
+    this.isDestructive = false,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final color = isDestructive ? Colors.red : Colors.black87;
+    
+    return Card(
+      elevation: 0,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(12),
+        side: BorderSide(color: Colors.grey[200]!),
+      ),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(12),
+        onTap: onTap,
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+          child: Row(
+            children: [
+              Icon(icon, color: color),
+              const SizedBox(width: 16),
+              Expanded(
+                child: Text(
+                  title,
+                  style: TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w500,
+                    color: color,
+                  ),
+                ),
+              ),
+              Icon(Icons.chevron_right, color: Colors.grey[400]),
+            ],
+          ),
+        ),
       ),
     );
   }

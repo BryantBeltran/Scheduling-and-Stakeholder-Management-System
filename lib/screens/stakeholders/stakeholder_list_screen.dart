@@ -218,10 +218,14 @@ class _StakeholderListScreenState extends State<StakeholderListScreen> {
                 }
 
                 return ListView.builder(
+                  padding: const EdgeInsets.all(16),
                   itemCount: filteredStakeholders.length,
                   itemBuilder: (context, index) {
                     final stakeholder = filteredStakeholders[index];
-                    return _StakeholderListItem(stakeholder: stakeholder);
+                    return Padding(
+                      padding: const EdgeInsets.only(bottom: 12),
+                      child: _StakeholderCard(stakeholder: stakeholder),
+                    );
                   },
                 );
               },
@@ -229,12 +233,11 @@ class _StakeholderListScreenState extends State<StakeholderListScreen> {
           ),
         ],
       ),
-      floatingActionButton: FloatingActionButton.extended(
+      floatingActionButton: FloatingActionButton(
         onPressed: () {
           Navigator.of(context).pushNamed('/stakeholder/create');
         },
-        icon: const Icon(Icons.person_add),
-        label: const Text('Add Stakeholder'),
+        child: const Icon(Icons.person_add),
       ),
     );
   }
@@ -244,32 +247,30 @@ class _StakeholderListScreenState extends State<StakeholderListScreen> {
       context: context,
       builder: (context) {
         return AlertDialog(
-          title: const Text('Filter Stakeholders'),
+          title: const Text('Filter by Type'),
+          contentPadding: const EdgeInsets.symmetric(vertical: 8),
           content: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              ListTile(
-                title: const Text('All Types'),
-                leading: Radio<StakeholderType?>(
-                  value: null,
+              _FilterOption(
+                title: 'All Types',
+                value: null,
+                groupValue: _filterType,
+                onChanged: (value) {
+                  setState(() => _filterType = value);
+                  Navigator.pop(context);
+                },
+              ),
+              const Divider(height: 1),
+              ...StakeholderType.values.map((type) {
+                return _FilterOption(
+                  title: type.name.replaceFirst(type.name[0], type.name[0].toUpperCase()),
+                  value: type,
                   groupValue: _filterType,
                   onChanged: (value) {
                     setState(() => _filterType = value);
                     Navigator.pop(context);
                   },
-                ),
-              ),
-              ...StakeholderType.values.map((type) {
-                return ListTile(
-                  title: Text(type.name),
-                  leading: Radio<StakeholderType?>(
-                    value: type,
-                    groupValue: _filterType,
-                    onChanged: (value) {
-                      setState(() => _filterType = value);
-                      Navigator.pop(context);
-                    },
-                  ),
                 );
               }),
             ],
@@ -280,53 +281,116 @@ class _StakeholderListScreenState extends State<StakeholderListScreen> {
   }
 }
 
-class _StakeholderListItem extends StatelessWidget {
+class _FilterOption extends StatelessWidget {
+  final String title;
+  final StakeholderType? value;
+  final StakeholderType? groupValue;
+  final ValueChanged<StakeholderType?> onChanged;
+
+  const _FilterOption({
+    required this.title,
+    required this.value,
+    required this.groupValue,
+    required this.onChanged,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return RadioListTile<StakeholderType?>(
+      title: Text(title),
+      value: value,
+      groupValue: groupValue,
+      onChanged: onChanged,
+      contentPadding: const EdgeInsets.symmetric(horizontal: 24),
+    );
+  }
+}
+
+class _StakeholderCard extends StatelessWidget {
   final StakeholderModel stakeholder;
 
-  const _StakeholderListItem({required this.stakeholder});
+  const _StakeholderCard({required this.stakeholder});
 
   @override
   Widget build(BuildContext context) {
     return Card(
-      child: ListTile(
-        leading: CircleAvatar(
-          backgroundColor: _getTypeColor(stakeholder.type),
-          child: Text(
-            stakeholder.name[0].toUpperCase(),
-            style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
-          ),
-        ),
-        title: Text(
-          stakeholder.name,
-          style: const TextStyle(fontWeight: FontWeight.bold),
-        ),
-        subtitle: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const SizedBox(height: 4),
-            if (stakeholder.organization != null)
-              Text(
-                stakeholder.organization!,
-                style: const TextStyle(fontSize: 13),
-              ),
-            Text(
-              stakeholder.email,
-              style: TextStyle(fontSize: 12, color: Colors.grey[600]),
-            ),
-            const SizedBox(height: 4),
-            Row(
-              children: [
-                _TypeChip(type: stakeholder.type),
-                const SizedBox(width: 8),
-                _StatusChip(status: stakeholder.participationStatus),
-              ],
-            ),
-          ],
-        ),
-        trailing: const Icon(Icons.chevron_right),
+      elevation: 0,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(12),
+        side: BorderSide(color: Colors.grey[200]!),
+      ),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(12),
         onTap: () {
           Navigator.of(context).pushNamed('/stakeholder/details', arguments: stakeholder.id);
         },
+        child: Padding(
+          padding: const EdgeInsets.all(16),
+          child: Row(
+            children: [
+              // Avatar with colored background
+              CircleAvatar(
+                radius: 28,
+                backgroundColor: _getTypeColor(stakeholder.type).withOpacity(0.15),
+                child: Icon(
+                  Icons.person,
+                  color: _getTypeColor(stakeholder.type),
+                  size: 28,
+                ),
+              ),
+              const SizedBox(width: 16),
+              // Info section
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      stakeholder.name,
+                      style: const TextStyle(
+                        fontWeight: FontWeight.bold,
+                        fontSize: 16,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    if (stakeholder.organization != null)
+                      Text(
+                        stakeholder.organization!,
+                        style: TextStyle(
+                          fontSize: 14,
+                          color: Colors.grey[700],
+                        ),
+                      ),
+                    const SizedBox(height: 6),
+                    Row(
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                          decoration: BoxDecoration(
+                            color: _getTypeColor(stakeholder.type).withOpacity(0.1),
+                            borderRadius: BorderRadius.circular(6),
+                            border: Border.all(
+                              color: _getTypeColor(stakeholder.type).withOpacity(0.3),
+                            ),
+                          ),
+                          child: Text(
+                            stakeholder.type.name,
+                            style: TextStyle(
+                              fontSize: 11,
+                              fontWeight: FontWeight.w600,
+                              color: _getTypeColor(stakeholder.type),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+              // Chevron icon
+              Icon(Icons.chevron_right, color: Colors.grey[400]),
+            ],
+          ),
+        ),
       ),
     );
   }
