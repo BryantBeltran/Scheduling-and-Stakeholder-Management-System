@@ -47,23 +47,19 @@ class _StakeholderListScreenState extends State<StakeholderListScreen> {
     return Scaffold(
       appBar: AppBar(
         title: const Text('Stakeholders'),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.filter_list),
-            onPressed: _showFilterDialog,
-          ),
-        ],
+        elevation: 0,
       ),
       body: Column(
         children: [
-          // Search bar
+          // Search bar with modern styling
           Padding(
             padding: const EdgeInsets.all(16),
             child: TextField(
               controller: _searchController,
               decoration: InputDecoration(
-                hintText: 'Search stakeholders...',
-                prefixIcon: const Icon(Icons.search),
+                hintText: 'Search Stakeholders',
+                hintStyle: TextStyle(color: Colors.grey[400]),
+                prefixIcon: Icon(Icons.search, color: Colors.grey[600]),
                 suffixIcon: _searchController.text.isNotEmpty
                     ? IconButton(
                         icon: const Icon(Icons.clear),
@@ -75,6 +71,13 @@ class _StakeholderListScreenState extends State<StakeholderListScreen> {
                         },
                       )
                     : null,
+                filled: true,
+                fillColor: Colors.grey[100],
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                  borderSide: BorderSide.none,
+                ),
+                contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
               ),
               onChanged: (value) {
                 setState(() => _searchQuery = value);
@@ -82,10 +85,63 @@ class _StakeholderListScreenState extends State<StakeholderListScreen> {
             ),
           ),
 
-          // Filter chip
+          // Filter and Sort buttons with results count
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16),
+            child: StreamBuilder<List<StakeholderModel>>(
+              stream: _stakeholderService.stakeholdersStream,
+              builder: (context, snapshot) {
+                final count = snapshot.hasData ? _filterStakeholders(snapshot.data!).length : 0;
+                return Row(
+                  children: [
+                    OutlinedButton.icon(
+                      onPressed: _showFilterDialog,
+                      icon: const Icon(Icons.filter_list, size: 18),
+                      label: const Text('Filter'),
+                      style: OutlinedButton.styleFrom(
+                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    OutlinedButton.icon(
+                      onPressed: () {
+                        // TODO: Implement sort
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(content: Text('Sort coming soon!')),
+                        );
+                      },
+                      icon: const Icon(Icons.sort, size: 18),
+                      label: const Text('Sort'),
+                      style: OutlinedButton.styleFrom(
+                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                      ),
+                    ),
+                    const Spacer(),
+                    Text(
+                      '$count results',
+                      style: TextStyle(
+                        color: Colors.grey[600],
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                  ],
+                );
+              },
+            ),
+          ),
+          
+          const SizedBox(height: 8),
+
+          // Active filter chip
           if (_filterType != null)
             Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16),
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
               child: Align(
                 alignment: Alignment.centerLeft,
                 child: Chip(
