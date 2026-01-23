@@ -46,16 +46,6 @@ class HomeScreen extends StatefulWidget {
 
 class _HomeScreenState extends State<HomeScreen> {
   int _currentIndex = 0;
-  final _eventService = EventService();
-  final _stakeholderService = StakeholderService();
-
-  @override
-  void initState() {
-    super.initState();
-    // Initialize sample data
-    _eventService.initializeSampleData();
-    _stakeholderService.initializeSampleData();
-  }
 
   final List<Widget> _screens = const [
     DashboardScreen(),
@@ -120,86 +110,203 @@ class DashboardScreen extends StatelessWidget {
       ),
       body: RefreshIndicator(
         onRefresh: () async {
-          // TODO: Refresh data
+          // Firestore streams auto-refresh, just show feedback
           await Future.delayed(const Duration(seconds: 1));
         },
-        child: ListView(
-          padding: const EdgeInsets.all(16),
-          children: [
-            // Welcome card
-            Card(
-              child: Padding(
-                padding: const EdgeInsets.all(16),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
+        child: StreamBuilder<UserModel?>(
+          stream: authService.authStateChanges,
+          builder: (context, authSnapshot) {
+            final user = authSnapshot.data ?? authService.currentUser;
+            
+            return StreamBuilder<List<EventModel>>(
+              stream: eventService.eventsStream,
+              builder: (context, eventsSnapshot) {
+                return StreamBuilder<List<StakeholderModel>>(
+                  stream: stakeholderService.stakeholdersStream,
+                  builder: (context, stakeholdersSnapshot) {
+                    if (!eventsSnapshot.hasData || !stakeholdersSnapshot.hasData) {
+                      return const Center(child: CircularProgressIndicator());
+                    }
+
+                    final events = eventsSnapshot.data!;
+                    final stakeholders = stakeholdersSnapshot.data!;
+                    final now = DateTime.now();
+                    final upcomingEvents = events
+                        .where((e) => e.startTime.isAfter(now))
+                        .toList()
+                      ..sort((a, b) => a.startTime.compareTo(b.startTime));
+                    final completedEvents = events
+                        .where((e) => e.status == EventStatus.completed)
+                        .toList();
+
+                    return ListView(
+                      padding: const EdgeInsets.all(16),
                       children: [
-                        CircleAvatar(
-                          radius: 30,
-                          backgroundColor: Theme.of(context).primaryColor,
-                          child: Text(
-                            authService.currentUser?.displayName[0].toUpperCase() ?? 'U',
-                            style: const TextStyle(
-                              fontSize: 24,
-                              color: Colors.white,
-                              fontWeight: FontWeight.bold,
+                        // Welcome card
+                        Card(
+                          child: Padding(
+                            padding: const EdgeInsets.all(16),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Row(
+                                  children: [
+                                    CircleAvatar(
+                                      radius: 30,
+                                      backgroundColor: Theme.of(context).primaryColor,
+                                      child: Text(
+                                        user?.displayName[0].toUpperCase() ?? 'U',
+                                        style: const TextStyle(
+                                          fontSize: 24,
+                                          color: Colors.white,
+                                          fontWeight: FontWeight.bold,
+                                        ),
+                                      ),
+                                    ),
+                                    const SizedBox(width: 16),
+                                    Expanded(
+                                      child: Column(
+                                        crossAxisAlignment: CrossAxisAlignment.start,
+                                        children: [
+                                          Text(
+                                            'Welcome back,',
+                                            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                                              color: Colors.grey[600],
+                                            ),
+                                          ),
+                                          Text(
+                                            user?.displayName ?? 'User',
+                                            style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                                              fontWeight: FontWeight.bold,
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ],
                             ),
                           ),
                         ),
-                        const SizedBox(width: 16),
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                'Welcome back,',
-                                style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                                  color: Colors.grey[600],
-                                ),
-                              ),
-                              Text(
-                                authService.currentUser?.displayName ?? 'User',
-                                style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                                  fontWeight: FontWeight.bold,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ],
-                    ),
-                  ],
-                ),
-              ),
-            ),
-            const SizedBox(height: 16),
+                        const SizedBox(height: 16),
 
-            // Statistics
+                        // Statistics
+                        Row(
+                          children: [
+                            Expanded(
+                              child: _StatCard(
+                                icon: Icons.event,
+                                title: 'Total Events',
+                                value: '${events.length}',
+                                color: Colors.blue,
+                              ),
+                            ),
+                            const SizedBox(width: 12),
+                            Expanded(
+                              child: _StatCard(
+                                icon: Icons.people,
+                                title: 'Stakeholders',
+                                value: '${stakeholders.length}',
+                                color: Colors.green,
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 12),
+                        Row(
+                          children: [
+                            Expanded(
+                              child: _StatCard(
+                                icon: Icons.schedule,
+                                title: 'Upcoming',
+                                value: '${upcomingEvents.length}',
+                                color: Colors.orange,
+                              ),
+                            ),
+                            const SizedBox(width: 12),
+                            Expanded(
+                              child: _StatCard(
+                                icon: Icons.check_circle,
+                                title: 'Completed',
+                                value: '${completedEvents.length}',
+                                color: Colors.purple,
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 24),
+
+                        // Upcoming Events Section
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            Text(
+                              'Upcoming Events',
+                              style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                            TextButton(
+                              onPressed: () {
+                                // Navigate to events tab
+                                // Note: In production, use proper state management (Provider, Riverpod, etc.)
+                                // to control navigation between tabs
+                              },
+                              child: const Text('View All'),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 8),
+
+                        // Upcoming events list
+                        ...upcomingEvents.take(3).map((event) {
+                          return _EventCard(event: event);
+                        }),
+
+                        if (upcomingEvents.isEmpty)
+                          Center(
+                            child: Padding(
+                              padding: const EdgeInsets.all(32),
+                              child: Column(
+                                children: [
+                                  Icon(
+                                    Icons.event_busy,
+                                    size: 64,
+                                    color: Colors.grey[400],
+                                  ),
+                                  const SizedBox(height: 16),
+                                  Text(
+                                    'No upcoming events',
+                                    style: TextStyle(
+                                      fontSize: 16,
+                                      color: Colors.grey[600],
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
+                      ],
+                    );
+                  },
+                );
+              },
+            );
+          },
+        ),
+      ),
+      floatingActionButton: FloatingActionButton(
+        onPressed: () {
+          Navigator.of(context).pushNamed('/event/create');
+        },
+        child: const Icon(Icons.add),
+      ),
+    );
+  }
+}
             Row(
-              children: [
-                Expanded(
-                  child: _StatCard(
-                    icon: Icons.event,
-                    title: 'Total Events',
-                    value: '${eventService.events.length}',
-                    color: Colors.blue,
-                  ),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: _StatCard(
-                    icon: Icons.people,
-                    title: 'Stakeholders',
-                    value: '${stakeholderService.stakeholders.length}',
-                    color: Colors.green,
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 12),
-            Row(
-              children: [
+              children = [
                 Expanded(
                   child: _StatCard(
                     icon: Icons.schedule,
@@ -219,12 +326,12 @@ class DashboardScreen extends StatelessWidget {
                 ),
               ],
             ),
-            const SizedBox(height: 24),
+            SizedBox(height = 24),
 
             // Upcoming Events Section
             Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
+              mainAxisAlignment = MainAxisAlignment.spaceBetween,
+              children = [
                 Text(
                   'Upcoming Events',
                   style: Theme.of(context).textTheme.titleLarge?.copyWith(
@@ -241,16 +348,16 @@ class DashboardScreen extends StatelessWidget {
                 ),
               ],
             ),
-            const SizedBox(height: 8),
+            SizedBox(height = 8),
 
             // Upcoming events list
-            ...eventService.getUpcomingEvents(limit: 3).map((event) {
+            ...eventService.getUpcomingEvents(limit = 3).map((event) {
               return _EventCard(event: event);
             }),
 
-            if (eventService.getUpcomingEvents().isEmpty)
+            if (eventService.getUpcomingEvents Function() .isEmpty)
               Center(
-                child: Padding(
+                child = Padding(
                   padding: const EdgeInsets.all(32),
                   child: Column(
                     children: [
@@ -275,10 +382,10 @@ class DashboardScreen extends StatelessWidget {
         ),
       ),
       floatingActionButton: FloatingActionButton(
-        onPressed: () {
+        onPressed = () {
           Navigator.of(context).pushNamed('/event/create');
         },
-        child: const Icon(Icons.add),
+        child = const Icon(Icons.add),
       ),
     );
   }

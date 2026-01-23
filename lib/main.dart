@@ -56,13 +56,17 @@
 
 import 'package:flutter/material.dart';
 import 'config/app_config.dart';
+import 'services/services.dart';
 import 'app.dart';
 
 /// Default entry point - runs in production mode.
 /// 
 /// For development, use: flutter run --flavor dev -t lib/main_dev.dart
-void main() {
+void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  
+  // Initialize Firebase
+  await FirebaseService.initialize();
   
   // Default to production configuration
   AppConfig.initialize(AppFlavor.prod);
