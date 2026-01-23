@@ -137,6 +137,3 @@ flutter test
 flutter test --coverage
 ```
 
-## License
-
-MIT License
