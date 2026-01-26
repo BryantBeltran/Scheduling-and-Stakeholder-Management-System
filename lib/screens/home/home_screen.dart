@@ -139,8 +139,8 @@ class DashboardScreen extends StatelessWidget {
                   radius: 18,
                   backgroundColor: Theme.of(context).primaryColor.withOpacity(0.1),
                   child: Text(
-                    (user?.displayName?.isNotEmpty ?? false) 
-                        ? user!.displayName![0].toUpperCase() 
+                    (user?.displayName.isNotEmpty ?? false) 
+                        ? user!.displayName[0].toUpperCase() 
                         : 'U',
                     style: TextStyle(
                       color: Theme.of(context).primaryColor,

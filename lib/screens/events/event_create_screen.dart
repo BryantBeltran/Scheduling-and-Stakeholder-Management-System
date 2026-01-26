@@ -20,8 +20,8 @@ class _EventCreateScreenState extends State<EventCreateScreen> {
   TimeOfDay? _selectedTime;
   DateTime? _selectedEndDate;
   TimeOfDay? _selectedEndTime;
-  EventStatus _selectedStatus = EventStatus.draft;
-  EventPriority _selectedPriority = EventPriority.medium;
+  final EventStatus _selectedStatus = EventStatus.draft;
+  final EventPriority _selectedPriority = EventPriority.medium;
   
   bool _isLoading = false;
   final _eventService = EventService();

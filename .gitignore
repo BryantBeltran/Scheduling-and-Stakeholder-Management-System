@@ -38,6 +38,12 @@ Thumbs.db
 .pub/
 /build/
 /coverage/
+.melos_tool/
+generated_plugin_registrant.dart
+.packages
+.pub/
+build/
+.flutter-plugins
 
 # Symbolication related
 app.*.symbols
