@@ -53,13 +53,12 @@ class _EventListScreenState extends State<EventListScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Events'),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.filter_list),
-            onPressed: _showFilterDialog,
-          ),
-        ],
+        title: const Text(
+          'Create/ Edit Events',
+          style: TextStyle(fontWeight: FontWeight.bold, fontSize: 24),
+        ),
+        centerTitle: true,
+        elevation: 0,
       ),
       body: Column(
         children: [
@@ -69,8 +68,9 @@ class _EventListScreenState extends State<EventListScreen> {
             child: TextField(
               controller: _searchController,
               decoration: InputDecoration(
-                hintText: 'Search events...',
-                prefixIcon: const Icon(Icons.search),
+                hintText: 'Search Events...',
+                hintStyle: TextStyle(color: Colors.grey[400]),
+                prefixIcon: Icon(Icons.search, color: Colors.grey[600]),
                 suffixIcon: _searchController.text.isNotEmpty
                     ? IconButton(
                         icon: const Icon(Icons.clear),
@@ -80,27 +80,76 @@ class _EventListScreenState extends State<EventListScreen> {
                         },
                       )
                     : null,
+                filled: true,
+                fillColor: Colors.grey[100],
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                  borderSide: BorderSide.none,
+                ),
+                contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
               ),
               onChanged: (_) => _filterEvents(),
             ),
           ),
 
-          // Filter chip
-          if (_filterStatus != null)
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16),
-              child: Align(
-                alignment: Alignment.centerLeft,
-                child: Chip(
-                  label: Text('Status: ${_filterStatus!.name}'),
-                  deleteIcon: const Icon(Icons.close, size: 18),
-                  onDeleted: () {
-                    setState(() => _filterStatus = null);
-                    _filterEvents();
-                  },
+          // Filter and Sort buttons with results count
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16),
+            child: Row(
+              children: [
+                OutlinedButton(
+                  onPressed: _showFilterDialog,
+                  style: OutlinedButton.styleFrom(
+                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: const [
+                      Text('Filter'),
+                      SizedBox(width: 4),
+                      Icon(Icons.keyboard_arrow_down, size: 18),
+                    ],
+                  ),
                 ),
-              ),
+                const SizedBox(width: 12),
+                OutlinedButton(
+                  onPressed: () {
+                    // TODO: Implement sort
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(content: Text('Sort coming soon!')),
+                    );
+                  },
+                  style: OutlinedButton.styleFrom(
+                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: const [
+                      Text('Sort'),
+                      SizedBox(width: 4),
+                      Icon(Icons.keyboard_arrow_down, size: 18),
+                    ],
+                  ),
+                ),
+                const Spacer(),
+                Text(
+                  '${_filteredEvents.length} results',
+                  style: TextStyle(
+                    color: Colors.grey[600],
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+              ],
             ),
+          ),
+          
+          const SizedBox(height: 8),
 
           // Events list
           Expanded(
@@ -126,21 +175,32 @@ class _EventListScreenState extends State<EventListScreen> {
                     ),
                   )
                 : ListView.builder(
+                    padding: const EdgeInsets.all(16),
                     itemCount: _filteredEvents.length,
                     itemBuilder: (context, index) {
                       final event = _filteredEvents[index];
-                      return _EventListItem(event: event);
+                      return Padding(
+                        padding: const EdgeInsets.only(bottom: 12),
+                        child: _EventListItem(event: event),
+                      );
                     },
                   ),
           ),
         ],
       ),
-      floatingActionButton: FloatingActionButton.extended(
-        onPressed: () {
-          Navigator.of(context).pushNamed('/event/create');
-        },
-        icon: const Icon(Icons.add),
-        label: const Text('New Event'),
+      floatingActionButton: Container(
+        margin: const EdgeInsets.only(bottom: 16, right: 16),
+        child: FloatingActionButton.extended(
+          onPressed: () {
+            Navigator.of(context).pushNamed('/event/create');
+          },
+          backgroundColor: Colors.grey[800],
+          icon: const Icon(Icons.add, color: Colors.white),
+          label: const Text(
+            'New Event',
+            style: TextStyle(color: Colors.white),
+          ),
+        ),
       ),
     );
   }
@@ -195,60 +255,108 @@ class _EventListItem extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final duration = event.endTime.difference(event.startTime).inDays;
+    final isUrgent = event.priority == EventPriority.urgent;
+    
     return Card(
-      child: ListTile(
-        leading: Container(
-          width: 4,
-          decoration: BoxDecoration(
-            color: _getPriorityColor(event.priority),
-            borderRadius: BorderRadius.circular(2),
-          ),
-        ),
-        title: Text(
-          event.title,
-          style: const TextStyle(fontWeight: FontWeight.bold),
-        ),
-        subtitle: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const SizedBox(height: 4),
-            Row(
-              children: [
-                _StatusChip(status: event.status),
-                const SizedBox(width: 8),
-                _PriorityChip(priority: event.priority),
-              ],
-            ),
-            const SizedBox(height: 4),
-            Row(
-              children: [
-                const Icon(Icons.access_time, size: 14, color: Colors.grey),
-                const SizedBox(width: 4),
-                Text(
-                  _formatDate(event.startTime),
-                  style: const TextStyle(fontSize: 12),
-                ),
-              ],
-            ),
-            Row(
-              children: [
-                const Icon(Icons.location_on, size: 14, color: Colors.grey),
-                const SizedBox(width: 4),
-                Expanded(
-                  child: Text(
-                    event.location.name,
-                    style: const TextStyle(fontSize: 12),
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                ),
-              ],
-            ),
-          ],
-        ),
-        trailing: const Icon(Icons.chevron_right),
+      elevation: 0,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(12),
+        side: BorderSide(color: Colors.grey[200]!),
+      ),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(12),
         onTap: () {
           Navigator.of(context).pushNamed('/event/details', arguments: event.id);
         },
+        child: Row(
+          children: [
+            Container(
+              width: 4,
+              height: 100,
+              decoration: BoxDecoration(
+                color: _getPriorityColor(event.priority),
+                borderRadius: const BorderRadius.only(
+                  topLeft: Radius.circular(12),
+                  bottomLeft: Radius.circular(12),
+                ),
+              ),
+            ),
+            Expanded(
+              child: Padding(
+                padding: const EdgeInsets.all(16),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Expanded(
+                          child: Text(
+                            '${event.title} ${duration > 0 ? "${duration}d" : ""}',
+                            style: const TextStyle(
+                              fontWeight: FontWeight.bold,
+                              fontSize: 16,
+                            ),
+                          ),
+                        ),
+                        const Icon(Icons.chevron_right, color: Colors.grey),
+                      ],
+                    ),
+                    const SizedBox(height: 8),
+                    Text(
+                      event.location.isVirtual ? 'Virtual Meeting' : 'Physical Meeting',
+                      style: TextStyle(
+                        fontSize: 14,
+                        color: Colors.grey[600],
+                      ),
+                    ),
+                    if (isUrgent) ...[
+                      const SizedBox(height: 4),
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                        decoration: BoxDecoration(
+                          color: Colors.grey[200],
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: Text(
+                          'Urgent',
+                          style: TextStyle(
+                            fontSize: 11,
+                            color: Colors.grey[700],
+                          ),
+                        ),
+                      ),
+                    ],
+                    const SizedBox(height: 8),
+                    Row(
+                      children: [
+                        Icon(Icons.access_time, size: 14, color: Colors.grey[600]),
+                        const SizedBox(width: 4),
+                        Text(
+                          'Time',
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: Colors.grey[600],
+                          ),
+                        ),
+                        const SizedBox(width: 16),
+                        Icon(Icons.location_on, size: 14, color: Colors.grey[600]),
+                        const SizedBox(width: 4),
+                        Text(
+                          'Location',
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: Colors.grey[600],
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -266,16 +374,6 @@ class _EventListItem extends StatelessWidget {
     }
   }
 
-  String _formatDate(DateTime dateTime) {
-    return '${dateTime.month}/${dateTime.day}/${dateTime.year} ${_formatTime(dateTime)}';
-  }
-
-  String _formatTime(DateTime dateTime) {
-    final hour = dateTime.hour > 12 ? dateTime.hour - 12 : (dateTime.hour == 0 ? 12 : dateTime.hour);
-    final period = dateTime.hour >= 12 ? 'PM' : 'AM';
-    final minute = dateTime.minute.toString().padLeft(2, '0');
-    return '$hour:$minute $period';
-  }
 }
 
 class _StatusChip extends StatelessWidget {

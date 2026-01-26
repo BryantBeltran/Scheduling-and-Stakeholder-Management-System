@@ -11,18 +11,17 @@ class ProfileScreen extends StatelessWidget {
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Profile'),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.settings),
-            onPressed: () {
-              // TODO: Navigate to settings
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(content: Text('Settings coming soon!')),
-              );
-            },
-          ),
-        ],
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back),
+          onPressed: () => Navigator.of(context).pop(),
+        ),
+        title: const Text(
+          'Profile',
+          style: TextStyle(fontWeight: FontWeight.bold, fontSize: 24),
+        ),
+        centerTitle: true,
+        elevation: 0,
+        backgroundColor: Colors.transparent,
       ),
       body: ListView(
         children: [
@@ -35,7 +34,9 @@ class ProfileScreen extends StatelessWidget {
                   radius: 50,
                   backgroundColor: Theme.of(context).primaryColor,
                   child: Text(
-                    user?.displayName[0].toUpperCase() ?? 'U',
+                    (user?.displayName?.isNotEmpty ?? false) 
+                        ? user!.displayName![0].toUpperCase() 
+                        : 'U',
                     style: const TextStyle(
                       fontSize: 40,
                       color: Colors.white,
@@ -43,11 +44,21 @@ class ProfileScreen extends StatelessWidget {
                     ),
                   ),
                 ),
-                const SizedBox(height: 16),
-                Text(
-                  user?.displayName ?? 'User',
-                  style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                    fontWeight: FontWeight.bold,
+                const SizedBox(height: 12),
+                // Role badge
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFB2DFDB), // Light blue-green
+                    borderRadius: BorderRadius.circular(20),
+                  ),
+                  child: const Text(
+                    'Member',
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontWeight: FontWeight.w600,
+                      fontSize: 14,
+                    ),
                   ),
                 ),
                 const SizedBox(height: 4),
@@ -70,73 +81,67 @@ class ProfileScreen extends StatelessWidget {
           const Divider(),
 
           // Menu items
-          ListTile(
-            leading: const Icon(Icons.person_outline),
-            title: const Text('Edit Profile'),
-            trailing: const Icon(Icons.chevron_right),
-            onTap: () {
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(content: Text('Edit profile coming soon!')),
-              );
-            },
-          ),
-          
-          ListTile(
-            leading: const Icon(Icons.notifications_outlined),
-            title: const Text('Notifications'),
-            trailing: const Icon(Icons.chevron_right),
-            onTap: () {
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(content: Text('Notifications settings coming soon!')),
-              );
-            },
-          ),
-
-          ListTile(
-            leading: const Icon(Icons.security),
-            title: const Text('Privacy & Security'),
-            trailing: const Icon(Icons.chevron_right),
-            onTap: () {
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(content: Text('Privacy settings coming soon!')),
-              );
-            },
-          ),
-
-          ListTile(
-            leading: const Icon(Icons.help_outline),
-            title: const Text('Help & Support'),
-            trailing: const Icon(Icons.chevron_right),
-            onTap: () {
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(content: Text('Help center coming soon!')),
-              );
-            },
-          ),
-
-          ListTile(
-            leading: const Icon(Icons.info_outline),
-            title: const Text('About'),
-            trailing: const Icon(Icons.chevron_right),
-            onTap: () {
-              showAboutDialog(
-                context: context,
-                applicationName: 'Scheduling & Stakeholder Management',
-                applicationVersion: '1.0.0',
-                applicationIcon: const Icon(Icons.schedule, size: 48),
-              );
-            },
+          Container(
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: Colors.grey[200]!),
+            ),
+            child: Column(
+              children: [
+                _ProfileMenuItem(
+                  icon: Icons.person_outline,
+                  title: 'Edit Profile',
+                  onTap: () {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(content: Text('Edit profile coming soon!')),
+                    );
+                  },
+                ),
+                Divider(height: 1, color: Colors.grey[200]),
+                _ProfileMenuItem(
+                  icon: Icons.notifications_outlined,
+                  title: 'Notifications',
+                  onTap: () {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(content: Text('Notifications settings coming soon!')),
+                    );
+                  },
+                ),
+                Divider(height: 1, color: Colors.grey[200]),
+                _ProfileMenuItem(
+                  icon: Icons.security,
+                  title: 'Privacy & Security',
+                  onTap: () {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(content: Text('Privacy settings coming soon!')),
+                    );
+                  },
+                ),
+                Divider(height: 1, color: Colors.grey[200]),
+                _ProfileMenuItem(
+                  icon: Icons.info_outline,
+                  title: 'About',
+                  onTap: () {
+                    showAboutDialog(
+                      context: context,
+                      applicationName: 'Scheduling & Stakeholder Management',
+                      applicationVersion: '1.0.0',
+                      applicationIcon: const Icon(Icons.schedule, size: 48),
+                    );
+                  },
+                ),
+              ],
+            ),
           ),
 
           const Divider(),
 
-          // Sign out
-          ListTile(
-            leading: const Icon(Icons.logout, color: Colors.red),
-            title: const Text(
-              'Sign Out',
-              style: TextStyle(color: Colors.red),
-            ),
+          // Sign out button
+          _ProfileMenuItem(
+            icon: Icons.exit_to_app,
+            title: 'Sign Out',
+            isDestructive: true,
             onTap: () async {
               final confirm = await showDialog<bool>(
                 context: context,
@@ -167,6 +172,56 @@ class ProfileScreen extends StatelessWidget {
 
           const SizedBox(height: 32),
         ],
+      ),
+    );
+  }
+}
+
+class _ProfileMenuItem extends StatelessWidget {
+  final IconData icon;
+  final String title;
+  final VoidCallback onTap;
+  final bool isDestructive;
+
+  const _ProfileMenuItem({
+    required this.icon,
+    required this.title,
+    required this.onTap,
+    this.isDestructive = false,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final color = isDestructive ? Colors.red : Colors.black87;
+    
+    return Container(
+      decoration: BoxDecoration(
+        border: Border(
+          bottom: BorderSide(color: Colors.grey[200]!),
+        ),
+      ),
+      child: InkWell(
+        onTap: onTap,
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+          child: Row(
+            children: [
+              Icon(icon, color: color),
+              const SizedBox(width: 16),
+              Expanded(
+                child: Text(
+                  title,
+                  style: TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w500,
+                    color: color,
+                  ),
+                ),
+              ),
+              Icon(Icons.chevron_right, color: Colors.grey[400]),
+            ],
+          ),
+        ),
       ),
     );
   }

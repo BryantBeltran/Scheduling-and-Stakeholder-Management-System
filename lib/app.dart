@@ -16,6 +16,7 @@ import 'screens/auth/register_password_screen.dart';
 import 'screens/auth/forgot_password_screen.dart';
 import 'screens/home/home_screen.dart';
 import 'screens/dev/dev_screen_navigator.dart';
+import 'screens/events/event_create_screen.dart';
 import 'services/services.dart';
 import 'models/models.dart';
 
@@ -42,6 +43,7 @@ class SchedulingApp extends StatelessWidget {
         '/register': (context) => const RegisterScreen(),
         '/forgot-password': (context) => const ForgotPasswordScreen(),
         '/home': (context) => const HomeScreen(),
+        '/event/create': (context) => const EventCreateScreen(),
       },
       onGenerateRoute: (settings) {
         if (settings.name == '/register-password') {

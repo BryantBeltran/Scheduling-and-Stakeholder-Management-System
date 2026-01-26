@@ -71,22 +71,25 @@ class _HomeScreenState extends State<HomeScreen> {
       bottomNavigationBar: BottomNavigationBar(
         currentIndex: _currentIndex,
         onTap: (index) => setState(() => _currentIndex = index),
+        type: BottomNavigationBarType.fixed,
+        selectedItemColor: Colors.black,
+        unselectedItemColor: Colors.grey,
         items: const [
           BottomNavigationBarItem(
-            icon: Icon(Icons.dashboard),
-            label: 'Dashboard',
+            icon: Icon(Icons.home),
+            label: '',
           ),
           BottomNavigationBarItem(
-            icon: Icon(Icons.event),
-            label: 'Events',
+            icon: Icon(Icons.calendar_today),
+            label: '',
           ),
           BottomNavigationBarItem(
             icon: Icon(Icons.people),
-            label: 'Stakeholders',
+            label: '',
           ),
           BottomNavigationBarItem(
             icon: Icon(Icons.person),
-            label: 'Profile',
+            label: '',
           ),
         ],
       ),
@@ -105,7 +108,17 @@ class DashboardScreen extends StatelessWidget {
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Dashboard'),
+        leading: IconButton(
+          icon: const Icon(Icons.menu),
+          onPressed: () {
+            // TODO: Open drawer/menu
+          },
+        ),
+        title: const Text(
+          'Dashboard',
+          style: TextStyle(fontWeight: FontWeight.bold, fontSize: 24),
+        ),
+        centerTitle: true,
         actions: [
           IconButton(
             icon: const Icon(Icons.notifications_outlined),
@@ -116,6 +129,28 @@ class DashboardScreen extends StatelessWidget {
               );
             },
           ),
+          Padding(
+            padding: const EdgeInsets.only(right: 8.0),
+            child: StreamBuilder<UserModel?>(
+              stream: authService.authStateChanges,
+              builder: (context, snapshot) {
+                final user = snapshot.data ?? authService.currentUser;
+                return CircleAvatar(
+                  radius: 18,
+                  backgroundColor: Theme.of(context).primaryColor.withOpacity(0.1),
+                  child: Text(
+                    (user?.displayName?.isNotEmpty ?? false) 
+                        ? user!.displayName![0].toUpperCase() 
+                        : 'U',
+                    style: TextStyle(
+                      color: Theme.of(context).primaryColor,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                );
+              },
+            ),
+          ),
         ],
       ),
       body: RefreshIndicator(
@@ -123,162 +158,195 @@ class DashboardScreen extends StatelessWidget {
           // TODO: Refresh data
           await Future.delayed(const Duration(seconds: 1));
         },
-        child: ListView(
-          padding: const EdgeInsets.all(16),
-          children: [
-            // Welcome card
-            Card(
-              child: Padding(
-                padding: const EdgeInsets.all(16),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
+        child: StreamBuilder<UserModel?>(
+          stream: authService.authStateChanges,
+          builder: (context, authSnapshot) {
+            final user = authSnapshot.data ?? authService.currentUser;
+            
+            return StreamBuilder<List<EventModel>>(
+              stream: eventService.eventsStream,
+              builder: (context, eventsSnapshot) {
+                return StreamBuilder<List<StakeholderModel>>(
+                  stream: stakeholderService.stakeholdersStream,
+                  builder: (context, stakeholdersSnapshot) {
+                    if (!eventsSnapshot.hasData || !stakeholdersSnapshot.hasData) {
+                      return const Center(child: CircularProgressIndicator());
+                    }
+
+                    final events = eventsSnapshot.data!;
+                    final stakeholders = stakeholdersSnapshot.data!;
+                    final now = DateTime.now();
+                    final upcomingEvents = events
+                        .where((e) => e.startTime.isAfter(now))
+                        .toList()
+                      ..sort((a, b) => a.startTime.compareTo(b.startTime));
+                    final completedEvents = events
+                        .where((e) => e.status == EventStatus.completed)
+                        .toList();
+
+                    return ListView(
+                      padding: const EdgeInsets.all(16),
                       children: [
-                        CircleAvatar(
-                          radius: 30,
-                          backgroundColor: Theme.of(context).primaryColor,
-                          child: Text(
-                            authService.currentUser?.displayName[0].toUpperCase() ?? 'U',
-                            style: const TextStyle(
-                              fontSize: 24,
-                              color: Colors.white,
-                              fontWeight: FontWeight.bold,
+                        // Statistics - Top Row
+                        Row(
+                          children: [
+                            Expanded(
+                              child: _StatCard(
+                                icon: Icons.calendar_today,
+                                title: 'Total Events',
+                                value: '${events.length}',
+                                color: Colors.blue,
+                              ),
                             ),
-                          ),
+                            const SizedBox(width: 12),
+                            Expanded(
+                              child: _StatCard(
+                                icon: Icons.people,
+                                title: 'Stakeholders',
+                                value: '${stakeholders.length}',
+                                color: Colors.green,
+                              ),
+                            ),
+                          ],
                         ),
-                        const SizedBox(width: 16),
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
+                        const SizedBox(height: 12),
+                        // Statistics - Combined Upcoming/Completed Card
+                        Card(
+                          elevation: 0,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12),
+                            side: BorderSide(color: Colors.grey[200]!),
+                          ),
+                          child: Row(
                             children: [
-                              Text(
-                                'Welcome back,',
-                                style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                                  color: Colors.grey[600],
+                              Expanded(
+                                child: Padding(
+                                  padding: const EdgeInsets.all(16),
+                                  child: Row(
+                                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                    children: [
+                                      Column(
+                                        crossAxisAlignment: CrossAxisAlignment.start,
+                                        children: [
+                                          Text(
+                                            'Upcoming',
+                                            style: TextStyle(
+                                              fontSize: 14,
+                                              color: Colors.grey[600],
+                                            ),
+                                          ),
+                                          const SizedBox(height: 4),
+                                          Text(
+                                            '${upcomingEvents.length}',
+                                            style: const TextStyle(
+                                              fontSize: 24,
+                                              fontWeight: FontWeight.bold,
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                      Icon(
+                                        Icons.access_time,
+                                        color: Colors.orange,
+                                        size: 32,
+                                      ),
+                                    ],
+                                  ),
                                 ),
                               ),
-                              Text(
-                                authService.currentUser?.displayName ?? 'User',
-                                style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                                  fontWeight: FontWeight.bold,
+                              Container(
+                                width: 1,
+                                height: 60,
+                                color: Colors.grey[300],
+                              ),
+                              Expanded(
+                                child: Padding(
+                                  padding: const EdgeInsets.all(16),
+                                  child: Row(
+                                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                    children: [
+                                      Column(
+                                        crossAxisAlignment: CrossAxisAlignment.start,
+                                        children: [
+                                          Text(
+                                            'Completed',
+                                            style: TextStyle(
+                                              fontSize: 14,
+                                              color: Colors.grey[600],
+                                            ),
+                                          ),
+                                          const SizedBox(height: 4),
+                                          Text(
+                                            '${completedEvents.length}',
+                                            style: const TextStyle(
+                                              fontSize: 24,
+                                              fontWeight: FontWeight.bold,
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                      Icon(
+                                        Icons.check_circle,
+                                        color: Colors.purple,
+                                        size: 32,
+                                      ),
+                                    ],
+                                  ),
                                 ),
                               ),
                             ],
                           ),
                         ),
-                      ],
-                    ),
-                  ],
-                ),
-              ),
-            ),
-            const SizedBox(height: 16),
-
-            // Statistics
-            Row(
-              children: [
-                Expanded(
-                  child: _StatCard(
-                    icon: Icons.event,
-                    title: 'Total Events',
-                    value: '${eventService.events.length}',
-                    color: Colors.blue,
-                  ),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: _StatCard(
-                    icon: Icons.people,
-                    title: 'Stakeholders',
-                    value: '${stakeholderService.stakeholders.length}',
-                    color: Colors.green,
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 12),
-            Row(
-              children: [
-                Expanded(
-                  child: _StatCard(
-                    icon: Icons.schedule,
-                    title: 'Upcoming',
-                    value: '${eventService.getUpcomingEvents().length}',
-                    color: Colors.orange,
-                  ),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: _StatCard(
-                    icon: Icons.check_circle,
-                    title: 'Completed',
-                    value: '${eventService.getEventsByStatus(EventStatus.completed).length}',
-                    color: Colors.purple,
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 24),
-
-            // Upcoming Events Section
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Text(
-                  'Upcoming Events',
-                  style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-                TextButton(
-                  onPressed: () {
-                    // Navigate to events tab
-                    // Note: In production, use proper state management (Provider, Riverpod, etc.)
-                    // to control navigation between tabs
-                  },
-                  child: const Text('View All'),
-                ),
-              ],
-            ),
-            const SizedBox(height: 8),
-
-            // Upcoming events list
-            ...eventService.getUpcomingEvents(limit: 3).map((event) {
-              return _EventCard(event: event);
-            }),
-
-            if (eventService.getUpcomingEvents().isEmpty)
-              Center(
-                child: Padding(
-                  padding: const EdgeInsets.all(32),
-                  child: Column(
-                    children: [
-                      Icon(
-                        Icons.event_busy,
-                        size: 64,
-                        color: Colors.grey[400],
-                      ),
-                      const SizedBox(height: 16),
-                      Text(
-                        'No upcoming events',
-                        style: TextStyle(
-                          fontSize: 16,
-                          color: Colors.grey[600],
+                        const SizedBox(height: 24),
+                        
+                        // Upcoming Events Section
+                        Card(
+                          elevation: 0,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12),
+                            side: BorderSide(color: Colors.grey[200]!),
+                          ),
+                          child: Padding(
+                            padding: const EdgeInsets.all(16),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                const Text(
+                                  'Upcoming Events',
+                                  style: TextStyle(
+                                    fontSize: 18,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                                const SizedBox(height: 16),
+                                // Upcoming events list
+                                ...upcomingEvents.take(3).map((event) {
+                                  return _EventCard(event: event);
+                                }),
+                                if (upcomingEvents.isEmpty)
+                                  Padding(
+                                    padding: const EdgeInsets.all(16),
+                                    child: Center(
+                                      child: Text(
+                                        'No upcoming events',
+                                        style: TextStyle(
+                                          color: Colors.grey[600],
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                              ],
+                            ),
+                          ),
                         ),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-          ],
+                      ],
+                    );
+                  },
+                );
+              },
+            );
+          },
         ),
-      ),
-      floatingActionButton: FloatingActionButton(
-        onPressed: () {
-          Navigator.of(context).pushNamed('/event/create');
-        },
-        child: const Icon(Icons.add),
       ),
     );
   }
@@ -300,25 +368,37 @@ class _StatCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Card(
+      elevation: 0,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(12),
+        side: BorderSide(color: Colors.grey[200]!),
+      ),
       child: Padding(
         padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  title,
+                  style: TextStyle(
+                    fontSize: 14,
+                    color: Colors.grey[600],
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  value,
+                  style: const TextStyle(
+                    fontSize: 24,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ],
+            ),
             Icon(icon, color: color, size: 32),
-            const SizedBox(height: 8),
-            Text(
-              value,
-              style: Theme.of(context).textTheme.headlineMedium?.copyWith(
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-            Text(
-              title,
-              style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                color: Colors.grey[600],
-              ),
-            ),
           ],
         ),
       ),
@@ -333,104 +413,69 @@ class _EventCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Card(
-      child: ListTile(
-        leading: CircleAvatar(
-          backgroundColor: _getPriorityColor(event.priority),
-          child: Icon(
-            _getStatusIcon(event.status),
-            color: Colors.white,
-            size: 20,
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 12),
+      child: Row(
+        children: [
+          CircleAvatar(
+            radius: 24,
+            backgroundColor: Colors.grey[200],
+            child: Icon(
+              Icons.event,
+              color: Colors.grey[600],
+              size: 24,
+            ),
           ),
-        ),
-        title: Text(
-          event.title,
-          style: const TextStyle(fontWeight: FontWeight.bold),
-        ),
-        subtitle: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const SizedBox(height: 4),
-            Row(
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Icon(Icons.location_on, size: 14, color: Colors.grey),
-                const SizedBox(width: 4),
-                Expanded(
-                  child: Text(
-                    event.location.name,
-                    style: const TextStyle(fontSize: 12),
+                Text(
+                  event.title,
+                  style: const TextStyle(
+                    fontWeight: FontWeight.bold,
+                    fontSize: 16,
                   ),
                 ),
-              ],
-            ),
-            const SizedBox(height: 2),
-            Row(
-              children: [
-                const Icon(Icons.access_time, size: 14, color: Colors.grey),
-                const SizedBox(width: 4),
+                const SizedBox(height: 4),
                 Text(
-                  _formatDateTime(event.startTime),
-                  style: const TextStyle(fontSize: 12),
+                  event.location.name,
+                  style: TextStyle(
+                    fontSize: 14,
+                    color: Colors.grey[600],
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Row(
+                  children: [
+                    Icon(Icons.access_time, size: 14, color: Colors.grey[600]),
+                    const SizedBox(width: 4),
+                    Text(
+                      'Time',
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: Colors.grey[600],
+                      ),
+                    ),
+                    const SizedBox(width: 16),
+                    Icon(Icons.location_on, size: 14, color: Colors.grey[600]),
+                    const SizedBox(width: 4),
+                    Text(
+                      'Location',
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: Colors.grey[600],
+                      ),
+                    ),
+                  ],
                 ),
               ],
             ),
-          ],
-        ),
-        trailing: const Icon(Icons.chevron_right),
-        onTap: () {
-          Navigator.of(context).pushNamed('/event/details', arguments: event.id);
-        },
+          ),
+        ],
       ),
     );
   }
 
-  Color _getPriorityColor(EventPriority priority) {
-    switch (priority) {
-      case EventPriority.low:
-        return Colors.green;
-      case EventPriority.medium:
-        return Colors.orange;
-      case EventPriority.high:
-        return Colors.red;
-      case EventPriority.urgent:
-        return Colors.purple;
-    }
-  }
-
-  IconData _getStatusIcon(EventStatus status) {
-    switch (status) {
-      case EventStatus.draft:
-        return Icons.edit;
-      case EventStatus.scheduled:
-        return Icons.schedule;
-      case EventStatus.inProgress:
-        return Icons.play_arrow;
-      case EventStatus.completed:
-        return Icons.check;
-      case EventStatus.cancelled:
-        return Icons.cancel;
-    }
-  }
-
-  String _formatDateTime(DateTime dateTime) {
-    final now = DateTime.now();
-    final today = DateTime(now.year, now.month, now.day);
-    final tomorrow = today.add(const Duration(days: 1));
-    final eventDate = DateTime(dateTime.year, dateTime.month, dateTime.day);
-
-    String dateStr;
-    if (eventDate == today) {
-      dateStr = 'Today';
-    } else if (eventDate == tomorrow) {
-      dateStr = 'Tomorrow';
-    } else {
-      dateStr = '${dateTime.month}/${dateTime.day}/${dateTime.year}';
-    }
-
-    final hour = dateTime.hour > 12 ? dateTime.hour - 12 : dateTime.hour;
-    final period = dateTime.hour >= 12 ? 'PM' : 'AM';
-    final minute = dateTime.minute.toString().padLeft(2, '0');
-
-    return '$dateStr at $hour:$minute $period';
-  }
 }
