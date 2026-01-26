@@ -11,131 +11,121 @@ class ProfileScreen extends StatelessWidget {
 
     return Scaffold(
       appBar: AppBar(
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back),
-          onPressed: () => Navigator.of(context).pop(),
-        ),
         title: const Text(
           'Profile',
-          style: TextStyle(fontWeight: FontWeight.bold, fontSize: 24),
+          style: TextStyle(fontWeight: FontWeight.bold, fontSize: 20),
         ),
         centerTitle: true,
         elevation: 0,
-        backgroundColor: Colors.transparent,
+        backgroundColor: Colors.white,
+        foregroundColor: Colors.black,
       ),
       body: ListView(
         children: [
           // Profile header
           Container(
-            padding: const EdgeInsets.all(24),
+            padding: const EdgeInsets.symmetric(vertical: 32, horizontal: 24),
             child: Column(
               children: [
-                CircleAvatar(
-                  radius: 50,
-                  backgroundColor: Theme.of(context).primaryColor,
-                  child: Text(
-                    (user?.displayName.isNotEmpty ?? false) 
-                        ? user!.displayName[0].toUpperCase() 
-                        : 'U',
-                    style: const TextStyle(
-                      fontSize: 40,
-                      color: Colors.white,
-                      fontWeight: FontWeight.bold,
+                // Larger circular avatar
+                Container(
+                  width: 120,
+                  height: 120,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    color: const Color(0xFF5B7C99),
+                  ),
+                  child: Center(
+                    child: Text(
+                      (user?.displayName.isNotEmpty ?? false) 
+                          ? user!.displayName[0].toUpperCase() 
+                          : 'U',
+                      style: const TextStyle(
+                        fontSize: 48,
+                        color: Colors.white,
+                        fontWeight: FontWeight.bold,
+                      ),
                     ),
+                  ),
+                ),
+                const SizedBox(height: 16),
+                // Username
+                Text(
+                  user?.displayName ?? 'Username',
+                  style: const TextStyle(
+                    fontSize: 24,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.black,
                   ),
                 ),
                 const SizedBox(height: 12),
                 // Role badge
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+                  padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 10),
                   decoration: BoxDecoration(
-                    color: const Color(0xFFB2DFDB), // Light blue-green
-                    borderRadius: BorderRadius.circular(20),
+                    color: const Color(0xFF80CBC4),
+                    borderRadius: BorderRadius.circular(24),
                   ),
                   child: const Text(
                     'Member',
                     style: TextStyle(
-                      color: Colors.white,
+                      color: Colors.black,
                       fontWeight: FontWeight.w600,
-                      fontSize: 14,
+                      fontSize: 16,
                     ),
                   ),
                 ),
-                const SizedBox(height: 4),
-                Text(
-                  user?.email ?? '',
-                  style: TextStyle(
-                    color: Colors.grey[600],
-                    fontSize: 16,
-                  ),
-                ),
-                const SizedBox(height: 8),
-                Chip(
-                  label: Text(user?.role.name ?? 'member'),
-                  backgroundColor: Theme.of(context).primaryColor.withAlpha(50),
-                ),
               ],
             ),
           ),
 
-          const Divider(),
+          const Divider(height: 1, thickness: 1),
 
           // Menu items
-          Container(
-            decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(12),
-              border: Border.all(color: Colors.grey[200]!),
-            ),
-            child: Column(
-              children: [
-                _ProfileMenuItem(
-                  icon: Icons.person_outline,
-                  title: 'Edit Profile',
-                  onTap: () {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(content: Text('Edit profile coming soon!')),
-                    );
-                  },
-                ),
-                Divider(height: 1, color: Colors.grey[200]),
-                _ProfileMenuItem(
-                  icon: Icons.notifications_outlined,
-                  title: 'Notifications',
-                  onTap: () {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(content: Text('Notifications settings coming soon!')),
-                    );
-                  },
-                ),
-                Divider(height: 1, color: Colors.grey[200]),
-                _ProfileMenuItem(
-                  icon: Icons.security,
-                  title: 'Privacy & Security',
-                  onTap: () {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(content: Text('Privacy settings coming soon!')),
-                    );
-                  },
-                ),
-                Divider(height: 1, color: Colors.grey[200]),
-                _ProfileMenuItem(
-                  icon: Icons.info_outline,
-                  title: 'About',
-                  onTap: () {
-                    showAboutDialog(
-                      context: context,
-                      applicationName: 'Scheduling & Stakeholder Management',
-                      applicationVersion: '1.0.0',
-                      applicationIcon: const Icon(Icons.schedule, size: 48),
-                    );
-                  },
-                ),
-              ],
-            ),
+          _ProfileMenuItem(
+            icon: Icons.person_outline,
+            title: 'Edit Profile',
+            onTap: () {
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(content: Text('Edit profile coming soon!')),
+              );
+            },
+          ),
+          Divider(height: 1, color: Colors.grey[300]),
+          _ProfileMenuItem(
+            icon: Icons.notifications_outlined,
+            title: 'Notifications',
+            onTap: () {
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(content: Text('Notifications settings coming soon!')),
+              );
+            },
+          ),
+          Divider(height: 1, color: Colors.grey[300]),
+          _ProfileMenuItem(
+            icon: Icons.shield_outlined,
+            title: 'Privacy & Security',
+            onTap: () {
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(content: Text('Privacy settings coming soon!')),
+              );
+            },
+          ),
+          Divider(height: 1, color: Colors.grey[300]),
+          _ProfileMenuItem(
+            icon: Icons.info_outline,
+            title: 'About',
+            onTap: () {
+              showAboutDialog(
+                context: context,
+                applicationName: 'Scheduling & Stakeholder Management',
+                applicationVersion: '1.0.0',
+                applicationIcon: const Icon(Icons.schedule, size: 48),
+              );
+            },
           ),
 
-          const Divider(),
+          Divider(height: 1, thickness: 1),
 
           // Sign out button
           _ProfileMenuItem(
@@ -194,33 +184,26 @@ class _ProfileMenuItem extends StatelessWidget {
   Widget build(BuildContext context) {
     final color = isDestructive ? Colors.red : Colors.black87;
     
-    return Container(
-      decoration: BoxDecoration(
-        border: Border(
-          bottom: BorderSide(color: Colors.grey[200]!),
-        ),
-      ),
-      child: InkWell(
-        onTap: onTap,
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
-          child: Row(
-            children: [
-              Icon(icon, color: color),
-              const SizedBox(width: 16),
-              Expanded(
-                child: Text(
-                  title,
-                  style: TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.w500,
-                    color: color,
-                  ),
+    return InkWell(
+      onTap: onTap,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 20),
+        child: Row(
+          children: [
+            Icon(icon, color: color, size: 24),
+            const SizedBox(width: 16),
+            Expanded(
+              child: Text(
+                title,
+                style: TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.w400,
+                  color: color,
                 ),
               ),
-              Icon(Icons.chevron_right, color: Colors.grey[400]),
-            ],
-          ),
+            ),
+            Icon(Icons.chevron_right, color: Colors.grey[400], size: 24),
+          ],
         ),
       ),
     );

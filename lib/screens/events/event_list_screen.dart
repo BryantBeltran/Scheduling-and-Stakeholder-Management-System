@@ -54,11 +54,13 @@ class _EventListScreenState extends State<EventListScreen> {
     return Scaffold(
       appBar: AppBar(
         title: const Text(
-          'Create/ Edit Events',
-          style: TextStyle(fontWeight: FontWeight.bold, fontSize: 24),
+          'Events',
+          style: TextStyle(fontWeight: FontWeight.bold, fontSize: 20),
         ),
         centerTitle: true,
         elevation: 0,
+        backgroundColor: Colors.white,
+        foregroundColor: Colors.black,
       ),
       body: Column(
         children: [

@@ -17,6 +17,7 @@ import 'screens/auth/forgot_password_screen.dart';
 import 'screens/home/home_screen.dart';
 import 'screens/dev/dev_screen_navigator.dart';
 import 'screens/events/event_create_screen.dart';
+import 'screens/stakeholders/stakeholder_details_screen.dart';
 import 'services/services.dart';
 import 'models/models.dart';
 
@@ -51,6 +52,26 @@ class SchedulingApp extends StatelessWidget {
           final email = args?['email'] ?? '';
           return MaterialPageRoute(
             builder: (context) => RegisterPasswordScreen(email: email),
+          );
+        }
+        if (settings.name == '/stakeholder/details') {
+          final stakeholderId = settings.arguments as String;
+          return MaterialPageRoute(
+            builder: (context) => StakeholderDetailsScreen(
+              stakeholderId: stakeholderId,
+            ),
+          );
+        }
+        if (settings.name == '/event/details') {
+          final eventId = settings.arguments as String;
+          // TODO: Create EventDetailsScreen
+          return MaterialPageRoute(
+            builder: (context) => Scaffold(
+              appBar: AppBar(title: const Text('Event Details')),
+              body: Center(
+                child: Text('Event Details Screen\nEvent ID: $eventId\n\nComing Soon!'),
+              ),
+            ),
           );
         }
         return null;

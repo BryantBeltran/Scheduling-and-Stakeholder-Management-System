@@ -30,6 +30,7 @@
 // - Dashboard patterns: https://material.io/design/layout/understanding-layout.html
 // ==============================================================================
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import '../../models/models.dart';
 import '../../services/services.dart';
@@ -97,13 +98,59 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 }
 
-class DashboardScreen extends StatelessWidget {
+class DashboardScreen extends StatefulWidget {
   const DashboardScreen({super.key});
 
   @override
+  State<DashboardScreen> createState() => _DashboardScreenState();
+}
+
+class _DashboardScreenState extends State<DashboardScreen> {
+  bool _isLoading = true;
+  List<EventModel> _events = [];
+  List<StakeholderModel> _stakeholders = [];
+  
+  @override
+  void initState() {
+    super.initState();
+    _loadData();
+  }
+  
+  Future<void> _loadData() async {
+    setState(() => _isLoading = true);
+    
+    if (kReleaseMode) {
+      // Production: Use Firebase
+      // TODO: Implement Firebase data fetching
+      // final eventService = EventService();
+      // final stakeholderService = StakeholderService();
+      // _events = await eventService.getEventsFromFirebase();
+      // _stakeholders = await stakeholderService.getStakeholdersFromFirebase();
+      
+      // For now, fallback to mock data until Firebase is configured
+      await Future.delayed(const Duration(seconds: 1));
+      final eventService = EventService();
+      final stakeholderService = StakeholderService();
+      eventService.initializeSampleData();
+      stakeholderService.initializeSampleData();
+      _events = eventService.events;
+      _stakeholders = stakeholderService.stakeholders;
+    } else {
+      // Development: Use mock data
+      await Future.delayed(const Duration(seconds: 1)); // Simulate loading
+      final eventService = EventService();
+      final stakeholderService = StakeholderService();
+      eventService.initializeSampleData();
+      stakeholderService.initializeSampleData();
+      _events = eventService.events;
+      _stakeholders = stakeholderService.stakeholders;
+    }
+    
+    setState(() => _isLoading = false);
+  }
+
+  @override
   Widget build(BuildContext context) {
-    final eventService = EventService();
-    final stakeholderService = StakeholderService();
     final authService = AuthService();
 
     return Scaffold(
@@ -116,9 +163,12 @@ class DashboardScreen extends StatelessWidget {
         ),
         title: const Text(
           'Dashboard',
-          style: TextStyle(fontWeight: FontWeight.bold, fontSize: 24),
+          style: TextStyle(fontWeight: FontWeight.bold, fontSize: 20),
         ),
         centerTitle: true,
+        elevation: 0,
+        backgroundColor: Colors.white,
+        foregroundColor: Colors.black,
         actions: [
           IconButton(
             icon: const Icon(Icons.notifications_outlined),
@@ -130,21 +180,22 @@ class DashboardScreen extends StatelessWidget {
             },
           ),
           Padding(
-            padding: const EdgeInsets.only(right: 8.0),
+            padding: const EdgeInsets.only(right: 12.0),
             child: StreamBuilder<UserModel?>(
               stream: authService.authStateChanges,
               builder: (context, snapshot) {
                 final user = snapshot.data ?? authService.currentUser;
                 return CircleAvatar(
                   radius: 18,
-                  backgroundColor: Theme.of(context).primaryColor.withOpacity(0.1),
+                  backgroundColor: Colors.grey[300],
                   child: Text(
                     (user?.displayName.isNotEmpty ?? false) 
                         ? user!.displayName[0].toUpperCase() 
                         : 'U',
-                    style: TextStyle(
-                      color: Theme.of(context).primaryColor,
+                    style: const TextStyle(
+                      color: Colors.black,
                       fontWeight: FontWeight.bold,
+                      fontSize: 14,
                     ),
                   ),
                 );
@@ -155,61 +206,115 @@ class DashboardScreen extends StatelessWidget {
       ),
       body: RefreshIndicator(
         onRefresh: () async {
-          // TODO: Refresh data
-          await Future.delayed(const Duration(seconds: 1));
+          await _loadData();
         },
-        child: StreamBuilder<UserModel?>(
+        child: _isLoading
+            ? const Center(child: CircularProgressIndicator())
+            : StreamBuilder<UserModel?>(
           stream: authService.authStateChanges,
           builder: (context, authSnapshot) {
             final user = authSnapshot.data ?? authService.currentUser;
             
-            return StreamBuilder<List<EventModel>>(
-              stream: eventService.eventsStream,
-              builder: (context, eventsSnapshot) {
-                return StreamBuilder<List<StakeholderModel>>(
-                  stream: stakeholderService.stakeholdersStream,
-                  builder: (context, stakeholdersSnapshot) {
-                    if (!eventsSnapshot.hasData || !stakeholdersSnapshot.hasData) {
-                      return const Center(child: CircularProgressIndicator());
-                    }
+            final now = DateTime.now();
+            final upcomingEvents = _events
+                .where((e) => e.startTime.isAfter(now))
+                .toList()
+              ..sort((a, b) => a.startTime.compareTo(b.startTime));
+            final completedEvents = _events
+                .where((e) => e.status == EventStatus.completed)
+                .toList();
 
-                    final events = eventsSnapshot.data!;
-                    final stakeholders = stakeholdersSnapshot.data!;
-                    final now = DateTime.now();
-                    final upcomingEvents = events
-                        .where((e) => e.startTime.isAfter(now))
-                        .toList()
-                      ..sort((a, b) => a.startTime.compareTo(b.startTime));
-                    final completedEvents = events
-                        .where((e) => e.status == EventStatus.completed)
-                        .toList();
-
-                    return ListView(
-                      padding: const EdgeInsets.all(16),
+            return ListView(
+                      padding: const EdgeInsets.all(20),
                       children: [
-                        // Statistics - Top Row
-                        Row(
-                          children: [
-                            Expanded(
-                              child: _StatCard(
-                                icon: Icons.calendar_today,
-                                title: 'Total Events',
-                                value: '${events.length}',
-                                color: Colors.blue,
+                        // Statistics - Combined Total Events/Stakeholders Card
+                        Card(
+                          elevation: 0,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12),
+                            side: BorderSide(color: Colors.grey[200]!),
+                          ),
+                          child: Row(
+                            children: [
+                              Expanded(
+                                child: Padding(
+                                  padding: const EdgeInsets.all(20),
+                                  child: Row(
+                                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                    children: [
+                                      Column(
+                                        crossAxisAlignment: CrossAxisAlignment.start,
+                                        children: [
+                                          Text(
+                                            'Total Events',
+                                            style: TextStyle(
+                                              fontSize: 14,
+                                              color: Colors.grey[600],
+                                            ),
+                                          ),
+                                          const SizedBox(height: 8),
+                                          Text(
+                                            '${_events.length}',
+                                            style: const TextStyle(
+                                              fontSize: 28,
+                                              fontWeight: FontWeight.bold,
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                      Icon(
+                                        Icons.calendar_today,
+                                        color: Colors.blue,
+                                        size: 36,
+                                      ),
+                                    ],
+                                  ),
+                                ),
                               ),
-                            ),
-                            const SizedBox(width: 12),
-                            Expanded(
-                              child: _StatCard(
-                                icon: Icons.people,
-                                title: 'Stakeholders',
-                                value: '${stakeholders.length}',
-                                color: Colors.green,
+                              Container(
+                                width: 1,
+                                height: 80,
+                                color: Colors.grey[300],
                               ),
-                            ),
-                          ],
+                              Expanded(
+                                child: Padding(
+                                  padding: const EdgeInsets.all(20),
+                                  child: Row(
+                                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                    children: [
+                                      Column(
+                                        crossAxisAlignment: CrossAxisAlignment.start,
+                                        children: [
+                                          Text(
+                                            'Stakeholders',
+                                            style: TextStyle(
+                                              fontSize: 14,
+                                              color: Colors.grey[600],
+                                            ),
+                                          ),
+                                          const SizedBox(height: 8),
+                                          Text(
+                                            '${_stakeholders.length}',
+                                            style: const TextStyle(
+                                              fontSize: 28,
+                                              fontWeight: FontWeight.bold,
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                      Icon(
+                                        Icons.people,
+                                        color: Colors.green,
+                                        size: 36,
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
                         ),
-                        const SizedBox(height: 12),
+                        const SizedBox(height: 20),
                         // Statistics - Combined Upcoming/Completed Card
                         Card(
                           elevation: 0,
@@ -221,7 +326,7 @@ class DashboardScreen extends StatelessWidget {
                             children: [
                               Expanded(
                                 child: Padding(
-                                  padding: const EdgeInsets.all(16),
+                                  padding: const EdgeInsets.all(20),
                                   child: Row(
                                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                                     children: [
@@ -235,11 +340,11 @@ class DashboardScreen extends StatelessWidget {
                                               color: Colors.grey[600],
                                             ),
                                           ),
-                                          const SizedBox(height: 4),
+                                          const SizedBox(height: 8),
                                           Text(
                                             '${upcomingEvents.length}',
                                             style: const TextStyle(
-                                              fontSize: 24,
+                                              fontSize: 28,
                                               fontWeight: FontWeight.bold,
                                             ),
                                           ),
@@ -248,7 +353,7 @@ class DashboardScreen extends StatelessWidget {
                                       Icon(
                                         Icons.access_time,
                                         color: Colors.orange,
-                                        size: 32,
+                                        size: 36,
                                       ),
                                     ],
                                   ),
@@ -256,12 +361,12 @@ class DashboardScreen extends StatelessWidget {
                               ),
                               Container(
                                 width: 1,
-                                height: 60,
+                                height: 80,
                                 color: Colors.grey[300],
                               ),
                               Expanded(
                                 child: Padding(
-                                  padding: const EdgeInsets.all(16),
+                                  padding: const EdgeInsets.all(20),
                                   child: Row(
                                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                                     children: [
@@ -275,11 +380,11 @@ class DashboardScreen extends StatelessWidget {
                                               color: Colors.grey[600],
                                             ),
                                           ),
-                                          const SizedBox(height: 4),
+                                          const SizedBox(height: 8),
                                           Text(
                                             '${completedEvents.length}',
                                             style: const TextStyle(
-                                              fontSize: 24,
+                                              fontSize: 28,
                                               fontWeight: FontWeight.bold,
                                             ),
                                           ),
@@ -288,7 +393,7 @@ class DashboardScreen extends StatelessWidget {
                                       Icon(
                                         Icons.check_circle,
                                         color: Colors.purple,
-                                        size: 32,
+                                        size: 36,
                                       ),
                                     ],
                                   ),
@@ -297,7 +402,7 @@ class DashboardScreen extends StatelessWidget {
                             ],
                           ),
                         ),
-                        const SizedBox(height: 24),
+                        const SizedBox(height: 32),
                         
                         // Upcoming Events Section
                         Card(
@@ -306,45 +411,50 @@ class DashboardScreen extends StatelessWidget {
                             borderRadius: BorderRadius.circular(12),
                             side: BorderSide(color: Colors.grey[200]!),
                           ),
-                          child: Padding(
-                            padding: const EdgeInsets.all(16),
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                const Text(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Padding(
+                                padding: const EdgeInsets.fromLTRB(20, 20, 20, 16),
+                                child: const Text(
                                   'Upcoming Events',
                                   style: TextStyle(
                                     fontSize: 18,
                                     fontWeight: FontWeight.bold,
                                   ),
                                 ),
-                                const SizedBox(height: 16),
-                                // Upcoming events list
-                                ...upcomingEvents.take(3).map((event) {
-                                  return _EventCard(event: event);
-                                }),
-                                if (upcomingEvents.isEmpty)
-                                  Padding(
-                                    padding: const EdgeInsets.all(16),
-                                    child: Center(
-                                      child: Text(
-                                        'No upcoming events',
-                                        style: TextStyle(
-                                          color: Colors.grey[600],
+                              ),
+                              // Scrollable event list
+                              SizedBox(
+                                height: upcomingEvents.isEmpty ? 100 : 300,
+                                child: upcomingEvents.isEmpty
+                                    ? Center(
+                                        child: Padding(
+                                          padding: const EdgeInsets.all(20),
+                                          child: Text(
+                                            'No upcoming events',
+                                            style: TextStyle(
+                                              color: Colors.grey[600],
+                                              fontSize: 16,
+                                            ),
+                                          ),
                                         ),
+                                      )
+                                    : ListView.separated(
+                                        padding: const EdgeInsets.fromLTRB(20, 0, 20, 20),
+                                        itemCount: upcomingEvents.length,
+                                        separatorBuilder: (context, index) => const SizedBox(height: 16),
+                                        itemBuilder: (context, index) {
+                                          return _EventCard(event: upcomingEvents[index]);
+                                        },
                                       ),
-                                    ),
-                                  ),
-                              ],
-                            ),
+                              ),
+                            ],
                           ),
                         ),
+                        const SizedBox(height: 20),
                       ],
                     );
-                  },
-                );
-              },
-            );
           },
         ),
       ),
@@ -414,19 +524,24 @@ class _EventCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.only(bottom: 12),
+      padding: const EdgeInsets.only(bottom: 16),
       child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          CircleAvatar(
-            radius: 24,
-            backgroundColor: Colors.grey[200],
+          Container(
+            width: 48,
+            height: 48,
+            decoration: BoxDecoration(
+              color: Colors.grey[200],
+              borderRadius: BorderRadius.circular(8),
+            ),
             child: Icon(
-              Icons.event,
+              Icons.calendar_today,
               color: Colors.grey[600],
               size: 24,
             ),
           ),
-          const SizedBox(width: 12),
+          const SizedBox(width: 16),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -438,7 +553,7 @@ class _EventCard extends StatelessWidget {
                     fontSize: 16,
                   ),
                 ),
-                const SizedBox(height: 4),
+                const SizedBox(height: 6),
                 Text(
                   event.location.name,
                   style: TextStyle(
@@ -446,7 +561,7 @@ class _EventCard extends StatelessWidget {
                     color: Colors.grey[600],
                   ),
                 ),
-                const SizedBox(height: 4),
+                const SizedBox(height: 6),
                 Row(
                   children: [
                     Icon(Icons.access_time, size: 14, color: Colors.grey[600]),
