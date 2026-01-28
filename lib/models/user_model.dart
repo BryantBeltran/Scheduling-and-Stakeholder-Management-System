@@ -28,10 +28,20 @@ enum UserRole {
 
 /// User permissions
 enum Permission {
+  // Event permissions
   createEvent,
   editEvent,
   deleteEvent,
+  viewEvent,
+  
+  // Stakeholder permissions
+  createStakeholder,
+  editStakeholder,
+  deleteStakeholder,
+  viewStakeholder,
   assignStakeholder,
+  
+  // Admin permissions
   manageUsers,
   viewReports,
   editSettings,
@@ -115,6 +125,11 @@ class UserModel {
           Permission.createEvent,
           Permission.editEvent,
           Permission.deleteEvent,
+          Permission.viewEvent,
+          Permission.createStakeholder,
+          Permission.editStakeholder,
+          Permission.deleteStakeholder,
+          Permission.viewStakeholder,
           Permission.assignStakeholder,
           Permission.viewReports,
         ];
@@ -122,10 +137,15 @@ class UserModel {
         return [
           Permission.createEvent,
           Permission.editEvent,
+          Permission.viewEvent,
+          Permission.viewStakeholder,
           Permission.assignStakeholder,
         ];
       case UserRole.viewer:
-        return [];
+        return [
+          Permission.viewEvent,
+          Permission.viewStakeholder,
+        ];
     }
   }
 

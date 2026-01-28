@@ -675,34 +675,105 @@ export const markNotificationAsRead = onCall(async (request) => {
 
 // Helper functions
 
+// Valid roles for the system
+const VALID_ROLES = ["admin", "manager", "member", "viewer"] as const;
+type UserRole = typeof VALID_ROLES[number];
+
+// Permission definitions
+const PERMISSIONS = {
+  createEvent: "createEvent",
+  editEvent: "editEvent",
+  deleteEvent: "deleteEvent",
+  viewEvent: "viewEvent",
+  createStakeholder: "createStakeholder",
+  editStakeholder: "editStakeholder",
+  deleteStakeholder: "deleteStakeholder",
+  viewStakeholder: "viewStakeholder",
+  assignStakeholder: "assignStakeholder",
+  manageUsers: "manageUsers",
+  viewReports: "viewReports",
+  editSettings: "editSettings",
+} as const;
+
 /**
  * Get default permissions for a given user role
- * @param {string} role - The user role (admin, manager, member)
- * @return {string[]} Array of permission strings
+ * @param {string} role - The user role to get permissions for
+ * @return {string[]} Array of permission strings for the role
  */
 function getDefaultPermissions(role: string): string[] {
   switch (role) {
   case "admin":
-    return [
-      "createEvent",
-      "editEvent",
-      "deleteEvent",
-      "assignStakeholder",
-      "manageUsers",
-      "viewReports",
-      "editSettings",
-    ];
+    return Object.values(PERMISSIONS);
   case "manager":
     return [
-      "createEvent",
-      "editEvent",
-      "deleteEvent",
-      "assignStakeholder",
-      "viewReports",
+      PERMISSIONS.createEvent,
+      PERMISSIONS.editEvent,
+      PERMISSIONS.deleteEvent,
+      PERMISSIONS.viewEvent,
+      PERMISSIONS.createStakeholder,
+      PERMISSIONS.editStakeholder,
+      PERMISSIONS.deleteStakeholder,
+      PERMISSIONS.viewStakeholder,
+      PERMISSIONS.assignStakeholder,
+      PERMISSIONS.viewReports,
     ];
   case "member":
-    return ["createEvent", "editEvent", "assignStakeholder"];
+    return [
+      PERMISSIONS.createEvent,
+      PERMISSIONS.editEvent,
+      PERMISSIONS.viewEvent,
+      PERMISSIONS.viewStakeholder,
+      PERMISSIONS.assignStakeholder,
+    ];
+  case "viewer":
+    return [
+      PERMISSIONS.viewEvent,
+      PERMISSIONS.viewStakeholder,
+    ];
   default:
     return [];
   }
 }
+
+/**
+ * Check if a user has a specific permission
+ * @param {string} userId - The ID of the user to check permissions for
+ * @param {string} permission - The permission to check
+ * @return {Promise<boolean>} -
+ * True if the user has the permission, false otherwise
+ */
+async function hasPermission(
+  userId: string,
+  permission: string
+): Promise<boolean> {
+  try {
+    const userDoc = await admin
+      .firestore()
+      .collection("users")
+      .doc(userId)
+      .get();
+
+    if (!userDoc.exists) {
+      return false;
+    }
+
+    const userData = userDoc.data();
+    const permissions = userData?.permissions || [];
+    return permissions.includes(permission);
+  } catch (error) {
+    logger.error(`Error checking permission for user ${userId}:`, error);
+    return false;
+  }
+}
+
+/**
+ * Check if a role is valid
+ * @param {string} role - The role to validate
+ * @return {boolean} True if the role is valid, false otherwise
+ */
+function isValidRole(role: string): role is UserRole {
+  return VALID_ROLES.includes(role as UserRole);
+}
+
+// Export helper functions for use
+export {hasPermission, isValidRole, getDefaultPermissions, PERMISSIONS};

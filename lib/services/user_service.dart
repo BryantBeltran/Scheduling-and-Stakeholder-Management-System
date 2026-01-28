@@ -130,6 +130,8 @@ class UserService {
         return UserRole.manager;
       case 'member':
         return UserRole.member;
+      case 'viewer':
+        return UserRole.viewer;
       default:
         return UserRole.member;
     }
@@ -148,14 +150,27 @@ class UserService {
   /// Parse single permission from string
   Permission? _parsePermission(String permString) {
     switch (permString) {
+      // Event permissions
       case 'createEvent':
         return Permission.createEvent;
       case 'editEvent':
         return Permission.editEvent;
       case 'deleteEvent':
         return Permission.deleteEvent;
+      case 'viewEvent':
+        return Permission.viewEvent;
+      // Stakeholder permissions
+      case 'createStakeholder':
+        return Permission.createStakeholder;
+      case 'editStakeholder':
+        return Permission.editStakeholder;
+      case 'deleteStakeholder':
+        return Permission.deleteStakeholder;
+      case 'viewStakeholder':
+        return Permission.viewStakeholder;
       case 'assignStakeholder':
         return Permission.assignStakeholder;
+      // Admin permissions
       case 'manageUsers':
         return Permission.manageUsers;
       case 'viewReports':
