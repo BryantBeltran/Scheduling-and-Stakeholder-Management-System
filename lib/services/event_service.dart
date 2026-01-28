@@ -7,125 +7,138 @@
 // - Firebase Firestore service architecture
 //
 // Implementation Details:
-// - In-memory list storage with StreamController for reactive updates
+// - Firestore integration for persistent storage
+// - User-based event filtering and ownership
 // - Comprehensive CRUD operations (Create, Read, Update, Delete)
 // - Multiple filtering methods (by date, status, search query)
-// - Sample data initialization for development/testing
+// - Real-time event updates via Firestore snapshots
 //
 // Changes from standard patterns:
-// - Mock implementation with in-memory storage (replace with Firestore/API)
+// - Events stored per user with ownerId field
+// - Security rules enforce user ownership for delete operations
 // - Added utility methods: getUpcomingEvents, getEventsForDate, searchEvents
 // - Stakeholder assignment methods integrated into event service
 // - Broadcast stream for multiple listeners across the app
-//
-// TODO for Production:
-// - Replace in-memory storage with Firestore or REST API
-// - Implement proper error handling and network checks
-// - Add pagination for large event lists
-// - Implement caching strategy for offline support
 // ==============================================================================
 
 import 'dart:async';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:flutter/foundation.dart';
+import '../config/app_config.dart';
 import '../models/models.dart';
+import 'auth_service.dart';
+import 'mock_data_service.dart';
 
-/// Mock event service for development
-/// Replace with actual backend/Firebase in production
+/// Event service with Firestore integration
 class EventService {
   static final EventService _instance = EventService._internal();
   factory EventService() => _instance;
   EventService._internal();
 
-  final List<EventModel> _events = [];
+  final AuthService _authService = AuthService();
   final _eventsController = StreamController<List<EventModel>>.broadcast();
+  StreamSubscription<QuerySnapshot>? _eventsSubscription;
+
+  // Lazy Firestore instance - only accessed when useFirebase is true
+  FirebaseFirestore get _firestore => FirebaseFirestore.instance;
+
+  /// Collection reference for events
+  CollectionReference get _eventsCollection => _firestore.collection('events');
 
   /// Stream of events that emits whenever the event list changes.
   ///
   /// Listen to this stream for real-time updates to the event list.
+  /// Only returns events owned by the current user.
   ///
   /// Example:
   /// ```dart
   /// eventService.eventsStream.listen((events) {
-  ///   print('Total events: ${events.length}');
+  ///   debugPrint('Total events: ${events.length}');
   /// });
   /// ```
   Stream<List<EventModel>> get eventsStream => _eventsController.stream;
 
-  /// Returns an unmodifiable list of all events.
-  ///
-  /// This prevents accidental modification of the internal event list.
-  List<EventModel> get events => List.unmodifiable(_events);
+  /// Initialize event stream for the current user
+  void initializeEventStream() {
+    final currentUser = _authService.currentUser;
+    if (currentUser == null) {
+      _eventsController.add([]);
+      return;
+    }
 
-  /// Initialize with sample data
-  void initializeSampleData() {
-    if (_events.isNotEmpty) return;
+    if (AppConfig.isInitialized && AppConfig.instance.useMockData) {
+      // Development: Use mock data
+      final mockEvents = MockDataService.getMockEvents(currentUser.id);
+      _eventsController.add(mockEvents);
+      return;
+    }
 
-    final now = DateTime.now();
-    _events.addAll([
-      EventModel(
-        id: 'event_1',
-        title: 'Team Standup Meeting',
-        description: 'Daily standup meeting with the development team',
-        startTime: now.add(const Duration(hours: 1)),
-        endTime: now.add(const Duration(hours: 2)),
-        location: const EventLocation(
-          name: 'Conference Room A',
-          address: '123 Main St, Floor 2',
-        ),
-        ownerId: 'user_1',
-        ownerName: 'John Doe',
-        status: EventStatus.scheduled,
-        priority: EventPriority.medium,
-        stakeholderIds: ['stakeholder_1', 'stakeholder_2'],
-        createdAt: now.subtract(const Duration(days: 1)),
-        updatedAt: now,
-      ),
-      EventModel(
-        id: 'event_2',
-        title: 'Client Presentation',
-        description: 'Quarterly review presentation for stakeholders',
-        startTime: now.add(const Duration(days: 1, hours: 10)),
-        endTime: now.add(const Duration(days: 1, hours: 12)),
-        location: const EventLocation(
-          name: 'Virtual Meeting',
-          isVirtual: true,
-          virtualLink: 'https://meet.example.com/abc123',
-        ),
-        ownerId: 'user_1',
-        ownerName: 'John Doe',
-        status: EventStatus.scheduled,
-        priority: EventPriority.high,
-        stakeholderIds: ['stakeholder_3', 'stakeholder_4'],
-        createdAt: now.subtract(const Duration(days: 2)),
-        updatedAt: now,
-      ),
-      EventModel(
-        id: 'event_3',
-        title: 'Project Planning Session',
-        description: 'Sprint planning for the upcoming quarter',
-        startTime: now.add(const Duration(days: 3, hours: 9)),
-        endTime: now.add(const Duration(days: 3, hours: 11)),
-        location: const EventLocation(
-          name: 'Main Boardroom',
-          address: '123 Main St, Floor 5',
-        ),
-        ownerId: 'user_2',
-        ownerName: 'Jane Smith',
-        status: EventStatus.draft,
-        priority: EventPriority.urgent,
-        stakeholderIds: ['stakeholder_1', 'stakeholder_2', 'stakeholder_3'],
-        createdAt: now.subtract(const Duration(days: 3)),
-        updatedAt: now,
-      ),
-    ]);
+    // Production: Listen to Firestore changes for user's events
+    _eventsSubscription?.cancel();
+    _eventsSubscription = _eventsCollection
+        .where('ownerId', isEqualTo: currentUser.id)
+        .snapshots()
+        .listen((snapshot) {
+      final events = snapshot.docs
+          .map((doc) {
+            try {
+              final data = doc.data() as Map<String, dynamic>;
+              data['id'] = doc.id;
+              return EventModel.fromJson(data);
+            } catch (e) {
+              debugPrint('Error parsing event ${doc.id}: $e');
+              return null;
+            }
+          })
+          .whereType<EventModel>()
+          .toList();
+      _eventsController.add(events);
+    });
+  }
 
-    _eventsController.add(_events);
+  /// Get all events for the current user
+  Future<List<EventModel>> getAllEvents() async {
+    final currentUser = _authService.currentUser;
+    if (currentUser == null) {
+      throw Exception('User not authenticated');
+    }
+
+    if (AppConfig.isInitialized && AppConfig.instance.useMockData) {
+      // Development: Return mock data
+      return MockDataService.getMockEvents(currentUser.id);
+    }
+
+    // Production: Fetch from Firestore
+    final snapshot = await _eventsCollection
+        .where('ownerId', isEqualTo: currentUser.id)
+        .get();
+
+    return snapshot.docs
+        .map((doc) {
+          try {
+            final data = doc.data() as Map<String, dynamic>;
+            data['id'] = doc.id;
+            return EventModel.fromJson(data);
+          } catch (e) {
+            debugPrint('Error parsing event ${doc.id}: $e');
+            return null;
+          }
+        })
+        .whereType<EventModel>()
+        .toList();
   }
 
   /// Get event by ID
-  EventModel? getEventById(String id) {
+  Future<EventModel?> getEventById(String id) async {
     try {
-      return _events.firstWhere((e) => e.id == id);
-    } catch (_) {
+      final doc = await _eventsCollection.doc(id).get();
+      if (!doc.exists) return null;
+
+      final data = doc.data() as Map<String, dynamic>;
+      data['id'] = doc.id;
+      return EventModel.fromJson(data);
+    } catch (e) {
+      debugPrint('Error getting event $id: $e');
       return null;
     }
   }
@@ -137,74 +150,178 @@ class EventService {
   ///
   /// Example:
   /// ```dart
-  /// final todayEvents = eventService.getEventsForDate(DateTime.now());
-  /// print('Events today: ${todayEvents.length}');
+  /// final todayEvents = await eventService.getEventsForDate(DateTime.now());
+  /// debugPrint('Events today: ${todayEvents.length}');
   /// ```
-  List<EventModel> getEventsForDate(DateTime date) {
-    return _events.where((event) {
-      return event.startTime.year == date.year &&
-          event.startTime.month == date.month &&
-          event.startTime.day == date.day;
-    }).toList();
+  Future<List<EventModel>> getEventsForDate(DateTime date) async {
+    final currentUser = _authService.currentUser;
+    if (currentUser == null) {
+      throw Exception('User not authenticated');
+    }
+
+    final startOfDay = DateTime(date.year, date.month, date.day);
+    final endOfDay = DateTime(date.year, date.month, date.day, 23, 59, 59);
+
+    final snapshot = await _eventsCollection
+        .where('ownerId', isEqualTo: currentUser.id)
+        .where('startTime', isGreaterThanOrEqualTo: startOfDay.toIso8601String())
+        .where('startTime', isLessThanOrEqualTo: endOfDay.toIso8601String())
+        .get();
+
+    return snapshot.docs
+        .map((doc) {
+          try {
+            final data = doc.data() as Map<String, dynamic>;
+            data['id'] = doc.id;
+            return EventModel.fromJson(data);
+          } catch (e) {
+            debugPrint('Error parsing event ${doc.id}: $e');
+            return null;
+          }
+        })
+        .whereType<EventModel>()
+        .toList();
   }
 
   /// Get upcoming events
-  List<EventModel> getUpcomingEvents({int limit = 10}) {
+  Future<List<EventModel>> getUpcomingEvents({int limit = 10}) async {
+    final currentUser = _authService.currentUser;
+    if (currentUser == null) {
+      throw Exception('User not authenticated');
+    }
+
     final now = DateTime.now();
-    final upcoming = _events
-        .where((e) => e.startTime.isAfter(now))
-        .toList()
-      ..sort((a, b) => a.startTime.compareTo(b.startTime));
-    return upcoming.take(limit).toList();
+    final snapshot = await _eventsCollection
+        .where('ownerId', isEqualTo: currentUser.id)
+        .where('startTime', isGreaterThan: now.toIso8601String())
+        .orderBy('startTime')
+        .limit(limit)
+        .get();
+
+    return snapshot.docs
+        .map((doc) {
+          try {
+            final data = doc.data() as Map<String, dynamic>;
+            data['id'] = doc.id;
+            return EventModel.fromJson(data);
+          } catch (e) {
+            debugPrint('Error parsing event ${doc.id}: $e');
+            return null;
+          }
+        })
+        .whereType<EventModel>()
+        .toList();
   }
 
   /// Get events by status
-  List<EventModel> getEventsByStatus(EventStatus status) {
-    return _events.where((e) => e.status == status).toList();
+  Future<List<EventModel>> getEventsByStatus(EventStatus status) async {
+    final currentUser = _authService.currentUser;
+    if (currentUser == null) {
+      throw Exception('User not authenticated');
+    }
+
+    final snapshot = await _eventsCollection
+        .where('ownerId', isEqualTo: currentUser.id)
+        .where('status', isEqualTo: status.name)
+        .get();
+
+    return snapshot.docs
+        .map((doc) {
+          try {
+            final data = doc.data() as Map<String, dynamic>;
+            data['id'] = doc.id;
+            return EventModel.fromJson(data);
+          } catch (e) {
+            debugPrint('Error parsing event ${doc.id}: $e');
+            return null;
+          }
+        })
+        .whereType<EventModel>()
+        .toList();
   }
 
   /// Create a new event
   Future<EventModel> createEvent(EventModel event) async {
-    await Future.delayed(const Duration(milliseconds: 500));
+    final currentUser = _authService.currentUser;
+    if (currentUser == null) {
+      throw Exception('User not authenticated');
+    }
 
+    final now = DateTime.now();
     final newEvent = event.copyWith(
-      id: 'event_${DateTime.now().millisecondsSinceEpoch}',
-      createdAt: DateTime.now(),
-      updatedAt: DateTime.now(),
+      ownerId: currentUser.id,
+      ownerName: currentUser.displayName,
+      createdAt: now,
+      updatedAt: now,
     );
 
-    _events.add(newEvent);
-    _eventsController.add(_events);
-    return newEvent;
+    final docRef = await _eventsCollection.add(newEvent.toJson());
+    return newEvent.copyWith(id: docRef.id);
   }
 
   /// Update an existing event
   Future<EventModel> updateEvent(EventModel event) async {
-    await Future.delayed(const Duration(milliseconds: 500));
+    final currentUser = _authService.currentUser;
+    if (currentUser == null) {
+      throw Exception('User not authenticated');
+    }
 
-    final index = _events.indexWhere((e) => e.id == event.id);
-    if (index == -1) {
+    // Verify ownership
+    final existingEvent = await getEventById(event.id);
+    if (existingEvent == null) {
       throw Exception('Event not found');
+    }
+    if (existingEvent.ownerId != currentUser.id) {
+      throw Exception('You do not have permission to update this event');
     }
 
     final updatedEvent = event.copyWith(updatedAt: DateTime.now());
-    _events[index] = updatedEvent;
-    _eventsController.add(_events);
+    await _eventsCollection.doc(event.id).update(updatedEvent.toJson());
     return updatedEvent;
   }
 
   /// Delete an event
+  /// Only the owner can delete their events
   Future<void> deleteEvent(String eventId) async {
-    await Future.delayed(const Duration(milliseconds: 500));
+    final currentUser = _authService.currentUser;
+    if (currentUser == null) {
+      throw Exception('User not authenticated');
+    }
 
-    _events.removeWhere((e) => e.id == eventId);
-    _eventsController.add(_events);
+    // Verify ownership
+    final event = await getEventById(eventId);
+    if (event == null) {
+      throw Exception('Event not found');
+    }
+    if (event.ownerId != currentUser.id) {
+      throw Exception('You do not have permission to delete this event');
+    }
+
+    await _eventsCollection.doc(eventId).delete();
+    
+    // Also delete associated event-stakeholder relationships
+    final eventStakeholders = await _firestore
+        .collection('eventStakeholders')
+        .where('eventId', isEqualTo: eventId)
+        .get();
+    
+    for (final doc in eventStakeholders.docs) {
+      await doc.reference.delete();
+    }
   }
 
   /// Add stakeholder to event
   Future<EventModel> addStakeholderToEvent(String eventId, String stakeholderId) async {
-    final event = getEventById(eventId);
+    final event = await getEventById(eventId);
     if (event == null) throw Exception('Event not found');
+
+    final currentUser = _authService.currentUser;
+    if (currentUser == null) {
+      throw Exception('User not authenticated');
+    }
+    if (event.ownerId != currentUser.id) {
+      throw Exception('You do not have permission to modify this event');
+    }
 
     if (event.stakeholderIds.contains(stakeholderId)) {
       return event;
@@ -220,8 +337,16 @@ class EventService {
 
   /// Remove stakeholder from event
   Future<EventModel> removeStakeholderFromEvent(String eventId, String stakeholderId) async {
-    final event = getEventById(eventId);
+    final event = await getEventById(eventId);
     if (event == null) throw Exception('Event not found');
+
+    final currentUser = _authService.currentUser;
+    if (currentUser == null) {
+      throw Exception('User not authenticated');
+    }
+    if (event.ownerId != currentUser.id) {
+      throw Exception('You do not have permission to modify this event');
+    }
 
     final updatedEvent = event.copyWith(
       stakeholderIds: event.stakeholderIds.where((id) => id != stakeholderId).toList(),
@@ -232,9 +357,14 @@ class EventService {
   }
 
   /// Search events
-  List<EventModel> searchEvents(String query) {
+  Future<List<EventModel>> searchEvents(String query) async {
+    // Note: Firestore doesn't support full-text search natively
+    // This implementation fetches all events and filters locally
+    // For production, consider using Algolia or ElasticSearch
+    final events = await getAllEvents();
     final lowercaseQuery = query.toLowerCase();
-    return _events.where((event) {
+    
+    return events.where((event) {
       return event.title.toLowerCase().contains(lowercaseQuery) ||
           (event.description?.toLowerCase().contains(lowercaseQuery) ?? false) ||
           event.location.name.toLowerCase().contains(lowercaseQuery);
@@ -243,6 +373,7 @@ class EventService {
 
   /// Dispose resources
   void dispose() {
+    _eventsSubscription?.cancel();
     _eventsController.close();
   }
 }

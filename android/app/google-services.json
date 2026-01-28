@@ -1,0 +1,90 @@
+{
+  "project_info": {
+    "project_number": "144390773762",
+    "project_id": "stakeholder-management-367ba",
+    "storage_bucket": "stakeholder-management-367ba.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:144390773762:android:8b6a327dc3dd82971e5b1b",
+        "android_client_info": {
+          "package_name": "com.example.scheduling_and_stakeholder_management_system"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "144390773762-pnkq4r4p5ev1jtid0k7g26illhmtfaft.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.example.scheduling_and_stakeholder_management_system",
+            "certificate_hash": "06c412cf411a9c2279688a8838400ec78961a243"
+          }
+        },
+        {
+          "client_id": "144390773762-6rv0ubtp9daq7buuko9plcpihifqrc96.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAvtHP3vh55MqiIDRfHk6dpHqAbDJbsCog"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "144390773762-6rv0ubtp9daq7buuko9plcpihifqrc96.apps.googleusercontent.com",
+              "client_type": 3
+            },
+            {
+              "client_id": "144390773762-s4igl761jmts6qt2tcie514jb28k72is.apps.googleusercontent.com",
+              "client_type": 2,
+              "ios_info": {
+                "bundle_id": "com.example.schedulingAndStakeholderManagementSystem"
+              }
+            }
+          ]
+        }
+      }
+    },
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:144390773762:android:d6c8cec64784e4f51e5b1b",
+        "android_client_info": {
+          "package_name": "com.example.scheduling_and_stakeholder_management_system.dev"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "144390773762-6rv0ubtp9daq7buuko9plcpihifqrc96.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAvtHP3vh55MqiIDRfHk6dpHqAbDJbsCog"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "144390773762-6rv0ubtp9daq7buuko9plcpihifqrc96.apps.googleusercontent.com",
+              "client_type": 3
+            },
+            {
+              "client_id": "144390773762-s4igl761jmts6qt2tcie514jb28k72is.apps.googleusercontent.com",
+              "client_type": 2,
+              "ios_info": {
+                "bundle_id": "com.example.schedulingAndStakeholderManagementSystem"
+              }
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

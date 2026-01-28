@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../../models/models.dart';
 import '../../services/services.dart';
+import 'stakeholder_picker_widget.dart';
 
 /// Screen for creating new events
 class EventCreateScreen extends StatefulWidget {
@@ -22,10 +23,12 @@ class _EventCreateScreenState extends State<EventCreateScreen> {
   TimeOfDay? _selectedEndTime;
   final EventStatus _selectedStatus = EventStatus.draft;
   final EventPriority _selectedPriority = EventPriority.medium;
+  List<String> _selectedStakeholderIds = [];
   
   bool _isLoading = false;
   final _eventService = EventService();
   final _authService = AuthService();
+  final _stakeholderService = StakeholderService();
 
   @override
   void dispose() {
@@ -117,7 +120,7 @@ class _EventCreateScreenState extends State<EventCreateScreen> {
         ownerName: currentUser.displayName,
         status: _selectedStatus,
         priority: _selectedPriority,
-        stakeholderIds: [],
+        stakeholderIds: _selectedStakeholderIds,
         createdAt: DateTime.now(),
         updatedAt: DateTime.now(),
       );
@@ -437,6 +440,76 @@ class _EventCreateScreenState extends State<EventCreateScreen> {
                         ),
                       ),
                     ),
+                    const SizedBox(height: 24),
+                    // Stakeholders
+                    const Text(
+                      'Stakeholders',
+                      style: TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w500,
+                        color: Colors.black87,
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    InkWell(
+                      onTap: () async {
+                        final selectedIds = await showStakeholderPicker(
+                          context: context,
+                          selectedStakeholderIds: _selectedStakeholderIds,
+                        );
+                        if (selectedIds != null) {
+                          setState(() {
+                            _selectedStakeholderIds = selectedIds;
+                          });
+                        }
+                      },
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                        decoration: BoxDecoration(
+                          border: Border.all(color: Colors.grey[300]!),
+                          borderRadius: BorderRadius.circular(12),
+                          color: Colors.white,
+                        ),
+                        child: Row(
+                          children: [
+                            Icon(Icons.people, size: 20, color: Colors.grey[600]),
+                            const SizedBox(width: 12),
+                            Expanded(
+                              child: Text(
+                                _selectedStakeholderIds.isEmpty
+                                    ? 'Add stakeholders (optional)'
+                                    : '${_selectedStakeholderIds.length} stakeholder(s) selected',
+                                style: TextStyle(
+                                  color: _selectedStakeholderIds.isEmpty
+                                      ? Colors.grey[400]
+                                      : Colors.black87,
+                                ),
+                              ),
+                            ),
+                            Icon(Icons.arrow_forward_ios, size: 16, color: Colors.grey[400]),
+                          ],
+                        ),
+                      ),
+                    ),
+                    if (_selectedStakeholderIds.isNotEmpty) ...[
+                      const SizedBox(height: 12),
+                      Wrap(
+                        spacing: 8,
+                        runSpacing: 8,
+                        children: _selectedStakeholderIds.map((id) {
+                          final stakeholder = _stakeholderService.getStakeholderById(id);
+                          return Chip(
+                            label: Text(stakeholder?.name ?? 'Unknown'),
+                            deleteIcon: const Icon(Icons.close, size: 18),
+                            onDeleted: () {
+                              setState(() {
+                                _selectedStakeholderIds.remove(id);
+                              });
+                            },
+                          );
+                        }).toList(),
+                      ),
+                    ],
                     const SizedBox(height: 24),
                     // Location
                     const Text(

@@ -30,7 +30,6 @@
 // - Dashboard patterns: https://material.io/design/layout/understanding-layout.html
 // ==============================================================================
 
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import '../../models/models.dart';
 import '../../services/services.dart';
@@ -53,8 +52,9 @@ class _HomeScreenState extends State<HomeScreen> {
   @override
   void initState() {
     super.initState();
-    // Initialize sample data
-    _eventService.initializeSampleData();
+    // Initialize event stream from Firestore or mock data
+    _eventService.initializeEventStream();
+    // Initialize stakeholder data (dev: mock, prod: Firestore)
     _stakeholderService.initializeSampleData();
   }
 
@@ -119,31 +119,20 @@ class _DashboardScreenState extends State<DashboardScreen> {
   Future<void> _loadData() async {
     setState(() => _isLoading = true);
     
-    if (kReleaseMode) {
-      // Production: Use Firebase
-      // TODO: Implement Firebase data fetching
-      // final eventService = EventService();
-      // final stakeholderService = StakeholderService();
-      // _events = await eventService.getEventsFromFirebase();
-      // _stakeholders = await stakeholderService.getStakeholdersFromFirebase();
+    try {
+      final eventService = EventService();
+      final stakeholderService = StakeholderService();
       
-      // For now, fallback to mock data until Firebase is configured
-      await Future.delayed(const Duration(seconds: 1));
-      final eventService = EventService();
-      final stakeholderService = StakeholderService();
-      eventService.initializeSampleData();
-      stakeholderService.initializeSampleData();
-      _events = eventService.events;
-      _stakeholders = stakeholderService.stakeholders;
-    } else {
-      // Development: Use mock data
-      await Future.delayed(const Duration(seconds: 1)); // Simulate loading
-      final eventService = EventService();
-      final stakeholderService = StakeholderService();
-      eventService.initializeSampleData();
-      stakeholderService.initializeSampleData();
-      _events = eventService.events;
-      _stakeholders = stakeholderService.stakeholders;
+      // Fetch events from Firestore or mock data
+      _events = await eventService.getAllEvents();
+      
+      // Get stakeholders from Firestore or mock data
+      _stakeholders = await stakeholderService.getAllStakeholders();
+    } catch (e) {
+      debugPrint('Error loading data: $e');
+      // Initialize with empty lists on error
+      _events = [];
+      _stakeholders = [];
     }
     
     setState(() => _isLoading = false);
@@ -213,8 +202,6 @@ class _DashboardScreenState extends State<DashboardScreen> {
             : StreamBuilder<UserModel?>(
           stream: authService.authStateChanges,
           builder: (context, authSnapshot) {
-            final user = authSnapshot.data ?? authService.currentUser;
-            
             final now = DateTime.now();
             final upcomingEvents = _events
                 .where((e) => e.startTime.isAfter(now))
@@ -456,60 +443,6 @@ class _DashboardScreenState extends State<DashboardScreen> {
                       ],
                     );
           },
-        ),
-      ),
-    );
-  }
-}
-
-class _StatCard extends StatelessWidget {
-  final IconData icon;
-  final String title;
-  final String value;
-  final Color color;
-
-  const _StatCard({
-    required this.icon,
-    required this.title,
-    required this.value,
-    required this.color,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Card(
-      elevation: 0,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(12),
-        side: BorderSide(color: Colors.grey[200]!),
-      ),
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
-            Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  title,
-                  style: TextStyle(
-                    fontSize: 14,
-                    color: Colors.grey[600],
-                  ),
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  value,
-                  style: const TextStyle(
-                    fontSize: 24,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-              ],
-            ),
-            Icon(icon, color: color, size: 32),
-          ],
         ),
       ),
     );

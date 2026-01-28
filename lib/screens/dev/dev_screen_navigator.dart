@@ -28,7 +28,7 @@ class DevScreenNavigator extends StatelessWidget {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('🛠️ Dev Screen Navigator'),
+        title: const Text('Dev Screen Navigator'),
         backgroundColor: Colors.green,
       ),
       body: ListView(
@@ -46,7 +46,7 @@ class DevScreenNavigator extends StatelessWidget {
           ),
           
           // Auth Screens Section
-          const SectionHeader(title: '🔐 Authentication'),
+          const SectionHeader(title: 'Authentication'),
           ScreenTile(
             title: 'Login Screen',
             subtitle: 'Email/password login',
@@ -75,7 +75,7 @@ class DevScreenNavigator extends StatelessWidget {
           const SizedBox(height: 16),
           
           // Main App Screens Section
-          const SectionHeader(title: '📱 Main Application'),
+          const SectionHeader(title: 'Main Application'),
           ScreenTile(
             title: 'Home Screen',
             subtitle: 'Dashboard with bottom navigation',
@@ -136,7 +136,7 @@ class DevScreenNavigator extends StatelessWidget {
                   SizedBox(height: 8),
                   Text(
                     '• This screen only appears in dev mode\n'
-                    '• Use the floating button (🛠️) to return here\n'
+                    '• Use the floating button to return here\n'
                     '• Test each screen for UI and functionality\n'
                     '• Check different device sizes and orientations',
                     style: TextStyle(color: Colors.white),

@@ -1,6 +1,6 @@
 # TODO - Scheduling & Stakeholder Management System
 
-## 🔐 Authentication
+## Authentication
 
 - [ ] **Integrate Firebase Authentication** - Replace mock auth service with real Firebase Auth
   - File: `lib/services/auth_service.dart`
@@ -19,7 +19,7 @@
   - Send verification email on signup
   - Block access until email verified
 
-## 📄 Legal Pages
+## Legal Pages
 
 - [ ] **Create Terms of Service screen**
   - Referenced in: `lib/screens/auth/register_screen.dart`
@@ -27,7 +27,7 @@
 - [ ] **Create Privacy Policy screen**
   - Referenced in: `lib/screens/auth/register_screen.dart`
 
-## ☁️ Cloud Functions
+## Cloud Functions
 
 - [ ] **Connect Flutter app to Cloud Functions**
   - Add `cloud_functions` package
@@ -39,14 +39,14 @@
     - Relationships: `addStakeholderToEvent`, `removeStakeholderFromEvent`
     - Notifications: `sendNotification`, `getNotifications`, `markNotificationAsRead`
 
-## 🎨 UI/UX
+## UI/UX
 
 - [ ] **Add loading states** for all async operations
 - [ ] **Implement pull-to-refresh** on list screens
 - [ ] **Add empty state illustrations** for lists
 - [ ] **Dark mode support** - Theme is defined but needs testing
 
-## 📱 Features
+## Features
 
 - [ ] **Push Notifications**
   - Add Firebase Cloud Messaging
@@ -61,13 +61,13 @@
   - Profile photo upload
   - Edit profile details
 
-## 🧪 Testing
+## Testing
 
 - [ ] **Unit tests** for services
 - [ ] **Widget tests** for screens
 - [ ] **Integration tests** for auth flows
 
-## 🚀 Deployment
+## Deployment
 
 - [ ] **Configure iOS** for production
   - App Store Connect setup
@@ -82,7 +82,7 @@
 
 ---
 
-## Completed ✅
+## Completed
 
 - [x] Flutter flavor setup (dev, staging, prod)
 - [x] Firebase Cloud Functions deployment

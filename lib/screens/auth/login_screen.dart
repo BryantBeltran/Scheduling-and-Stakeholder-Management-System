@@ -19,6 +19,20 @@ class _LoginScreenState extends State<LoginScreen> {
   bool _isAppleLoading = false;
   bool _obscurePassword = true;
   String? _errorMessage;
+  bool _isAppleSignInAvailable = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _checkAppleSignInAvailability();
+  }
+
+  Future<void> _checkAppleSignInAvailability() async {
+    final isAvailable = await _authService.isAppleSignInAvailable();
+    setState(() {
+      _isAppleSignInAvailable = isAvailable;
+    });
+  }
 
   @override
   void dispose() {
@@ -61,11 +75,12 @@ class _LoginScreenState extends State<LoginScreen> {
     });
 
     try {
-      // TODO: Implement Google Sign-In
-      await Future.delayed(const Duration(seconds: 1));
+      await _authService.signInWithGoogle();
       if (mounted) {
         Navigator.of(context).pushReplacementNamed('/home');
       }
+    } on AuthException catch (e) {
+      setState(() => _errorMessage = e.message);
     } catch (e) {
       setState(() => _errorMessage = 'Google sign-in failed. Please try again.');
     } finally {
@@ -82,11 +97,12 @@ class _LoginScreenState extends State<LoginScreen> {
     });
 
     try {
-      // TODO: Implement Apple Sign-In
-      await Future.delayed(const Duration(seconds: 1));
+      await _authService.signInWithApple();
       if (mounted) {
         Navigator.of(context).pushReplacementNamed('/home');
       }
+    } on AuthException catch (e) {
+      setState(() => _errorMessage = e.message);
     } catch (e) {
       setState(() => _errorMessage = 'Apple sign-in failed. Please try again.');
     } finally {
@@ -366,41 +382,43 @@ class _LoginScreenState extends State<LoginScreen> {
                   ),
                   const SizedBox(height: 12),
 
-                  // Apple Sign In Button
-                  SizedBox(
-                    height: 52,
-                    child: OutlinedButton(
-                      onPressed: _isAppleLoading ? null : _handleAppleSignIn,
-                      style: OutlinedButton.styleFrom(
-                        side: BorderSide(color: Colors.grey[300]!),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12),
+                  // Apple Sign In Button (iOS only)
+                  if (_isAppleSignInAvailable)
+                    SizedBox(
+                      height: 52,
+                      child: OutlinedButton(
+                        onPressed: _isAppleLoading ? null : _handleAppleSignIn,
+                        style: OutlinedButton.styleFrom(
+                          side: BorderSide(color: Colors.grey[300]!),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
                         ),
-                      ),
-                      child: _isAppleLoading
-                          ? const SizedBox(
-                              height: 20,
-                              width: 20,
-                              child: CircularProgressIndicator(strokeWidth: 2),
-                            )
-                          : const Row(
-                              mainAxisAlignment: MainAxisAlignment.center,
-                              children: [
-                                Icon(Icons.apple, size: 24, color: Colors.black),
-                                SizedBox(width: 12),
-                                Text(
-                                  'Continue with Apple',
-                                  style: TextStyle(
-                                    fontSize: 15,
-                                    fontWeight: FontWeight.w500,
-                                    color: Colors.black87,
+                        child: _isAppleLoading
+                            ? const SizedBox(
+                                height: 20,
+                                width: 20,
+                                child: CircularProgressIndicator(strokeWidth: 2),
+                              )
+                            : const Row(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  Icon(Icons.apple, size: 24, color: Colors.black),
+                                  SizedBox(width: 12),
+                                  Text(
+                                    'Continue with Apple',
+                                    style: TextStyle(
+                                      fontSize: 15,
+                                      fontWeight: FontWeight.w500,
+                                      color: Colors.black87,
+                                    ),
                                   ),
-                                ),
-                              ],
-                            ),
+                                ],
+                              ),
+                      ),
                     ),
-                  ),
-                  const SizedBox(height: 32),
+                  if (_isAppleSignInAvailable) const SizedBox(height: 32),
+                  if (!_isAppleSignInAvailable) const SizedBox(height: 32),
 
                   // Sign up link
                   Row(

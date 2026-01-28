@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import '../../services/services.dart';
+import 'profile_edit_screen.dart';
+import 'settings_screen.dart';
 
 class ProfileScreen extends StatelessWidget {
   const ProfileScreen({super.key});
@@ -86,8 +88,22 @@ class ProfileScreen extends StatelessWidget {
             icon: Icons.person_outline,
             title: 'Edit Profile',
             onTap: () {
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(content: Text('Edit profile coming soon!')),
+              Navigator.of(context).push(
+                MaterialPageRoute(
+                  builder: (context) => const ProfileEditScreen(),
+                ),
+              );
+            },
+          ),
+          Divider(height: 1, color: Colors.grey[300]),
+          _ProfileMenuItem(
+            icon: Icons.settings_outlined,
+            title: 'Settings',
+            onTap: () {
+              Navigator.of(context).push(
+                MaterialPageRoute(
+                  builder: (context) => const SettingsScreen(),
+                ),
               );
             },
           ),
@@ -96,8 +112,10 @@ class ProfileScreen extends StatelessWidget {
             icon: Icons.notifications_outlined,
             title: 'Notifications',
             onTap: () {
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(content: Text('Notifications settings coming soon!')),
+              Navigator.of(context).push(
+                MaterialPageRoute(
+                  builder: (context) => const SettingsScreen(),
+                ),
               );
             },
           ),

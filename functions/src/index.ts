@@ -1,38 +1,139 @@
 import {setGlobalOptions} from "firebase-functions/v2";
 import {onCall, HttpsError} from "firebase-functions/v2/https";
+import {
+  onDocumentCreated,
+  onDocumentDeleted,
+} from "firebase-functions/v2/firestore";
 import * as logger from "firebase-functions/logger";
 import * as admin from "firebase-admin";
 
 // Initialize Firebase Admin SDK
 admin.initializeApp();
 
-// Start writing functions
-// https://firebase.google.com/docs/functions/typescript
-
-// For cost control, you can set the maximum number of containers that can be
-// running at the same time. This helps mitigate the impact of unexpected
-// traffic spikes by instead downgrading performance. This limit is a
-// per-function limit. You can override the limit for each function using the
-// `maxInstances` option in the function's options, e.g.
-// `onRequest({ maxInstances: 5 }, (req, res) => { ... })`.
-// NOTE: setGlobalOptions does not apply to functions using the v1 API. V1
-// functions should each use functions.runWith({ maxInstances: 10 }) instead.
-// In the v1 API, each function can only serve one request per container, so
-// this will be the maximum concurrent request count.
+// For cost control, set maximum concurrent instances
 setGlobalOptions({maxInstances: 10});
 
+
+// User Management
+/**
+ * Trigger: When a new user document is created in Firestore
+ * Action: Send welcome notification and log user creation
+ */
+export const onUserCreated = onDocumentCreated(
+  "users/{userId}",
+  async (event) => {
+    const userId = event.params.userId;
+    const userData = event.data?.data();
+
+    if (!userData) {
+      logger.warn(`No data found for new user: ${userId}`);
+      return;
+    }
+
+    logger.info(`New user created: ${userData.email}`, {userId});
+
+    try {
+      // Create welcome notification
+      await admin.firestore().collection("notifications").add({
+        userId: userId,
+        title: "Welcome to SSMS!",
+        body: `Hi ${userData.displayName || "there"}! ` +
+          "Welcome to the Scheduling & Stakeholder Management System.",
+        createdAt: admin.firestore.FieldValue.serverTimestamp(),
+        isRead: false,
+        type: "welcome",
+      });
+
+      logger.info(`Welcome notification sent to user: ${userId}`);
+    } catch (error) {
+      logger.error(`Error sending welcome notification to ${userId}:`, error);
+    }
+  }
+);
+
+/**
+ * Trigger: When a user document is deleted
+ * Action: Clean up related data (events, notifications)
+ */
+export const onUserDeleted = onDocumentDeleted(
+  "users/{userId}",
+  async (event) => {
+    const userId = event.params.userId;
+    logger.info(`User deleted: ${userId}`);
+
+    try {
+      const batch = admin.firestore().batch();
+
+      // Delete user's notifications
+      const notificationsSnapshot = await admin
+        .firestore()
+        .collection("notifications")
+        .where("userId", "==", userId)
+        .get();
+
+      notificationsSnapshot.docs.forEach((doc) => {
+        batch.delete(doc.ref);
+      });
+
+      // Note: We don't delete events, just unlink the user
+      // Events created by this user remain for historical purposes
+      const eventsSnapshot = await admin
+        .firestore()
+        .collection("events")
+        .where("organizerId", "==", userId)
+        .get();
+
+      eventsSnapshot.docs.forEach((doc) => {
+        batch.update(doc.ref, {
+          organizerId: null,
+          organizerName: "Deleted User",
+        });
+      });
+
+      await batch.commit();
+      logger.info(`Cleaned up data for deleted user: ${userId}`);
+    } catch (error) {
+      logger.error(`Error cleaning up data for user ${userId}:`, error);
+    }
+  }
+);
+
+// User crud operations
+
 export const createUser = onCall(async (request) => {
-  const {email, password, displayName} = request.data;
+  const {email, password, displayName, role} = request.data;
+
+  // Validate required fields
+  if (!email || !password || !displayName) {
+    throw new HttpsError(
+      "invalid-argument",
+      "Email, password, and display name are required."
+    );
+  }
+
   try {
+    // Create Firebase Auth user
     const userRecord = await admin.auth().createUser({
       email,
       password,
       displayName,
     });
+
+    // Create Firestore user document
     await admin.firestore().collection("users").doc(userRecord.uid).set({
-      displayName,
+      id: userRecord.uid,
       email,
+      displayName,
+      photoUrl: null,
+      role: role || "member",
+      permissions: getDefaultPermissions(role || "member"),
+      createdAt: admin.firestore.FieldValue.serverTimestamp(),
+      lastLoginAt: admin.firestore.FieldValue.serverTimestamp(),
+      updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+      isActive: true,
     });
+
+    logger.info(`User created successfully: ${email}`, {uid: userRecord.uid});
     return {uid: userRecord.uid};
   } catch (error) {
     logger.error("Error creating user:", error);
@@ -42,12 +143,17 @@ export const createUser = onCall(async (request) => {
 
 export const getUser = onCall(async (request) => {
   const {uid} = request.data;
+
+  if (!uid) {
+    throw new HttpsError("invalid-argument", "User ID is required.");
+  }
+
   try {
     const userDoc = await admin.firestore().collection("users").doc(uid).get();
     if (!userDoc.exists) {
       throw new HttpsError("not-found", "User not found.");
     }
-    return userDoc.data();
+    return {id: userDoc.id, ...userDoc.data()};
   } catch (error) {
     logger.error("Error getting user:", error);
     throw new HttpsError("internal", "Error getting user.", error);
@@ -55,11 +161,24 @@ export const getUser = onCall(async (request) => {
 });
 
 export const updateUser = onCall(async (request) => {
-  const {uid, displayName} = request.data;
+  const {uid, displayName, role, permissions} = request.data;
+
+  if (!uid) {
+    throw new HttpsError("invalid-argument", "User ID is required.");
+  }
+
   try {
-    await admin.firestore().collection("users").doc(uid).update({
-      displayName,
-    });
+    const updateData: Record<string, unknown> = {
+      updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+    };
+
+    if (displayName) updateData.displayName = displayName;
+    if (role) updateData.role = role;
+    if (permissions) updateData.permissions = permissions;
+
+    await admin.firestore().collection("users").doc(uid).update(updateData);
+
+    logger.info(`User updated: ${uid}`);
     return {success: true};
   } catch (error) {
     logger.error("Error updating user:", error);
@@ -69,9 +188,19 @@ export const updateUser = onCall(async (request) => {
 
 export const deleteUser = onCall(async (request) => {
   const {uid} = request.data;
+
+  if (!uid) {
+    throw new HttpsError("invalid-argument", "User ID is required.");
+  }
+
   try {
+    // Delete from Firebase Auth
     await admin.auth().deleteUser(uid);
+
+    // Delete from Firestore (triggers onUserDeleted for cleanup)
     await admin.firestore().collection("users").doc(uid).delete();
+
+    logger.info(`User deleted: ${uid}`);
     return {success: true};
   } catch (error) {
     logger.error("Error deleting user:", error);
@@ -79,15 +208,84 @@ export const deleteUser = onCall(async (request) => {
   }
 });
 
+// Event management functions
+
+/**
+ * Trigger: When a new event is created
+ * Action: Send notifications to assigned stakeholders
+ */
+export const onEventCreated = onDocumentCreated(
+  "events/{eventId}",
+  async (event) => {
+    const eventId = event.params.eventId;
+    const eventData = event.data?.data();
+
+    if (!eventData) {
+      return;
+    }
+
+    logger.info(`New event created: ${eventData.title}`, {eventId});
+
+    try {
+      // If there are assigned stakeholders, notify them
+      if (eventData.stakeholderIds && eventData.stakeholderIds.length > 0) {
+        const batch = admin.firestore().batch();
+
+        for (const stakeholderId of eventData.stakeholderIds) {
+          const notificationRef = admin
+            .firestore()
+            .collection("notifications")
+            .doc();
+
+          batch.set(notificationRef, {
+            userId: stakeholderId,
+            title: "New Event Assigned",
+            body: `You've been assigned to: ${eventData.title}`,
+            createdAt: admin.firestore.FieldValue.serverTimestamp(),
+            isRead: false,
+            type: "event_assignment",
+            eventId: eventId,
+          });
+        }
+
+        await batch.commit();
+        logger.info(`Notifications sent for event: ${eventId}`);
+      }
+    } catch (error) {
+      logger.error(`Error sending event notifications: ${eventId}`, error);
+    }
+  }
+);
+
 export const createEvent = onCall(async (request) => {
-  const {title, description, date, location} = request.data;
+  const {title, description, startTime, endTime, location, organizerId} =
+    request.data;
+
+  if (!title || !startTime || !organizerId) {
+    throw new HttpsError(
+      "invalid-argument",
+      "Title, start time, and organizer ID are required."
+    );
+  }
+
   try {
     const eventRef = await admin.firestore().collection("events").add({
       title,
-      description,
-      date,
-      location,
+      description: description || "",
+      startTime: admin.firestore.Timestamp.fromDate(new Date(startTime)),
+      endTime: endTime ?
+        admin.firestore.Timestamp.fromDate(new Date(endTime)) :
+        null,
+      location: location || "",
+      organizerId,
+      status: "scheduled",
+      priority: "medium",
+      stakeholderIds: [],
+      createdAt: admin.firestore.FieldValue.serverTimestamp(),
+      updatedAt: admin.firestore.FieldValue.serverTimestamp(),
     });
+
+    logger.info(`Event created: ${title}`, {id: eventRef.id});
     return {id: eventRef.id};
   } catch (error) {
     logger.error("Error creating event:", error);
@@ -97,12 +295,17 @@ export const createEvent = onCall(async (request) => {
 
 export const getEvent = onCall(async (request) => {
   const {id} = request.data;
+
+  if (!id) {
+    throw new HttpsError("invalid-argument", "Event ID is required.");
+  }
+
   try {
     const eventDoc = await admin.firestore().collection("events").doc(id).get();
     if (!eventDoc.exists) {
       throw new HttpsError("not-found", "Event not found.");
     }
-    return eventDoc.data();
+    return {id: eventDoc.id, ...eventDoc.data()};
   } catch (error) {
     logger.error("Error getting event:", error);
     throw new HttpsError("internal", "Error getting event.", error);
@@ -110,14 +313,34 @@ export const getEvent = onCall(async (request) => {
 });
 
 export const updateEvent = onCall(async (request) => {
-  const {id, title, description, date, location} = request.data;
+  const {id, title, description, startTime, endTime, location, status} =
+    request.data;
+
+  if (!id) {
+    throw new HttpsError("invalid-argument", "Event ID is required.");
+  }
+
   try {
-    await admin.firestore().collection("events").doc(id).update({
-      title,
-      description,
-      date,
-      location,
-    });
+    const updateData: Record<string, unknown> = {
+      updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+    };
+
+    if (title) updateData.title = title;
+    if (description !== undefined) updateData.description = description;
+    if (startTime) {
+      updateData.startTime =
+        admin.firestore.Timestamp.fromDate(new Date(startTime));
+    }
+    if (endTime) {
+      updateData.endTime =
+        admin.firestore.Timestamp.fromDate(new Date(endTime));
+    }
+    if (location !== undefined) updateData.location = location;
+    if (status) updateData.status = status;
+
+    await admin.firestore().collection("events").doc(id).update(updateData);
+
+    logger.info(`Event updated: ${id}`);
     return {success: true};
   } catch (error) {
     logger.error("Error updating event:", error);
@@ -127,8 +350,14 @@ export const updateEvent = onCall(async (request) => {
 
 export const deleteEvent = onCall(async (request) => {
   const {id} = request.data;
+
+  if (!id) {
+    throw new HttpsError("invalid-argument", "Event ID is required.");
+  }
+
   try {
     await admin.firestore().collection("events").doc(id).delete();
+    logger.info(`Event deleted: ${id}`);
     return {success: true};
   } catch (error) {
     logger.error("Error deleting event:", error);
@@ -136,8 +365,18 @@ export const deleteEvent = onCall(async (request) => {
   }
 });
 
+// Stakeholder management functions
+
 export const createStakeholder = onCall(async (request) => {
-  const {name, email, phone} = request.data;
+  const {name, email, phone, organization, type} = request.data;
+
+  if (!name || !email) {
+    throw new HttpsError(
+      "invalid-argument",
+      "Name and email are required."
+    );
+  }
+
   try {
     const stakeholderRef = await admin
       .firestore()
@@ -145,18 +384,31 @@ export const createStakeholder = onCall(async (request) => {
       .add({
         name,
         email,
-        phone,
+        phone: phone || "",
+        organization: organization || "",
+        type: type || "internal",
+        relationshipType: "attendee",
+        participationStatus: "pending",
+        eventIds: [],
+        createdAt: admin.firestore.FieldValue.serverTimestamp(),
+        updatedAt: admin.firestore.FieldValue.serverTimestamp(),
       });
+
+    logger.info(`Stakeholder created: ${name}`, {id: stakeholderRef.id});
     return {id: stakeholderRef.id};
   } catch (error) {
     logger.error("Error creating stakeholder:", error);
-    throw new HttpsError("internal",
-      "Error creating stakeholder.", error);
+    throw new HttpsError("internal", "Error creating stakeholder.", error);
   }
 });
 
 export const getStakeholder = onCall(async (request) => {
   const {id} = request.data;
+
+  if (!id) {
+    throw new HttpsError("invalid-argument", "Stakeholder ID is required.");
+  }
+
   try {
     const stakeholderDoc = await admin
       .firestore()
@@ -166,22 +418,41 @@ export const getStakeholder = onCall(async (request) => {
     if (!stakeholderDoc.exists) {
       throw new HttpsError("not-found", "Stakeholder not found.");
     }
-    return stakeholderDoc.data();
+    return {id: stakeholderDoc.id, ...stakeholderDoc.data()};
   } catch (error) {
     logger.error("Error getting stakeholder:", error);
-    throw new HttpsError("internal",
-      "Error getting stakeholder.", error);
+    throw new HttpsError("internal", "Error getting stakeholder.", error);
   }
 });
 
 export const updateStakeholder = onCall(async (request) => {
-  const {id, name, email, phone} = request.data;
+  const {id, name, email, phone, organization, participationStatus} =
+    request.data;
+
+  if (!id) {
+    throw new HttpsError("invalid-argument", "Stakeholder ID is required.");
+  }
+
   try {
-    await admin.firestore().collection("stakeholders").doc(id).update({
-      name,
-      email,
-      phone,
-    });
+    const updateData: Record<string, unknown> = {
+      updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+    };
+
+    if (name) updateData.name = name;
+    if (email) updateData.email = email;
+    if (phone !== undefined) updateData.phone = phone;
+    if (organization !== undefined) updateData.organization = organization;
+    if (participationStatus) {
+      updateData.participationStatus = participationStatus;
+    }
+
+    await admin
+      .firestore()
+      .collection("stakeholders")
+      .doc(id)
+      .update(updateData);
+
+    logger.info(`Stakeholder updated: ${id}`);
     return {success: true};
   } catch (error) {
     logger.error("Error updating stakeholder:", error);
@@ -191,8 +462,36 @@ export const updateStakeholder = onCall(async (request) => {
 
 export const deleteStakeholder = onCall(async (request) => {
   const {id} = request.data;
+
+  if (!id) {
+    throw new HttpsError("invalid-argument", "Stakeholder ID is required.");
+  }
+
   try {
-    await admin.firestore().collection("stakeholders").doc(id).delete();
+    // Remove stakeholder from all events
+    const eventsSnapshot = await admin
+      .firestore()
+      .collection("events")
+      .where("stakeholderIds", "array-contains", id)
+      .get();
+
+    const batch = admin.firestore().batch();
+    eventsSnapshot.docs.forEach((doc) => {
+      batch.update(doc.ref, {
+        stakeholderIds: admin.firestore.FieldValue.arrayRemove(id),
+      });
+    });
+
+    // Delete stakeholder document
+    const stakeholderRef = admin
+      .firestore()
+      .collection("stakeholders")
+      .doc(id);
+    batch.delete(stakeholderRef);
+
+    await batch.commit();
+
+    logger.info(`Stakeholder deleted: ${id}`);
     return {success: true};
   } catch (error) {
     logger.error("Error deleting stakeholder:", error);
@@ -200,13 +499,40 @@ export const deleteStakeholder = onCall(async (request) => {
   }
 });
 
+// Event stakeholder relationship management
+
 export const addStakeholderToEvent = onCall(async (request) => {
   const {eventId, stakeholderId} = request.data;
+
+  if (!eventId || !stakeholderId) {
+    throw new HttpsError(
+      "invalid-argument",
+      "Event ID and Stakeholder ID are required."
+    );
+  }
+
   try {
-    await admin.firestore().collection("eventStakeholders").add({
-      eventId,
-      stakeholderId,
-    });
+    // Add stakeholder ID to event's stakeholderIds array
+    await admin
+      .firestore()
+      .collection("events")
+      .doc(eventId)
+      .update({
+        stakeholderIds: admin.firestore.FieldValue.arrayUnion(stakeholderId),
+        updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+      });
+
+    // Add event ID to stakeholder's eventIds array
+    await admin
+      .firestore()
+      .collection("stakeholders")
+      .doc(stakeholderId)
+      .update({
+        eventIds: admin.firestore.FieldValue.arrayUnion(eventId),
+        updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+      });
+
+    logger.info(`Stakeholder ${stakeholderId} added to event ${eventId}`);
     return {success: true};
   } catch (error) {
     logger.error("Error adding stakeholder to event:", error);
@@ -220,27 +546,36 @@ export const addStakeholderToEvent = onCall(async (request) => {
 
 export const removeStakeholderFromEvent = onCall(async (request) => {
   const {eventId, stakeholderId} = request.data;
+
+  if (!eventId || !stakeholderId) {
+    throw new HttpsError(
+      "invalid-argument",
+      "Event ID and Stakeholder ID are required."
+    );
+  }
+
   try {
-    const snapshot = await admin
+    // Remove stakeholder ID from event's stakeholderIds array
+    await admin
       .firestore()
-      .collection("eventStakeholders")
-      .where("eventId", "==", eventId)
-      .where("stakeholderId", "==", stakeholderId)
-      .get();
+      .collection("events")
+      .doc(eventId)
+      .update({
+        stakeholderIds: admin.firestore.FieldValue.arrayRemove(stakeholderId),
+        updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+      });
 
-    if (snapshot.empty) {
-      throw new HttpsError(
-        "not-found",
-        "Event-stakeholder relationship not found."
-      );
-    }
+    // Remove event ID from stakeholder's eventIds array
+    await admin
+      .firestore()
+      .collection("stakeholders")
+      .doc(stakeholderId)
+      .update({
+        eventIds: admin.firestore.FieldValue.arrayRemove(eventId),
+        updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+      });
 
-    const batch = admin.firestore().batch();
-    snapshot.docs.forEach((doc) => {
-      batch.delete(doc.ref);
-    });
-    await batch.commit();
-
+    logger.info(`Stakeholder ${stakeholderId} removed from event ${eventId}`);
     return {success: true};
   } catch (error) {
     logger.error("Error removing stakeholder from event:", error);
@@ -252,16 +587,30 @@ export const removeStakeholderFromEvent = onCall(async (request) => {
   }
 });
 
+// Notification management
+
 export const sendNotification = onCall(async (request) => {
-  const {userId, title, body} = request.data;
+  const {userId, title, body, type, eventId} = request.data;
+
+  if (!userId || !title || !body) {
+    throw new HttpsError(
+      "invalid-argument",
+      "User ID, title, and body are required."
+    );
+  }
+
   try {
     await admin.firestore().collection("notifications").add({
       userId,
       title,
       body,
-      createdAt: new Date(),
+      type: type || "general",
+      eventId: eventId || null,
+      createdAt: admin.firestore.FieldValue.serverTimestamp(),
       isRead: false,
     });
+
+    logger.info(`Notification sent to user: ${userId}`);
     return {success: true};
   } catch (error) {
     logger.error("Error sending notification:", error);
@@ -270,16 +619,28 @@ export const sendNotification = onCall(async (request) => {
 });
 
 export const getNotifications = onCall(async (request) => {
-  const {userId} = request.data;
-  try {
-    const snapshot = await admin.firestore().collection("notifications")
-      .where("userId", "==", userId)
-      .orderBy("createdAt", "desc")
-      .get();
+  const {userId, limit} = request.data;
 
+  if (!userId) {
+    throw new HttpsError("invalid-argument", "User ID is required.");
+  }
+
+  try {
+    let query = admin
+      .firestore()
+      .collection("notifications")
+      .where("userId", "==", userId)
+      .orderBy("createdAt", "desc");
+
+    if (limit) {
+      query = query.limit(limit);
+    }
+
+    const snapshot = await query.get();
     const notifications = snapshot.docs.map((doc) => {
       return {id: doc.id, ...doc.data()};
     });
+
     return notifications;
   } catch (error) {
     logger.error("Error getting notifications:", error);
@@ -289,10 +650,18 @@ export const getNotifications = onCall(async (request) => {
 
 export const markNotificationAsRead = onCall(async (request) => {
   const {id} = request.data;
+
+  if (!id) {
+    throw new HttpsError("invalid-argument", "Notification ID is required.");
+  }
+
   try {
     await admin.firestore().collection("notifications").doc(id).update({
       isRead: true,
+      readAt: admin.firestore.FieldValue.serverTimestamp(),
     });
+
+    logger.info(`Notification marked as read: ${id}`);
     return {success: true};
   } catch (error) {
     logger.error("Error marking notification as read:", error);
@@ -304,7 +673,36 @@ export const markNotificationAsRead = onCall(async (request) => {
   }
 });
 
-// export const helloWorld = onRequest((request, response) => {
-//   logger.info("Hello logs!", {structuredData: true});
-//   response.send("Hello from Firebase!");
-// })
+// Helper functions
+
+/**
+ * Get default permissions for a given user role
+ * @param {string} role - The user role (admin, manager, member)
+ * @return {string[]} Array of permission strings
+ */
+function getDefaultPermissions(role: string): string[] {
+  switch (role) {
+  case "admin":
+    return [
+      "createEvent",
+      "editEvent",
+      "deleteEvent",
+      "assignStakeholder",
+      "manageUsers",
+      "viewReports",
+      "editSettings",
+    ];
+  case "manager":
+    return [
+      "createEvent",
+      "editEvent",
+      "deleteEvent",
+      "assignStakeholder",
+      "viewReports",
+    ];
+  case "member":
+    return ["createEvent", "editEvent", "assignStakeholder"];
+  default:
+    return [];
+  }
+}

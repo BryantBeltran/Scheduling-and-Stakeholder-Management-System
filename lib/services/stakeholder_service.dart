@@ -26,7 +26,9 @@
 // ==============================================================================
 
 import 'dart:async';
+import '../config/app_config.dart';
 import '../models/models.dart';
+import 'mock_data_service.dart';
 
 /// Mock stakeholder service for development
 /// Replace with actual backend/Firebase in production
@@ -44,10 +46,33 @@ class StakeholderService {
   /// Get all stakeholders
   List<StakeholderModel> get stakeholders => List.unmodifiable(_stakeholders);
 
-  /// Initialize with sample data
+  /// Get all stakeholders (async version for consistency with Firebase)
+  Future<List<StakeholderModel>> getAllStakeholders() async {
+    // Use mock data in development
+    if (AppConfig.isInitialized && AppConfig.instance.useMockData) {
+      return MockDataService.getMockStakeholders();
+    }
+    // In a real Firebase implementation, this would fetch from Firestore
+    // For now, return the in-memory list
+    return List.unmodifiable(_stakeholders);
+  }
+
+  /// Initialize with sample data (only in dev mode)
   void initializeSampleData() {
     if (_stakeholders.isNotEmpty) return;
 
+    // Only use mock data in development mode
+    if (AppConfig.isInitialized && AppConfig.instance.useMockData) {
+      _stakeholders.addAll(MockDataService.getMockStakeholders());
+      _stakeholdersController.add(_stakeholders);
+      return;
+    }
+
+    // Production mode: Don't add any sample data
+    // Data should come from Firestore
+    return;
+
+    // Legacy sample data for non-flavored builds (commented out for production)
     final now = DateTime.now();
     _stakeholders.addAll([
       StakeholderModel(

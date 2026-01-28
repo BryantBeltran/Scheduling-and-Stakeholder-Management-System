@@ -22,9 +22,9 @@ void main() {
   AppConfig.initialize(AppFlavor.dev);
   
   // Log startup info in dev mode
-  debugPrint('🚀 Starting app in DEVELOPMENT mode');
-  debugPrint('📡 API: ${AppConfig.instance.apiBaseUrl}');
-  debugPrint('🔧 Debug features: ${AppConfig.instance.enableDebugFeatures}');
+  debugPrint('Starting app in DEVELOPMENT mode');
+  debugPrint('API: ${AppConfig.instance.apiBaseUrl}');
+  debugPrint('Debug features: ${AppConfig.instance.enableDebugFeatures}');
   
   runApp(const SchedulingApp());
 }

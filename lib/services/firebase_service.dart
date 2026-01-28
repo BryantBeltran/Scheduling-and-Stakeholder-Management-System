@@ -20,9 +20,9 @@ class FirebaseService {
         options: _getFirebaseOptions(),
       );
       _initialized = true;
-      debugPrint('✅ Firebase initialized successfully');
+      debugPrint('_______Firebase initialized successfully_____');
     } catch (e) {
-      debugPrint('❌ Firebase initialization error: $e');
+      debugPrint(' Firebase initialization error: $e');
       rethrow;
     }
   }

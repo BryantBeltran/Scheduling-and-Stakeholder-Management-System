@@ -58,7 +58,7 @@ class StakeholderDetailsScreen extends StatelessWidget {
                 children: [
                   CircleAvatar(
                     radius: 40,
-                    backgroundColor: _getTypeColor(stakeholder.type).withOpacity(0.2),
+                    backgroundColor: _getTypeColor(stakeholder.type).withValues(alpha: 0.2),
                     child: Text(
                       stakeholder.name[0].toUpperCase(),
                       style: TextStyle(

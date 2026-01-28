@@ -20,31 +20,45 @@
 // ==============================================================================
 
 import 'dart:async';
+import 'dart:io';
 import 'package:firebase_auth/firebase_auth.dart' as firebase_auth;
-import 'package:flutter/foundation.dart';
+import 'package:google_sign_in/google_sign_in.dart';
+import 'package:sign_in_with_apple/sign_in_with_apple.dart';
+import '../config/app_config.dart';
 import '../models/models.dart';
+import 'user_service.dart';
 
 /// Authentication service with Firebase integration
 class AuthService {
   static final AuthService _instance = AuthService._internal();
   factory AuthService() => _instance;
   AuthService._internal() {
-    // Initialize auth state listener
-    if (kReleaseMode) {
-      // Production: Use Firebase Auth
-      _initializeFirebaseAuth();
+    // Initialize Firebase listener if using Firebase
+    if (AppConfig.isInitialized && AppConfig.instance.useFirebase) {
+      // Delay initialization slightly to ensure Firebase is fully ready
+      Future.microtask(() => _initializeFirebaseAuth());
     } else {
-      // Development: Use mock auth
+      // Dev mode: emit null immediately
       _authStateController.add(null);
     }
   }
 
-  final firebase_auth.FirebaseAuth _firebaseAuth = firebase_auth.FirebaseAuth.instance;
   UserModel? _currentUser;
   final _authStateController = StreamController<UserModel?>.broadcast();
   StreamSubscription<firebase_auth.User?>? _firebaseAuthSub;
+  bool _firebaseAuthInitialized = false;
+  
+  // User service for Firestore operations
+  final _userService = UserService();
+
+  // Lazy Firebase instances - only accessed when useFirebase is true
+  firebase_auth.FirebaseAuth get _firebaseAuth => firebase_auth.FirebaseAuth.instance;
+  GoogleSignIn get _googleSignIn => GoogleSignIn();
 
   void _initializeFirebaseAuth() {
+    if (_firebaseAuthInitialized) return;
+    _firebaseAuthInitialized = true;
+    
     // Listen to Firebase auth state changes
     _firebaseAuthSub = _firebaseAuth.authStateChanges().listen((firebase_auth.User? firebaseUser) {
       if (firebaseUser != null) {
@@ -131,7 +145,10 @@ class AuthService {
       throw AuthException('Password must be at least 6 characters');
     }
 
-    if (kReleaseMode) {
+    if (AppConfig.instance.useFirebase) {
+      // Initialize Firebase listener on first use
+      _initializeFirebaseAuth();
+      
       // Production: Use Firebase Authentication
       try {
         final credential = await _firebaseAuth.signInWithEmailAndPassword(
@@ -144,6 +161,10 @@ class AuthService {
         }
         
         _currentUser = _convertFirebaseUser(credential.user!);
+        
+        // Save/update user in Firestore
+        await _userService.saveUser(_currentUser!);
+        
         return _currentUser!;
       } on firebase_auth.FirebaseAuthException catch (e) {
         throw AuthException(_getErrorMessage(e.code));
@@ -188,7 +209,10 @@ class AuthService {
       throw AuthException('Password must be at least 6 characters');
     }
 
-    if (kReleaseMode) {
+    if (AppConfig.instance.useFirebase) {
+      // Initialize Firebase listener on first use
+      _initializeFirebaseAuth();
+      
       // Production: Use Firebase Authentication
       try {
         final credential = await _firebaseAuth.createUserWithEmailAndPassword(
@@ -210,6 +234,10 @@ class AuthService {
         }
         
         _currentUser = _convertFirebaseUser(updatedUser);
+        
+        // Save new user to Firestore
+        await _userService.saveUser(_currentUser!);
+        
         return _currentUser!;
       } on firebase_auth.FirebaseAuthException catch (e) {
         throw AuthException(_getErrorMessage(e.code));
@@ -235,11 +263,176 @@ class AuthService {
     }
   }
 
+  /// Sign in with Google OAuth
+  Future<UserModel> signInWithGoogle() async {
+    if (AppConfig.instance.useFirebase) {
+      // Initialize Firebase listener on first use
+      _initializeFirebaseAuth();
+      
+      // Production: Use Google Sign-In with Firebase
+      try {
+        // Trigger Google Sign-In flow
+        final GoogleSignInAccount? googleUser = await _googleSignIn.signIn();
+        
+        if (googleUser == null) {
+          throw AuthException('Google sign-in was cancelled');
+        }
+
+        // Obtain auth details from Google Sign-In
+        final GoogleSignInAuthentication googleAuth = await googleUser.authentication;
+
+        // Create a new credential for Firebase
+        final credential = firebase_auth.GoogleAuthProvider.credential(
+          accessToken: googleAuth.accessToken,
+          idToken: googleAuth.idToken,
+        );
+
+        // Sign in to Firebase with the Google credential
+        final firebase_auth.UserCredential userCredential = 
+            await _firebaseAuth.signInWithCredential(credential);
+        
+        if (userCredential.user == null) {
+          throw AuthException('Failed to sign in with Google');
+        }
+
+        _currentUser = _convertFirebaseUser(userCredential.user!);
+        
+        // Save/update user in Firestore
+        await _userService.saveUser(_currentUser!);
+        
+        return _currentUser!;
+      } on firebase_auth.FirebaseAuthException catch (e) {
+        throw AuthException(_getErrorMessage(e.code));
+      } catch (e) {
+        throw AuthException('Google sign-in failed: ${e.toString()}');
+      }
+    } else {
+      // Development: Use mock Google authentication
+      await Future.delayed(const Duration(seconds: 1));
+
+      _currentUser = UserModel(
+        id: 'user_google_${DateTime.now().millisecondsSinceEpoch}',
+        email: 'google.user@example.com',
+        displayName: 'Google User',
+        photoUrl: 'https://via.placeholder.com/150',
+        role: UserRole.member,
+        permissions: UserModel.getDefaultPermissions(UserRole.member),
+        createdAt: DateTime.now(),
+        lastLoginAt: DateTime.now(),
+      );
+
+      _authStateController.add(_currentUser);
+      return _currentUser!;
+    }
+  }
+
+  /// Sign in with Apple OAuth (iOS only)
+  /// Throws exception if called on non-iOS platforms
+  Future<UserModel> signInWithApple() async {
+    // Check if running on iOS
+    if (!Platform.isIOS && AppConfig.instance.useFirebase) {
+      throw AuthException('Apple Sign-In is only available on iOS');
+    }
+
+    if (AppConfig.instance.useFirebase) {
+      // Initialize Firebase listener on first use
+      _initializeFirebaseAuth();
+      
+      // Production: Use Apple Sign-In with Firebase
+      try {
+        // Check if Apple Sign-In is available
+        final isAvailable = await SignInWithApple.isAvailable();
+        if (!isAvailable) {
+          throw AuthException('Apple Sign-In is not available on this device');
+        }
+
+        // Request Apple ID credential
+        final appleCredential = await SignInWithApple.getAppleIDCredential(
+          scopes: [
+            AppleIDAuthorizationScopes.email,
+            AppleIDAuthorizationScopes.fullName,
+          ],
+        );
+
+        // Create OAuth provider credential for Firebase
+        final oAuthProvider = firebase_auth.OAuthProvider('apple.com');
+        final credential = oAuthProvider.credential(
+          idToken: appleCredential.identityToken,
+          accessToken: appleCredential.authorizationCode,
+        );
+
+        // Sign in to Firebase with Apple credential
+        final firebase_auth.UserCredential userCredential =
+            await _firebaseAuth.signInWithCredential(credential);
+
+        if (userCredential.user == null) {
+          throw AuthException('Failed to sign in with Apple');
+        }
+
+        // Update display name if provided by Apple
+        if (appleCredential.givenName != null || appleCredential.familyName != null) {
+          final displayName = '${appleCredential.givenName ?? ''} ${appleCredential.familyName ?? ''}'.trim();
+          if (displayName.isNotEmpty) {
+            await userCredential.user!.updateDisplayName(displayName);
+            await userCredential.user!.reload();
+          }
+        }
+
+        final updatedUser = _firebaseAuth.currentUser;
+        if (updatedUser == null) {
+          throw AuthException('Failed to get user after Apple sign-in');
+        }
+
+        _currentUser = _convertFirebaseUser(updatedUser);
+        
+        // Save/update user in Firestore
+        await _userService.saveUser(_currentUser!);
+        
+        return _currentUser!;
+      } on firebase_auth.FirebaseAuthException catch (e) {
+        throw AuthException(_getErrorMessage(e.code));
+      } catch (e) {
+        if (e is AuthException) rethrow;
+        throw AuthException('Apple sign-in failed: ${e.toString()}');
+      }
+    } else {
+      // Development: Use mock Apple authentication
+      await Future.delayed(const Duration(seconds: 1));
+
+      _currentUser = UserModel(
+        id: 'user_apple_${DateTime.now().millisecondsSinceEpoch}',
+        email: 'apple.user@example.com',
+        displayName: 'Apple User',
+        photoUrl: 'https://via.placeholder.com/150',
+        role: UserRole.member,
+        permissions: UserModel.getDefaultPermissions(UserRole.member),
+        createdAt: DateTime.now(),
+        lastLoginAt: DateTime.now(),
+      );
+
+      _authStateController.add(_currentUser);
+      return _currentUser!;
+    }
+  }
+
+  /// Check if Apple Sign-In is available (iOS only)
+  Future<bool> isAppleSignInAvailable() async {
+    if (!Platform.isIOS) return false;
+    if (!AppConfig.instance.useFirebase) return true; // Available in development mode
+    
+    try {
+      return await SignInWithApple.isAvailable();
+    } catch (e) {
+      return false;
+    }
+  }
+
   /// Sign out current user
   Future<void> signOut() async {
-    if (kReleaseMode) {
-      // Production: Sign out from Firebase
+    if (AppConfig.instance.useFirebase) {
+      // Production: Sign out from Firebase and Google
       await _firebaseAuth.signOut();
+      await _googleSignIn.signOut();
     } else {
       // Development: Mock sign out
       await Future.delayed(const Duration(milliseconds: 500));
@@ -254,7 +447,7 @@ class AuthService {
       throw AuthException('Please enter a valid email');
     }
     
-    if (kReleaseMode) {
+    if (AppConfig.instance.useFirebase) {
       // Production: Send Firebase password reset email
       try {
         await _firebaseAuth.sendPasswordResetEmail(email: email);
@@ -278,7 +471,7 @@ class AuthService {
       throw AuthException('User not authenticated');
     }
 
-    if (kReleaseMode) {
+    if (AppConfig.instance.useFirebase) {
       // Production: Update Firebase user profile
       try {
         final firebaseUser = _firebaseAuth.currentUser;

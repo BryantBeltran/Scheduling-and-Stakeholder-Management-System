@@ -14,8 +14,10 @@ void main() async {
   // Default to production configuration
   AppConfig.initialize(AppFlavor.prod);
   
-  // Initialize Firebase
-  await FirebaseService.instance.initialize();
+  // Initialize Firebase only in production
+  if (AppConfig.instance.useFirebase) {
+    await FirebaseService.instance.initialize();
+  }
   
   runApp(const SchedulingApp());
 }

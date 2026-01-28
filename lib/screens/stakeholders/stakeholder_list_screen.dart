@@ -1,3 +1,5 @@
+// ignore_for_file: deprecated_member_use
+
 import 'package:flutter/material.dart';
 import '../../models/models.dart';
 import '../../services/services.dart';
@@ -216,30 +218,26 @@ class _StakeholderListScreenState extends State<StakeholderListScreen> {
           content: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              ListTile(
+              RadioListTile<StakeholderType?>(
                 title: const Text('All Types'),
-                leading: Radio<StakeholderType?>(
-                  value: null,
+                value: null,
+                groupValue: _filterType,
+                onChanged: (value) {
+                  setState(() => _filterType = value);
+                  _filterStakeholders();
+                  Navigator.pop(context);
+                },
+              ),
+              ...StakeholderType.values.map((type) {
+                return RadioListTile<StakeholderType?>(
+                  title: Text(type.name),
+                  value: type,
                   groupValue: _filterType,
                   onChanged: (value) {
                     setState(() => _filterType = value);
                     _filterStakeholders();
                     Navigator.pop(context);
                   },
-                ),
-              ),
-              ...StakeholderType.values.map((type) {
-                return ListTile(
-                  title: Text(type.name),
-                  leading: Radio<StakeholderType?>(
-                    value: type,
-                    groupValue: _filterType,
-                    onChanged: (value) {
-                      setState(() => _filterType = value);
-                      _filterStakeholders();
-                      Navigator.pop(context);
-                    },
-                  ),
                 );
               }),
             ],
@@ -330,90 +328,5 @@ class _StakeholderListItem extends StatelessWidget {
         ),
       ),
     );
-  }
-
-  Color _getTypeColor(StakeholderType type) {
-    switch (type) {
-      case StakeholderType.internal:
-        return Colors.blue;
-      case StakeholderType.external:
-        return Colors.green;
-      case StakeholderType.client:
-        return Colors.purple;
-      case StakeholderType.vendor:
-        return Colors.orange;
-      case StakeholderType.partner:
-        return Colors.teal;
-    }
-  }
-}
-
-class _TypeChip extends StatelessWidget {
-  final StakeholderType type;
-
-  const _TypeChip({required this.type});
-
-  @override
-  Widget build(BuildContext context) {
-    return Chip(
-      label: Text(
-        type.name,
-        style: const TextStyle(fontSize: 11),
-      ),
-      backgroundColor: _getTypeColor(),
-      padding: EdgeInsets.zero,
-      labelPadding: const EdgeInsets.symmetric(horizontal: 8, vertical: 0),
-      visualDensity: VisualDensity.compact,
-    );
-  }
-
-  Color _getTypeColor() {
-    switch (type) {
-      case StakeholderType.internal:
-        return Colors.blue[100]!;
-      case StakeholderType.external:
-        return Colors.green[100]!;
-      case StakeholderType.client:
-        return Colors.purple[100]!;
-      case StakeholderType.vendor:
-        return Colors.orange[100]!;
-      case StakeholderType.partner:
-        return Colors.teal[100]!;
-    }
-  }
-}
-
-class _StatusChip extends StatelessWidget {
-  final ParticipationStatus status;
-
-  const _StatusChip({required this.status});
-
-  @override
-  Widget build(BuildContext context) {
-    return Chip(
-      label: Text(
-        status.name,
-        style: const TextStyle(fontSize: 11),
-      ),
-      backgroundColor: _getStatusColor(),
-      padding: EdgeInsets.zero,
-      labelPadding: const EdgeInsets.symmetric(horizontal: 8, vertical: 0),
-      visualDensity: VisualDensity.compact,
-    );
-  }
-
-  Color _getStatusColor() {
-    switch (status) {
-      case ParticipationStatus.pending:
-        return Colors.grey[300]!;
-      case ParticipationStatus.accepted:
-        return Colors.green[100]!;
-      case ParticipationStatus.declined:
-        return Colors.red[100]!;
-      case ParticipationStatus.tentative:
-        return Colors.yellow[100]!;
-      case ParticipationStatus.noResponse:
-        return Colors.grey[200]!;
-    }
   }
 }

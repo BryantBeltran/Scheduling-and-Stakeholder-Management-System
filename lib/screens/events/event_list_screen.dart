@@ -1,3 +1,5 @@
+// ignore_for_file: deprecated_member_use
+
 import 'package:flutter/material.dart';
 import '../../models/models.dart';
 import '../../services/services.dart';
@@ -12,13 +14,13 @@ class EventListScreen extends StatefulWidget {
 class _EventListScreenState extends State<EventListScreen> {
   final _eventService = EventService();
   final _searchController = TextEditingController();
-  List<EventModel> _filteredEvents = [];
   EventStatus? _filterStatus;
+  List<EventModel> _filteredEvents = [];
 
   @override
   void initState() {
     super.initState();
-    _filteredEvents = _eventService.events;
+    _eventService.initializeEventStream();
   }
 
   @override
@@ -27,26 +29,62 @@ class _EventListScreenState extends State<EventListScreen> {
     super.dispose();
   }
 
-  void _filterEvents() {
-    setState(() {
-      var events = _eventService.events;
+  List<EventModel> _filterEvents(List<EventModel> events) {
+    var filteredEvents = events;
 
-      // Apply status filter
-      if (_filterStatus != null) {
-        events = events.where((e) => e.status == _filterStatus).toList();
+    // Apply status filter
+    if (_filterStatus != null) {
+      filteredEvents = filteredEvents.where((e) => e.status == _filterStatus).toList();
+    }
+
+    // Apply search filter
+    if (_searchController.text.isNotEmpty) {
+      final query = _searchController.text.toLowerCase();
+      filteredEvents = filteredEvents.where((e) {
+        return e.title.toLowerCase().contains(query) ||
+            (e.description?.toLowerCase().contains(query) ?? false);
+      }).toList();
+    }
+
+    return filteredEvents;
+  }
+
+  Future<void> _deleteEvent(String eventId) async {
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Delete Event'),
+        content: const Text('Are you sure you want to delete this event?'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(context, true),
+            style: TextButton.styleFrom(foregroundColor: Colors.red),
+            child: const Text('Delete'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirm == true) {
+      try {
+        await _eventService.deleteEvent(eventId);
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Event deleted successfully')),
+          );
+        }
+      } catch (e) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('Error deleting event: $e')),
+          );
+        }
       }
-
-      // Apply search filter
-      if (_searchController.text.isNotEmpty) {
-        final query = _searchController.text.toLowerCase();
-        events = events.where((e) {
-          return e.title.toLowerCase().contains(query) ||
-              (e.description?.toLowerCase().contains(query) ?? false);
-        }).toList();
-      }
-
-      _filteredEvents = events;
-    });
+    }
   }
 
   @override
@@ -78,7 +116,7 @@ class _EventListScreenState extends State<EventListScreen> {
                         icon: const Icon(Icons.clear),
                         onPressed: () {
                           _searchController.clear();
-                          _filterEvents();
+                          setState(() {});
                         },
                       )
                     : null,
@@ -90,7 +128,7 @@ class _EventListScreenState extends State<EventListScreen> {
                 ),
                 contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
               ),
-              onChanged: (_) => _filterEvents(),
+              onChanged: (_) => setState(() {}),
             ),
           ),
 
@@ -155,8 +193,24 @@ class _EventListScreenState extends State<EventListScreen> {
 
           // Events list
           Expanded(
-            child: _filteredEvents.isEmpty
-                ? Center(
+            child: StreamBuilder<List<EventModel>>(
+              stream: _eventService.eventsStream,
+              builder: (context, snapshot) {
+                if (snapshot.connectionState == ConnectionState.waiting) {
+                  return const Center(child: CircularProgressIndicator());
+                }
+
+                if (snapshot.hasError) {
+                  return Center(
+                    child: Text('Error: ${snapshot.error}'),
+                  );
+                }
+
+                final events = snapshot.data ?? [];
+                _filteredEvents = _filterEvents(events);
+
+                if (_filteredEvents.isEmpty) {
+                  return Center(
                     child: Column(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
@@ -175,18 +229,25 @@ class _EventListScreenState extends State<EventListScreen> {
                         ),
                       ],
                     ),
-                  )
-                : ListView.builder(
-                    padding: const EdgeInsets.all(16),
-                    itemCount: _filteredEvents.length,
-                    itemBuilder: (context, index) {
-                      final event = _filteredEvents[index];
-                      return Padding(
-                        padding: const EdgeInsets.only(bottom: 12),
-                        child: _EventListItem(event: event),
-                      );
-                    },
-                  ),
+                  );
+                }
+
+                return ListView.builder(
+                  padding: const EdgeInsets.all(16),
+                  itemCount: _filteredEvents.length,
+                  itemBuilder: (context, index) {
+                    final event = _filteredEvents[index];
+                    return Padding(
+                      padding: const EdgeInsets.only(bottom: 12),
+                      child: _EventListItem(
+                        event: event,
+                        onDelete: () => _deleteEvent(event.id),
+                      ),
+                    );
+                  },
+                );
+              },
+            ),
           ),
         ],
       ),
@@ -216,30 +277,24 @@ class _EventListScreenState extends State<EventListScreen> {
           content: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              ListTile(
+              RadioListTile<EventStatus?>(
                 title: const Text('All Events'),
-                leading: Radio<EventStatus?>(
-                  value: null,
+                value: null,
+                groupValue: _filterStatus,
+                onChanged: (value) {
+                  setState(() => _filterStatus = value);
+                  Navigator.pop(context);
+                },
+              ),
+              ...EventStatus.values.map((status) {
+                return RadioListTile<EventStatus?>(
+                  title: Text(status.name),
+                  value: status,
                   groupValue: _filterStatus,
                   onChanged: (value) {
                     setState(() => _filterStatus = value);
-                    _filterEvents();
                     Navigator.pop(context);
                   },
-                ),
-              ),
-              ...EventStatus.values.map((status) {
-                return ListTile(
-                  title: Text(status.name),
-                  leading: Radio<EventStatus?>(
-                    value: status,
-                    groupValue: _filterStatus,
-                    onChanged: (value) {
-                      setState(() => _filterStatus = value);
-                      _filterEvents();
-                      Navigator.pop(context);
-                    },
-                  ),
                 );
               }),
             ],
@@ -252,8 +307,9 @@ class _EventListScreenState extends State<EventListScreen> {
 
 class _EventListItem extends StatelessWidget {
   final EventModel event;
+  final VoidCallback? onDelete;
 
-  const _EventListItem({required this.event});
+  const _EventListItem({required this.event, this.onDelete});
 
   @override
   Widget build(BuildContext context) {
@@ -301,6 +357,14 @@ class _EventListItem extends StatelessWidget {
                             ),
                           ),
                         ),
+                        if (onDelete != null)
+                          IconButton(
+                            icon: const Icon(Icons.delete, color: Colors.red, size: 20),
+                            onPressed: onDelete,
+                            padding: EdgeInsets.zero,
+                            constraints: const BoxConstraints(),
+                          ),
+                        const SizedBox(width: 8),
                         const Icon(Icons.chevron_right, color: Colors.grey),
                       ],
                     ),
@@ -376,72 +440,4 @@ class _EventListItem extends StatelessWidget {
     }
   }
 
-}
-
-class _StatusChip extends StatelessWidget {
-  final EventStatus status;
-
-  const _StatusChip({required this.status});
-
-  @override
-  Widget build(BuildContext context) {
-    return Chip(
-      label: Text(
-        status.name,
-        style: const TextStyle(fontSize: 11),
-      ),
-      backgroundColor: _getStatusColor(),
-      padding: EdgeInsets.zero,
-      labelPadding: const EdgeInsets.symmetric(horizontal: 8, vertical: 0),
-      visualDensity: VisualDensity.compact,
-    );
-  }
-
-  Color _getStatusColor() {
-    switch (status) {
-      case EventStatus.draft:
-        return Colors.grey[300]!;
-      case EventStatus.scheduled:
-        return Colors.blue[100]!;
-      case EventStatus.inProgress:
-        return Colors.green[100]!;
-      case EventStatus.completed:
-        return Colors.purple[100]!;
-      case EventStatus.cancelled:
-        return Colors.red[100]!;
-    }
-  }
-}
-
-class _PriorityChip extends StatelessWidget {
-  final EventPriority priority;
-
-  const _PriorityChip({required this.priority});
-
-  @override
-  Widget build(BuildContext context) {
-    return Chip(
-      label: Text(
-        priority.name,
-        style: const TextStyle(fontSize: 11),
-      ),
-      backgroundColor: _getPriorityColor(),
-      padding: EdgeInsets.zero,
-      labelPadding: const EdgeInsets.symmetric(horizontal: 8, vertical: 0),
-      visualDensity: VisualDensity.compact,
-    );
-  }
-
-  Color _getPriorityColor() {
-    switch (priority) {
-      case EventPriority.low:
-        return Colors.green[100]!;
-      case EventPriority.medium:
-        return Colors.orange[100]!;
-      case EventPriority.high:
-        return Colors.red[100]!;
-      case EventPriority.urgent:
-        return Colors.purple[100]!;
-    }
-  }
 }
