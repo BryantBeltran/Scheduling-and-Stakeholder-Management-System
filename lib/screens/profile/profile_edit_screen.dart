@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:image_picker/image_picker.dart';
+import 'dart:typed_data';
 import '../../services/services.dart';
 
 class ProfileEditScreen extends StatefulWidget {
@@ -11,13 +13,17 @@ class ProfileEditScreen extends StatefulWidget {
 class _ProfileEditScreenState extends State<ProfileEditScreen> {
   final _formKey = GlobalKey<FormState>();
   final _authService = AuthService();
+  final _storageService = StorageService();
+  final _imagePicker = ImagePicker();
   
   late TextEditingController _displayNameController;
   late TextEditingController _emailController;
   late TextEditingController _phoneController;
   
   bool _isLoading = false;
+  bool _isUploadingImage = false;
   String? _photoUrl;
+  Uint8List? _selectedImageBytes;
 
   @override
   void initState() {
@@ -37,17 +43,146 @@ class _ProfileEditScreenState extends State<ProfileEditScreen> {
     super.dispose();
   }
 
+  Future<void> _pickImage() async {
+    try {
+      final XFile? image = await _imagePicker.pickImage(
+        source: ImageSource.gallery,
+        maxWidth: 512,
+        maxHeight: 512,
+        imageQuality: 85,
+      );
+
+      if (image == null) return;
+
+      final bytes = await image.readAsBytes();
+      setState(() {
+        _selectedImageBytes = bytes;
+      });
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error selecting image: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
+  }
+
+  Future<void> _takePhoto() async {
+    try {
+      final XFile? image = await _imagePicker.pickImage(
+        source: ImageSource.camera,
+        maxWidth: 512,
+        maxHeight: 512,
+        imageQuality: 85,
+      );
+
+      if (image == null) return;
+
+      final bytes = await image.readAsBytes();
+      setState(() {
+        _selectedImageBytes = bytes;
+      });
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error taking photo: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
+  }
+
+  void _showImageSourceDialog() {
+    showModalBottomSheet(
+      context: context,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+      ),
+      builder: (context) => SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.symmetric(vertical: 16),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Text(
+                'Change Profile Photo',
+                style: TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+              const SizedBox(height: 16),
+              ListTile(
+                leading: const Icon(Icons.photo_library),
+                title: const Text('Choose from Gallery'),
+                onTap: () {
+                  Navigator.pop(context);
+                  _pickImage();
+                },
+              ),
+              ListTile(
+                leading: const Icon(Icons.camera_alt),
+                title: const Text('Take a Photo'),
+                onTap: () {
+                  Navigator.pop(context);
+                  _takePhoto();
+                },
+              ),
+              if (_photoUrl != null || _selectedImageBytes != null)
+                ListTile(
+                  leading: const Icon(Icons.delete, color: Colors.red),
+                  title: const Text('Remove Photo', style: TextStyle(color: Colors.red)),
+                  onTap: () {
+                    Navigator.pop(context);
+                    setState(() {
+                      _selectedImageBytes = null;
+                      _photoUrl = null;
+                    });
+                  },
+                ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
   Future<void> _saveProfile() async {
     if (!_formKey.currentState!.validate()) return;
 
     setState(() => _isLoading = true);
 
     try {
-      // Update display name if changed
+      String? newPhotoUrl = _photoUrl;
+      
+      // Upload new avatar if selected
+      if (_selectedImageBytes != null) {
+        setState(() => _isUploadingImage = true);
+        final currentUser = _authService.currentUser;
+        if (currentUser != null) {
+          newPhotoUrl = await _storageService.uploadAvatar(
+            userId: currentUser.id,
+            imageBytes: _selectedImageBytes!,
+            fileName: 'avatar_${DateTime.now().millisecondsSinceEpoch}.jpg',
+          );
+        }
+        setState(() => _isUploadingImage = false);
+      }
+
+      // Update profile
       final currentUser = _authService.currentUser;
-      if (currentUser?.displayName != _displayNameController.text.trim()) {
+      final displayNameChanged = currentUser?.displayName != _displayNameController.text.trim();
+      final photoChanged = newPhotoUrl != currentUser?.photoUrl;
+      
+      if (displayNameChanged || photoChanged) {
         await _authService.updateProfile(
-          displayName: _displayNameController.text.trim(),
+          displayName: displayNameChanged ? _displayNameController.text.trim() : null,
+          photoUrl: photoChanged ? newPhotoUrl : null,
         );
       }
 
@@ -71,7 +206,10 @@ class _ProfileEditScreenState extends State<ProfileEditScreen> {
       }
     } finally {
       if (mounted) {
-        setState(() => _isLoading = false);
+        setState(() {
+          _isLoading = false;
+          _isUploadingImage = false;
+        });
       }
     }
   }
@@ -121,14 +259,19 @@ class _ProfileEditScreenState extends State<ProfileEditScreen> {
                           decoration: BoxDecoration(
                             shape: BoxShape.circle,
                             color: Theme.of(context).primaryColor.withValues(alpha: 0.1),
-                            image: _photoUrl != null
+                            image: _selectedImageBytes != null
                                 ? DecorationImage(
-                                    image: NetworkImage(_photoUrl!),
+                                    image: MemoryImage(_selectedImageBytes!),
                                     fit: BoxFit.cover,
                                   )
-                                : null,
+                                : _photoUrl != null
+                                    ? DecorationImage(
+                                        image: NetworkImage(_photoUrl!),
+                                        fit: BoxFit.cover,
+                                      )
+                                    : null,
                           ),
-                          child: _photoUrl == null
+                          child: (_selectedImageBytes == null && _photoUrl == null)
                               ? Center(
                                   child: Text(
                                     _displayNameController.text.isNotEmpty
@@ -143,6 +286,21 @@ class _ProfileEditScreenState extends State<ProfileEditScreen> {
                                 )
                               : null,
                         ),
+                        if (_isUploadingImage)
+                          Positioned.fill(
+                            child: Container(
+                              decoration: BoxDecoration(
+                                shape: BoxShape.circle,
+                                color: Colors.black.withValues(alpha: 0.5),
+                              ),
+                              child: const Center(
+                                child: CircularProgressIndicator(
+                                  color: Colors.white,
+                                  strokeWidth: 2,
+                                ),
+                              ),
+                            ),
+                          ),
                         Positioned(
                           bottom: 0,
                           right: 0,
@@ -153,14 +311,7 @@ class _ProfileEditScreenState extends State<ProfileEditScreen> {
                               icon: const Icon(Icons.camera_alt, size: 18),
                               color: Colors.white,
                               padding: EdgeInsets.zero,
-                              onPressed: () {
-                                // TODO: Implement image picker
-                                ScaffoldMessenger.of(context).showSnackBar(
-                                  const SnackBar(
-                                    content: Text('Photo upload coming soon!'),
-                                  ),
-                                );
-                              },
+                              onPressed: _isLoading ? null : _showImageSourceDialog,
                             ),
                           ),
                         ),

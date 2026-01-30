@@ -29,26 +29,34 @@ class ProfileScreen extends StatelessWidget {
             padding: const EdgeInsets.symmetric(vertical: 32, horizontal: 24),
             child: Column(
               children: [
-                // Larger circular avatar
+                // Larger circular avatar with photo support
                 Container(
                   width: 120,
                   height: 120,
                   decoration: BoxDecoration(
                     shape: BoxShape.circle,
                     color: const Color(0xFF5B7C99),
+                    image: (user?.photoUrl != null && user!.photoUrl!.isNotEmpty)
+                        ? DecorationImage(
+                            image: NetworkImage(user.photoUrl!),
+                            fit: BoxFit.cover,
+                          )
+                        : null,
                   ),
-                  child: Center(
-                    child: Text(
-                      (user?.displayName.isNotEmpty ?? false) 
-                          ? user!.displayName[0].toUpperCase() 
-                          : 'U',
-                      style: const TextStyle(
-                        fontSize: 48,
-                        color: Colors.white,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                  ),
+                  child: (user?.photoUrl == null || user!.photoUrl!.isEmpty)
+                      ? Center(
+                          child: Text(
+                            (user?.displayName.isNotEmpty ?? false) 
+                                ? user!.displayName[0].toUpperCase() 
+                                : 'U',
+                            style: const TextStyle(
+                              fontSize: 48,
+                              color: Colors.white,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                        )
+                      : null,
                 ),
                 const SizedBox(height: 16),
                 // Username

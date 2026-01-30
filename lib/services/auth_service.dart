@@ -493,6 +493,10 @@ class AuthService {
         }
         
         _currentUser = _convertFirebaseUser(updatedUser);
+        
+        // Also update Firestore user document
+        await _userService.updateUser(_currentUser!);
+        
         _authStateController.add(_currentUser);
         return _currentUser!;
       } on firebase_auth.FirebaseAuthException catch (e) {

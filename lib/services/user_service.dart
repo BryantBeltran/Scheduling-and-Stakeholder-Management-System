@@ -35,11 +35,12 @@ class UserService {
     try {
       final userRef = _firestore.collection('users').doc(user.id);
       
-      // Check if user exists
+      // Check if user exists and has data
       final docSnapshot = await userRef.get();
+      final hasData = docSnapshot.exists && docSnapshot.data() != null && docSnapshot.data()!.isNotEmpty;
       
-      if (docSnapshot.exists) {
-        // User exists - update last login and other fields that might have changed
+      if (hasData) {
+        // User exists with data - update last login and other fields that might have changed
         await userRef.update({
           'displayName': user.displayName,
           'photoUrl': user.photoUrl,
@@ -48,7 +49,7 @@ class UserService {
         });
         debugPrint('Updated existing user: ${user.email}');
       } else {
-        // New user - create document with all fields
+        // New user or empty document - create/overwrite with all fields
         await userRef.set({
           'id': user.id,
           'email': user.email,
@@ -59,6 +60,7 @@ class UserService {
           'createdAt': FieldValue.serverTimestamp(),
           'lastLoginAt': FieldValue.serverTimestamp(),
           'updatedAt': FieldValue.serverTimestamp(),
+          'isActive': true,
         });
         debugPrint('Created new user: ${user.email}');
       }
