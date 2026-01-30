@@ -22,6 +22,7 @@
 import 'dart:async';
 import 'dart:io';
 import 'package:firebase_auth/firebase_auth.dart' as firebase_auth;
+import 'package:flutter/foundation.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 import 'package:sign_in_with_apple/sign_in_with_apple.dart';
 import '../config/app_config.dart';
@@ -160,11 +161,19 @@ class AuthService {
           throw AuthException('Authentication failed');
         }
         
+        // First convert Firebase user for basic info
         _currentUser = _convertFirebaseUser(credential.user!);
         
-        // Save/update user in Firestore
+        // Save/update user in Firestore and get full user data with role/permissions
         await _userService.saveUser(_currentUser!);
         
+        // Fetch full user data from Firestore (includes role/permissions)
+        final fullUser = await _userService.getUser(_currentUser!.id);
+        if (fullUser != null) {
+          _currentUser = fullUser;
+        }
+        
+        _authStateController.add(_currentUser);
         return _currentUser!;
       } on firebase_auth.FirebaseAuthException catch (e) {
         throw AuthException(_getErrorMessage(e.code));
@@ -238,6 +247,23 @@ class AuthService {
         // Save new user to Firestore
         await _userService.saveUser(_currentUser!);
         
+        // Check if this email has a stakeholder record and link them
+        final stakeholderId = await _userService.linkStakeholderByEmail(
+          _currentUser!.id,
+          email,
+        );
+        
+        // Fetch full user data from Firestore (includes role/permissions and stakeholderId)
+        final fullUser = await _userService.getUser(_currentUser!.id);
+        if (fullUser != null) {
+          _currentUser = fullUser;
+        }
+        
+        if (stakeholderId != null) {
+          debugPrint('User linked to stakeholder: $stakeholderId');
+        }
+        
+        _authStateController.add(_currentUser);
         return _currentUser!;
       } on firebase_auth.FirebaseAuthException catch (e) {
         throw AuthException(_getErrorMessage(e.code));
@@ -300,6 +326,13 @@ class AuthService {
         // Save/update user in Firestore
         await _userService.saveUser(_currentUser!);
         
+        // Fetch full user data from Firestore (includes role/permissions)
+        final fullUser = await _userService.getUser(_currentUser!.id);
+        if (fullUser != null) {
+          _currentUser = fullUser;
+        }
+        
+        _authStateController.add(_currentUser);
         return _currentUser!;
       } on firebase_auth.FirebaseAuthException catch (e) {
         throw AuthException(_getErrorMessage(e.code));
@@ -388,6 +421,13 @@ class AuthService {
         // Save/update user in Firestore
         await _userService.saveUser(_currentUser!);
         
+        // Fetch full user data from Firestore (includes role/permissions)
+        final fullUser = await _userService.getUser(_currentUser!.id);
+        if (fullUser != null) {
+          _currentUser = fullUser;
+        }
+        
+        _authStateController.add(_currentUser);
         return _currentUser!;
       } on firebase_auth.FirebaseAuthException catch (e) {
         throw AuthException(_getErrorMessage(e.code));
@@ -492,7 +532,11 @@ class AuthService {
           throw AuthException('Failed to get updated user');
         }
         
-        _currentUser = _convertFirebaseUser(updatedUser);
+        // Preserve existing role and permissions, only update changed fields
+        _currentUser = _currentUser!.copyWith(
+          displayName: displayName ?? _currentUser!.displayName,
+          photoUrl: photoUrl ?? _currentUser!.photoUrl,
+        );
         
         // Also update Firestore user document
         await _userService.updateUser(_currentUser!);

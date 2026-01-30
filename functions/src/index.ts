@@ -390,6 +390,10 @@ export const createStakeholder = onCall(async (request) => {
         relationshipType: "attendee",
         participationStatus: "pending",
         eventIds: [],
+        linkedUserId: null,
+        inviteStatus: "notInvited",
+        invitedAt: null,
+        inviteToken: null,
         createdAt: admin.firestore.FieldValue.serverTimestamp(),
         updatedAt: admin.firestore.FieldValue.serverTimestamp(),
       });
@@ -496,6 +500,184 @@ export const deleteStakeholder = onCall(async (request) => {
   } catch (error) {
     logger.error("Error deleting stakeholder:", error);
     throw new HttpsError("internal", "Error deleting stakeholder.", error);
+  }
+});
+
+// Stakeholder invitation functions
+
+export const inviteStakeholder = onCall(async (request) => {
+  const {stakeholderId, defaultRole} = request.data;
+
+  if (!stakeholderId) {
+    throw new HttpsError(
+      "invalid-argument",
+      "Stakeholder ID is required."
+    );
+  }
+
+  try {
+    const stakeholderRef = admin
+      .firestore()
+      .collection("stakeholders")
+      .doc(stakeholderId);
+    const stakeholderDoc = await stakeholderRef.get();
+
+    if (!stakeholderDoc.exists) {
+      throw new HttpsError("not-found", "Stakeholder not found.");
+    }
+
+    const stakeholderData = stakeholderDoc.data();
+    if (!stakeholderData) {
+      throw new HttpsError("internal", "Stakeholder data is empty.");
+    }
+
+    // Generate invite token
+    const inviteToken = admin.firestore().collection("_temp").doc().id;
+
+    // Update stakeholder with invite info
+    await stakeholderRef.update({
+      inviteStatus: "pending",
+      invitedAt: admin.firestore.FieldValue.serverTimestamp(),
+      inviteToken: inviteToken,
+      defaultRole: defaultRole || "member",
+      updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+    });
+
+    // Store invite in invites collection for lookup during signup
+    await admin.firestore().collection("invites").doc(inviteToken).set({
+      stakeholderId: stakeholderId,
+      email: stakeholderData.email,
+      defaultRole: defaultRole || "member",
+      createdAt: admin.firestore.FieldValue.serverTimestamp(),
+      expiresAt: admin.firestore.Timestamp.fromDate(
+        new Date(Date.now() + 7 * 24 * 60 * 60 * 1000) // 7 days
+      ),
+      used: false,
+    });
+
+    logger.info(`Stakeholder invited: ${stakeholderId}`, {
+      email: stakeholderData.email,
+      token: inviteToken,
+    });
+
+    // TODO: Send email with invite link
+    // For now, return the token for manual sharing
+    return {
+      success: true,
+      inviteToken: inviteToken,
+      email: stakeholderData.email,
+    };
+  } catch (error) {
+    logger.error("Error inviting stakeholder:", error);
+    throw new HttpsError("internal", "Error inviting stakeholder.", error);
+  }
+});
+
+export const validateInviteToken = onCall(async (request) => {
+  const {token} = request.data;
+
+  if (!token) {
+    throw new HttpsError("invalid-argument", "Invite token is required.");
+  }
+
+  try {
+    const inviteDoc = await admin
+      .firestore()
+      .collection("invites")
+      .doc(token)
+      .get();
+
+    if (!inviteDoc.exists) {
+      return {valid: false, reason: "Token not found"};
+    }
+
+    const inviteData = inviteDoc.data();
+    if (!inviteData) {
+      return {valid: false, reason: "Invalid invite data"};
+    }
+
+    if (inviteData.used) {
+      return {valid: false, reason: "Token already used"};
+    }
+
+    const expiresAt = inviteData.expiresAt?.toDate();
+    if (expiresAt && new Date() > expiresAt) {
+      return {valid: false, reason: "Token expired"};
+    }
+
+    return {
+      valid: true,
+      email: inviteData.email,
+      stakeholderId: inviteData.stakeholderId,
+      defaultRole: inviteData.defaultRole,
+    };
+  } catch (error) {
+    logger.error("Error validating invite token:", error);
+    throw new HttpsError("internal", "Error validating invite token.", error);
+  }
+});
+
+export const linkUserToStakeholder = onCall(async (request) => {
+  const {userId, stakeholderId, inviteToken} = request.data;
+
+  if (!userId || !stakeholderId) {
+    throw new HttpsError(
+      "invalid-argument",
+      "User ID and Stakeholder ID are required."
+    );
+  }
+
+  try {
+    const batch = admin.firestore().batch();
+
+    // Get invite data for default role
+    let defaultRole = "member";
+    if (inviteToken) {
+      const inviteDoc = await admin
+        .firestore()
+        .collection("invites")
+        .doc(inviteToken)
+        .get();
+      if (inviteDoc.exists) {
+        const inviteData = inviteDoc.data();
+        defaultRole = inviteData?.defaultRole || "member";
+
+        // Mark invite as used
+        batch.update(inviteDoc.ref, {used: true});
+      }
+    }
+
+    // Update user with stakeholder link
+    const userRef = admin.firestore().collection("users").doc(userId);
+    batch.update(userRef, {
+      stakeholderId: stakeholderId,
+      role: defaultRole,
+      permissions: getDefaultPermissions(defaultRole),
+      updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+    });
+
+    // Update stakeholder with user link
+    const stakeholderRef = admin
+      .firestore()
+      .collection("stakeholders")
+      .doc(stakeholderId);
+    batch.update(stakeholderRef, {
+      linkedUserId: userId,
+      inviteStatus: "accepted",
+      updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+    });
+
+    await batch.commit();
+
+    logger.info(`User ${userId} linked to stakeholder ${stakeholderId}`);
+    return {success: true, role: defaultRole};
+  } catch (error) {
+    logger.error("Error linking user to stakeholder:", error);
+    throw new HttpsError(
+      "internal",
+      "Error linking user to stakeholder.",
+      error
+    );
   }
 });
 

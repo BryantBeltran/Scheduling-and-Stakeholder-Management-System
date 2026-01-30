@@ -94,6 +94,7 @@ class UserService {
         permissions: _parsePermissions(data['permissions'] as List?),
         createdAt: (data['createdAt'] as Timestamp?)?.toDate() ?? DateTime.now(),
         lastLoginAt: (data['lastLoginAt'] as Timestamp?)?.toDate() ?? DateTime.now(),
+        stakeholderId: data['stakeholderId'] as String?,
       );
     } catch (e) {
       debugPrint('Error getting user from Firestore: $e');
@@ -114,12 +115,85 @@ class UserService {
         'photoUrl': user.photoUrl,
         'role': user.role.toString().split('.').last,
         'permissions': user.permissions.map((p) => p.toString().split('.').last).toList(),
+        'stakeholderId': user.stakeholderId,
         'updatedAt': FieldValue.serverTimestamp(),
       });
       debugPrint('Updated user profile: ${user.email}');
     } catch (e) {
       debugPrint('Error updating user: $e');
       rethrow;
+    }
+  }
+
+  /// Check if a stakeholder exists with the given email and link them to the user
+  Future<String?> linkStakeholderByEmail(String userId, String email) async {
+    if (!AppConfig.instance.useFirebase) {
+      debugPrint('[Dev] Mock link stakeholder by email: $email');
+      return null;
+    }
+
+    try {
+      // Find stakeholder with matching email
+      final querySnapshot = await _firestore
+          .collection('stakeholders')
+          .where('email', isEqualTo: email)
+          .limit(1)
+          .get();
+
+      if (querySnapshot.docs.isEmpty) {
+        debugPrint('No stakeholder found with email: $email');
+        return null;
+      }
+
+      final stakeholderDoc = querySnapshot.docs.first;
+      final stakeholderId = stakeholderDoc.id;
+
+      // Update both documents in a batch
+      final batch = _firestore.batch();
+      
+      // Update user with stakeholderId
+      batch.update(_firestore.collection('users').doc(userId), {
+        'stakeholderId': stakeholderId,
+        'updatedAt': FieldValue.serverTimestamp(),
+      });
+      
+      // Update stakeholder with linkedUserId and invite status
+      batch.update(_firestore.collection('stakeholders').doc(stakeholderId), {
+        'linkedUserId': userId,
+        'inviteStatus': 'accepted',
+        'updatedAt': FieldValue.serverTimestamp(),
+      });
+
+      await batch.commit();
+      debugPrint('Linked user $userId to stakeholder $stakeholderId');
+      return stakeholderId;
+    } catch (e) {
+      debugPrint('Error linking stakeholder: $e');
+      return null;
+    }
+  }
+
+  /// Get stakeholder ID for a user by checking their email
+  Future<String?> findStakeholderByEmail(String email) async {
+    if (!AppConfig.instance.useFirebase) {
+      return null;
+    }
+
+    try {
+      final querySnapshot = await _firestore
+          .collection('stakeholders')
+          .where('email', isEqualTo: email)
+          .limit(1)
+          .get();
+
+      if (querySnapshot.docs.isEmpty) {
+        return null;
+      }
+
+      return querySnapshot.docs.first.id;
+    } catch (e) {
+      debugPrint('Error finding stakeholder: $e');
+      return null;
     }
   }
 
@@ -172,6 +246,8 @@ class UserService {
         return Permission.viewStakeholder;
       case 'assignStakeholder':
         return Permission.assignStakeholder;
+      case 'inviteStakeholder':
+        return Permission.inviteStakeholder;
       // Admin permissions
       case 'manageUsers':
         return Permission.manageUsers;
@@ -179,6 +255,11 @@ class UserService {
         return Permission.viewReports;
       case 'editSettings':
         return Permission.editSettings;
+      // Super admin permissions
+      case 'admin':
+        return Permission.admin;
+      case 'root':
+        return Permission.root;
       default:
         return null;
     }

@@ -37,5 +37,12 @@ service cloud.firestore {
       allow read, update: if request.auth != null && request.auth.uid == resource.data.userId;
       allow create: if request.auth != null;
     }
+
+    // Invites: Read-only for authenticated users to validate tokens
+    // Write access only via Cloud Functions
+    match /invites/{inviteId} {
+      allow read: if request.auth != null;
+      allow write: if false; // Only via Cloud Functions
+    }
   }
 }

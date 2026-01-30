@@ -83,11 +83,26 @@ class PermissionService {
   bool get canDeleteStakeholder => hasPermission(Permission.deleteStakeholder);
   bool get canViewStakeholder => hasPermission(Permission.viewStakeholder);
   bool get canAssignStakeholder => hasPermission(Permission.assignStakeholder);
+  
+  /// Check if user can invite stakeholders
+  bool get canInviteStakeholder =>
+      hasPermission(Permission.inviteStakeholder) ||
+      hasPermission(Permission.admin) ||
+      hasPermission(Permission.root);
 
   // Admin permissions
   bool get canManageUsers => hasPermission(Permission.manageUsers);
   bool get canViewReports => hasPermission(Permission.viewReports);
   bool get canEditSettings => hasPermission(Permission.editSettings);
+
+  /// Check if user has admin permission
+  bool get hasAdminPermission => hasPermission(Permission.admin);
+
+  /// Check if user has root permission
+  bool get hasRootPermission => hasPermission(Permission.root);
+
+  /// Check if user is a super admin (admin or root)
+  bool get isSuperAdmin => hasAdminPermission || hasRootPermission;
 
   /// Check if user can edit a specific event
   /// User can edit if they have editEvent permission and either:
@@ -166,12 +181,18 @@ class PermissionService {
         return 'View Stakeholders';
       case Permission.assignStakeholder:
         return 'Assign Stakeholders';
+      case Permission.inviteStakeholder:
+        return 'Invite Stakeholders';
       case Permission.manageUsers:
         return 'Manage Users';
       case Permission.viewReports:
         return 'View Reports';
       case Permission.editSettings:
         return 'Edit Settings';
+      case Permission.admin:
+        return 'Administrator Access';
+      case Permission.root:
+        return 'Root Access';
     }
   }
 }

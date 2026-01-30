@@ -7,3 +7,4 @@ export 'user_service.dart';
 export 'mock_data_service.dart';
 export 'permission_service.dart';
 export 'storage_service.dart';
+export 'invite_service.dart';

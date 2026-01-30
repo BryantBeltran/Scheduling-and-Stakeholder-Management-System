@@ -40,11 +40,16 @@ enum Permission {
   deleteStakeholder,
   viewStakeholder,
   assignStakeholder,
+  inviteStakeholder,  // Can send invites to stakeholders
   
   // Admin permissions
   manageUsers,
   viewReports,
   editSettings,
+  
+  // Super admin permissions
+  admin,  // Full admin access
+  root,   // Root/debug access
 }
 
 /// User model representing authenticated users in the system.
@@ -90,6 +95,9 @@ class UserModel {
   
   /// Whether the user account is active (inactive users cannot log in)
   final bool isActive;
+  
+  /// ID of linked stakeholder record (null if not a stakeholder)
+  final String? stakeholderId;
 
   const UserModel({
     required this.id,
@@ -101,7 +109,11 @@ class UserModel {
     required this.createdAt,
     this.lastLoginAt,
     this.isActive = true,
+    this.stakeholderId,
   });
+  
+  /// Returns true if this user is linked to a stakeholder record
+  bool get isStakeholder => stakeholderId != null;
 
   /// Returns the default set of permissions for a given role.
   ///
@@ -131,6 +143,7 @@ class UserModel {
           Permission.deleteStakeholder,
           Permission.viewStakeholder,
           Permission.assignStakeholder,
+          Permission.inviteStakeholder,
           Permission.viewReports,
         ];
       case UserRole.member:
@@ -186,6 +199,7 @@ class UserModel {
     DateTime? createdAt,
     DateTime? lastLoginAt,
     bool? isActive,
+    String? stakeholderId,
   }) {
     return UserModel(
       id: id ?? this.id,
@@ -197,6 +211,7 @@ class UserModel {
       createdAt: createdAt ?? this.createdAt,
       lastLoginAt: lastLoginAt ?? this.lastLoginAt,
       isActive: isActive ?? this.isActive,
+      stakeholderId: stakeholderId ?? this.stakeholderId,
     );
   }
 
@@ -221,6 +236,7 @@ class UserModel {
       'createdAt': createdAt.toIso8601String(),
       'lastLoginAt': lastLoginAt?.toIso8601String(),
       'isActive': isActive,
+      'stakeholderId': stakeholderId,
     };
   }
 
@@ -240,6 +256,7 @@ class UserModel {
           ? DateTime.parse(json['lastLoginAt'] as String)
           : null,
       isActive: json['isActive'] as bool? ?? true,
+      stakeholderId: json['stakeholderId'] as String?,
     );
   }
 

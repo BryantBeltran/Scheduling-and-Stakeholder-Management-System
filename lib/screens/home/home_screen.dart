@@ -35,6 +35,7 @@ import '../../models/models.dart';
 import '../../services/services.dart';
 import '../events/event_list_screen.dart';
 import '../stakeholders/stakeholder_list_screen.dart';
+import '../stakeholders/stakeholder_dashboard_screen.dart';
 import '../profile/profile_screen.dart';
 
 class HomeScreen extends StatefulWidget {
@@ -48,6 +49,7 @@ class _HomeScreenState extends State<HomeScreen> {
   int _currentIndex = 0;
   final _eventService = EventService();
   final _stakeholderService = StakeholderService();
+  final _permissionService = PermissionService();
 
   @override
   void initState() {
@@ -58,6 +60,13 @@ class _HomeScreenState extends State<HomeScreen> {
     _stakeholderService.initializeSampleData();
   }
 
+  /// Check if user can access the Stakeholders tab (admin/manager/root only)
+  bool get _canAccessStakeholders {
+    return _permissionService.isAdmin ||
+        _permissionService.isManagerOrAbove ||
+        _permissionService.hasPermission(Permission.root);
+  }
+
   final List<Widget> _screens = const [
     DashboardScreen(),
     EventListScreen(),
@@ -65,13 +74,27 @@ class _HomeScreenState extends State<HomeScreen> {
     ProfileScreen(),
   ];
 
+  void _onNavTap(int index) {
+    // Check permission for Stakeholders tab (index 2)
+    if (index == 2 && !_canAccessStakeholders) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('You need admin or manager access to view stakeholders'),
+          backgroundColor: Colors.red,
+        ),
+      );
+      return;
+    }
+    setState(() => _currentIndex = index);
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       body: _screens[_currentIndex],
       bottomNavigationBar: BottomNavigationBar(
         currentIndex: _currentIndex,
-        onTap: (index) => setState(() => _currentIndex = index),
+        onTap: _onNavTap,
         type: BottomNavigationBarType.fixed,
         selectedItemColor: Colors.black,
         unselectedItemColor: Colors.grey,
@@ -389,7 +412,13 @@ class _DashboardScreenState extends State<DashboardScreen> {
                             ],
                           ),
                         ),
-                        const SizedBox(height: 32),
+                        const SizedBox(height: 20),
+                        
+                        // Stakeholder Dashboard Card (shows if user is a stakeholder)
+                        if (authSnapshot.data?.isStakeholder == true)
+                          _buildStakeholderDashboardCard(context),
+                        if (authSnapshot.data?.isStakeholder == true)
+                          const SizedBox(height: 20),
                         
                         // Upcoming Events Section
                         Card(
@@ -443,6 +472,74 @@ class _DashboardScreenState extends State<DashboardScreen> {
                       ],
                     );
           },
+        ),
+      ),
+    );
+  }
+
+  Widget _buildStakeholderDashboardCard(BuildContext context) {
+    return Card(
+      elevation: 0,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(12),
+        side: BorderSide(color: const Color(0xFF5B7C99).withValues(alpha: 0.3)),
+      ),
+      color: const Color(0xFF5B7C99).withValues(alpha: 0.05),
+      child: InkWell(
+        onTap: () {
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (context) => const StakeholderDashboardScreen(),
+            ),
+          );
+        },
+        borderRadius: BorderRadius.circular(12),
+        child: Padding(
+          padding: const EdgeInsets.all(20),
+          child: Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: const Color(0xFF5B7C99).withValues(alpha: 0.15),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: const Icon(
+                  Icons.event_available,
+                  color: Color(0xFF5B7C99),
+                  size: 28,
+                ),
+              ),
+              const SizedBox(width: 16),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text(
+                      'My Assigned Events',
+                      style: TextStyle(
+                        fontWeight: FontWeight.bold,
+                        fontSize: 16,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      'View events you\'re assigned to as a stakeholder',
+                      style: TextStyle(
+                        fontSize: 13,
+                        color: Colors.grey[600],
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const Icon(
+                Icons.chevron_right,
+                color: Color(0xFF5B7C99),
+              ),
+            ],
+          ),
         ),
       ),
     );
@@ -525,5 +622,4 @@ class _EventCard extends StatelessWidget {
       ),
     );
   }
-
 }

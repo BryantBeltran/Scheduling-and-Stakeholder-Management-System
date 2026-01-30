@@ -3,6 +3,7 @@
 import 'package:flutter/material.dart';
 import '../../models/models.dart';
 import '../../services/services.dart';
+import 'stakeholder_create_screen.dart';
 
 class StakeholderListScreen extends StatefulWidget {
   const StakeholderListScreen({super.key});
@@ -13,9 +14,17 @@ class StakeholderListScreen extends StatefulWidget {
 
 class _StakeholderListScreenState extends State<StakeholderListScreen> {
   final _stakeholderService = StakeholderService();
+  final _permissionService = PermissionService();
   final _searchController = TextEditingController();
   List<StakeholderModel> _filteredStakeholders = [];
   StakeholderType? _filterType;
+
+  /// Check if user can create stakeholders (admin/root only)
+  bool get _canCreateStakeholder {
+    return _permissionService.isAdmin ||
+        _permissionService.hasPermission(Permission.root) ||
+        _permissionService.canCreateStakeholder;
+  }
 
   @override
   void initState() {
@@ -206,6 +215,26 @@ class _StakeholderListScreenState extends State<StakeholderListScreen> {
           ),
         ],
       ),
+      floatingActionButton: _canCreateStakeholder
+          ? FloatingActionButton(
+              onPressed: () async {
+                final result = await Navigator.of(context).push<bool>(
+                  MaterialPageRoute(
+                    builder: (context) => const StakeholderCreateScreen(),
+                  ),
+                );
+                if (result == true) {
+                  // Refresh the list after creating a stakeholder
+                  setState(() {
+                    _filteredStakeholders = _stakeholderService.stakeholders;
+                  });
+                  _filterStakeholders();
+                }
+              },
+              backgroundColor: Colors.black,
+              child: const Icon(Icons.add, color: Colors.white),
+            )
+          : null,
     );
   }
 

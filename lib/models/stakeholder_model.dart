@@ -48,6 +48,14 @@ enum RelationshipType {
   support,
 }
 
+/// Invitation status for stakeholder account creation
+enum InviteStatus {
+  notInvited,
+  pending,
+  accepted,
+  expired,
+}
+
 /// Stakeholder model representing people involved in events.
 ///
 /// Stakeholders can be internal team members, external clients, vendors,
@@ -113,6 +121,18 @@ class StakeholderModel {
   /// Whether this stakeholder is active in the system
   final bool isActive;
   
+  /// ID of linked user account (null if not registered)
+  final String? linkedUserId;
+  
+  /// Invitation status for account creation
+  final InviteStatus inviteStatus;
+  
+  /// When the invitation was sent (null if not invited)
+  final DateTime? invitedAt;
+  
+  /// Invitation token for signup link (null if not invited or already used)
+  final String? inviteToken;
+  
   /// Additional metadata for extensibility
   final Map<String, dynamic>? metadata;
 
@@ -131,8 +151,18 @@ class StakeholderModel {
     required this.createdAt,
     required this.updatedAt,
     this.isActive = true,
+    this.linkedUserId,
+    this.inviteStatus = InviteStatus.notInvited,
+    this.invitedAt,
+    this.inviteToken,
     this.metadata,
   });
+  
+  /// Returns true if this stakeholder has a linked user account
+  bool get hasAccount => linkedUserId != null;
+  
+  /// Returns true if invitation is pending
+  bool get isInvitePending => inviteStatus == InviteStatus.pending;
 
   /// Returns `true` if the stakeholder has accepted event invitations.
   ///
@@ -166,6 +196,10 @@ class StakeholderModel {
     DateTime? createdAt,
     DateTime? updatedAt,
     bool? isActive,
+    String? linkedUserId,
+    InviteStatus? inviteStatus,
+    DateTime? invitedAt,
+    String? inviteToken,
     Map<String, dynamic>? metadata,
   }) {
     return StakeholderModel(
@@ -183,6 +217,10 @@ class StakeholderModel {
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
       isActive: isActive ?? this.isActive,
+      linkedUserId: linkedUserId ?? this.linkedUserId,
+      inviteStatus: inviteStatus ?? this.inviteStatus,
+      invitedAt: invitedAt ?? this.invitedAt,
+      inviteToken: inviteToken ?? this.inviteToken,
       metadata: metadata ?? this.metadata,
     );
   }
@@ -204,6 +242,10 @@ class StakeholderModel {
       'createdAt': createdAt.toIso8601String(),
       'updatedAt': updatedAt.toIso8601String(),
       'isActive': isActive,
+      'linkedUserId': linkedUserId,
+      'inviteStatus': inviteStatus.name,
+      'invitedAt': invitedAt?.toIso8601String(),
+      'inviteToken': inviteToken,
       'metadata': metadata,
     };
   }
@@ -225,6 +267,12 @@ class StakeholderModel {
       createdAt: DateTime.parse(json['createdAt'] as String),
       updatedAt: DateTime.parse(json['updatedAt'] as String),
       isActive: json['isActive'] as bool? ?? true,
+      linkedUserId: json['linkedUserId'] as String?,
+      inviteStatus: json['inviteStatus'] != null 
+          ? InviteStatus.values.firstWhere((s) => s.name == json['inviteStatus'])
+          : InviteStatus.notInvited,
+      invitedAt: json['invitedAt'] != null ? DateTime.parse(json['invitedAt'] as String) : null,
+      inviteToken: json['inviteToken'] as String?,
       metadata: json['metadata'] as Map<String, dynamic>?,
     );
   }
