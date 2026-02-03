@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'dart:typed_data';
+import '../../models/models.dart';
 import '../../services/services.dart';
 
 class ProfileEditScreen extends StatefulWidget {
@@ -150,6 +151,12 @@ class _ProfileEditScreenState extends State<ProfileEditScreen> {
         ),
       ),
     );
+  }
+
+  /// Get role display name based on permissions
+  String _getRoleDisplayName(UserModel? user) {
+    if (user == null) return 'USER';
+    return PermissionService.getDisplayRole(user.permissions).toUpperCase();
   }
 
   Future<void> _saveProfile() async {
@@ -404,13 +411,13 @@ class _ProfileEditScreenState extends State<ProfileEditScreen> {
                           const SizedBox(height: 12),
                           _InfoRow(
                             label: 'Role',
-                            value: user?.role.name.toUpperCase() ?? 'MEMBER',
+                            value: _getRoleDisplayName(user),
                           ),
                           const SizedBox(height: 8),
                           _InfoRow(
                             label: 'Member Since',
                             value: user != null
-                                ? '${user.createdAt.day}/${user.createdAt.month}/${user.createdAt.year}'
+                                ? '${user.createdAt.month}/${user.createdAt.day}/${user.createdAt.year}'
                                 : 'N/A',
                           ),
                           const SizedBox(height: 8),

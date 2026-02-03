@@ -8,6 +8,7 @@
 import 'package:flutter/material.dart';
 import '../../models/models.dart';
 import '../../services/services.dart';
+import '../../widgets/widgets.dart';
 import 'stakeholder_picker_widget.dart';
 
 /// Screen for editing existing events
@@ -542,20 +543,40 @@ class _EventEditScreenState extends State<EventEditScreen> {
                       ),
                       const SizedBox(height: 12),
 
-                      // Location Name
-                      TextFormField(
-                        controller: _locationController,
-                        decoration: _buildInputDecoration(
-                          _isVirtualLocation ? 'Meeting name (e.g., Zoom Call)' : 'Location name',
-                          prefixIcon: _isVirtualLocation ? Icons.videocam : Icons.location_on,
+                      // Location Name - Use autocomplete for physical, regular text for virtual
+                      if (_isVirtualLocation)
+                        TextFormField(
+                          controller: _locationController,
+                          decoration: _buildInputDecoration(
+                            'Meeting name (e.g., Zoom Call)',
+                            prefixIcon: Icons.videocam,
+                          ),
+                          validator: (value) {
+                            if (value == null || value.trim().isEmpty) {
+                              return 'Please enter a location';
+                            }
+                            return null;
+                          },
+                        )
+                      else
+                        LocationAutocompleteField(
+                          controller: _locationController,
+                          decoration: _buildInputDecoration(
+                            'Search for a location',
+                            prefixIcon: Icons.location_on,
+                          ),
+                          onPlaceSelected: (details) {
+                            _locationController.text = details.formattedAddress;
+                            _hasChanges = true;
+                          },
+                          onChanged: (_) => _markChanged(),
+                          validator: (value) {
+                            if (value == null || value.trim().isEmpty) {
+                              return 'Please enter a location';
+                            }
+                            return null;
+                          },
                         ),
-                        validator: (value) {
-                          if (value == null || value.trim().isEmpty) {
-                            return 'Please enter a location';
-                          }
-                          return null;
-                        },
-                      ),
 
                       // Virtual Link (only if virtual)
                       if (_isVirtualLocation) ...[

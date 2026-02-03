@@ -1,10 +1,15 @@
-// Permission service for role-based access control
+// Permission service for permissions-based access control
 // Provides methods to check user permissions throughout the app
+// All access control is based on the permissions array, not roles
 
 import '../models/models.dart';
 import 'auth_service.dart';
 
 /// Service for managing and checking user permissions
+/// 
+/// Access control is fully based on permissions array:
+/// - Specific permissions: createEvent, editEvent, viewStakeholder, etc.
+/// - Super permissions: admin (full CRUD), root (everything)
 class PermissionService {
   static final PermissionService _instance = PermissionService._internal();
   factory PermissionService() => _instance;
@@ -36,167 +41,123 @@ class PermissionService {
     return permissions.every((p) => user.hasPermission(p));
   }
 
-  /// Check if user has a specific role
-  bool hasRole(UserRole role) {
-    final user = currentUser;
-    if (user == null) return false;
-    return user.role == role;
-  }
+  // ============================================================
+  // SUPER PERMISSION CHECKS
+  // ============================================================
 
-  /// Check if user has at least the specified role level
-  /// Role hierarchy: admin > manager > member > viewer
-  bool hasMinimumRole(UserRole minimumRole) {
-    final user = currentUser;
-    if (user == null) return false;
-    
-    const roleHierarchy = {
-      UserRole.admin: 4,
-      UserRole.manager: 3,
-      UserRole.member: 2,
-      UserRole.viewer: 1,
-    };
-    
-    final userLevel = roleHierarchy[user.role] ?? 0;
-    final requiredLevel = roleHierarchy[minimumRole] ?? 0;
-    
-    return userLevel >= requiredLevel;
-  }
+  /// Check if user has admin permission (full CRUD access)
+  bool get hasAdminPermission => hasPermission(Permission.admin);
 
-  /// Check if current user is an admin
-  bool get isAdmin => hasRole(UserRole.admin);
+  /// Check if user has root permission (system-level access)
+  bool get hasRootPermission => hasPermission(Permission.root);
 
-  /// Check if current user is a manager or above
-  bool get isManagerOrAbove => hasMinimumRole(UserRole.manager);
+  /// Check if user is a super admin (admin or root permission)
+  bool get isSuperAdmin => hasAdminPermission || hasRootPermission;
 
-  /// Check if current user is a member or above
-  bool get isMemberOrAbove => hasMinimumRole(UserRole.member);
+  /// Check if user has manager-level access (admin, root, or manageUsers)
+  bool get hasManagerAccess => 
+      isSuperAdmin || 
+      hasPermission(Permission.manageUsers);
 
   // ============================================================
-  // EVENT PERMISSIONS
-  // Role-based: Manager+ has full access, Member/Viewer view only
-  // Permission override: Specific permissions grant access
+  // EVENT PERMISSIONS (CRUD)
   // ============================================================
   
-  /// Create events: Manager+ OR explicit createEvent permission
+  /// Create events: createEvent OR admin/root
   bool get canCreateEvent =>
-      isManagerOrAbove ||
       hasPermission(Permission.createEvent) ||
-      hasPermission(Permission.admin) ||
-      hasPermission(Permission.root);
+      isSuperAdmin;
 
-  /// Edit events: Manager+ OR explicit editEvent permission
+  /// Edit events: editEvent OR admin/root
   bool get canEditEvent =>
-      isManagerOrAbove ||
       hasPermission(Permission.editEvent) ||
-      hasPermission(Permission.admin) ||
-      hasPermission(Permission.root);
+      isSuperAdmin;
 
-  /// Delete events: Manager+ OR explicit deleteEvent permission
+  /// Delete events: deleteEvent OR admin/root
   bool get canDeleteEvent =>
-      isManagerOrAbove ||
       hasPermission(Permission.deleteEvent) ||
-      hasPermission(Permission.admin) ||
-      hasPermission(Permission.root);
+      isSuperAdmin;
 
-  /// View events: All roles (Member+)
+  /// View events: viewEvent OR admin/root
   bool get canViewEvent =>
-      isMemberOrAbove ||
       hasPermission(Permission.viewEvent) ||
-      hasPermission(Permission.admin) ||
-      hasPermission(Permission.root);
+      isSuperAdmin;
 
   // ============================================================
-  // STAKEHOLDER PERMISSIONS
-  // Role-based: Manager+ has full access, Member/Viewer view only
-  // Permission override: Specific permissions grant access
+  // STAKEHOLDER PERMISSIONS (CRUD)
   // ============================================================
 
-  /// Create stakeholders: Manager+ OR explicit permission
+  /// Create stakeholders: createStakeholder OR admin/root
   bool get canCreateStakeholder =>
-      isManagerOrAbove ||
       hasPermission(Permission.createStakeholder) ||
-      hasPermission(Permission.admin) ||
-      hasPermission(Permission.root);
+      isSuperAdmin;
 
-  /// Edit stakeholders: Manager+ OR explicit permission
+  /// Edit stakeholders: editStakeholder OR admin/root
   bool get canEditStakeholder =>
-      isManagerOrAbove ||
       hasPermission(Permission.editStakeholder) ||
-      hasPermission(Permission.admin) ||
-      hasPermission(Permission.root);
+      isSuperAdmin;
 
-  /// Delete stakeholders: Manager+ only (no Member override)
+  /// Delete stakeholders: deleteStakeholder OR admin/root
   bool get canDeleteStakeholder =>
-      isManagerOrAbove ||
       hasPermission(Permission.deleteStakeholder) ||
-      hasPermission(Permission.admin) ||
-      hasPermission(Permission.root);
+      isSuperAdmin;
 
-  /// View stakeholders: All roles (Member+)
+  /// View stakeholders: viewStakeholder OR admin/root
   bool get canViewStakeholder =>
-      isMemberOrAbove ||
       hasPermission(Permission.viewStakeholder) ||
-      hasPermission(Permission.admin) ||
-      hasPermission(Permission.root);
+      isSuperAdmin;
 
-  /// Assign stakeholders: Manager+ OR explicit permission
+  /// Assign stakeholders: assignStakeholder OR admin/root
   bool get canAssignStakeholder =>
-      isManagerOrAbove ||
       hasPermission(Permission.assignStakeholder) ||
-      hasPermission(Permission.admin) ||
-      hasPermission(Permission.root);
+      isSuperAdmin;
   
-  /// Invite stakeholders: Manager+ OR explicit permission
+  /// Invite stakeholders: inviteStakeholder OR admin/root
   bool get canInviteStakeholder =>
-      isManagerOrAbove ||
       hasPermission(Permission.inviteStakeholder) ||
-      hasPermission(Permission.admin) ||
-      hasPermission(Permission.root);
+      isSuperAdmin;
 
   // ============================================================
   // ADMIN PERMISSIONS
   // ============================================================
   
+  /// Manage users: manageUsers OR admin/root
   bool get canManageUsers => 
       hasPermission(Permission.manageUsers) ||
-      hasPermission(Permission.admin) ||
-      hasPermission(Permission.root);
+      isSuperAdmin;
 
+  /// View reports: viewReports OR admin/root
   bool get canViewReports => 
-      isManagerOrAbove ||
       hasPermission(Permission.viewReports) ||
-      hasPermission(Permission.admin) ||
-      hasPermission(Permission.root);
+      isSuperAdmin;
 
+  /// Edit settings: editSettings OR root only
   bool get canEditSettings => 
       hasPermission(Permission.editSettings) ||
-      hasPermission(Permission.admin) ||
-      hasPermission(Permission.root);
+      hasRootPermission;
 
-  /// Check if user has admin permission
-  bool get hasAdminPermission => hasPermission(Permission.admin);
-
-  /// Check if user has root permission
-  bool get hasRootPermission => hasPermission(Permission.root);
-
-  /// Check if user is a super admin (admin or root)
-  bool get isSuperAdmin => hasAdminPermission || hasRootPermission;
+  // ============================================================
+  // SPECIFIC RESOURCE CHECKS
+  // ============================================================
 
   /// Check if user can edit a specific event
-  /// User can edit if they have editEvent permission and either:
-  /// - They are the event owner
-  /// - They are an admin or manager
+  /// User can edit if they have editEvent permission OR are the owner
   bool canEditSpecificEvent(EventModel event) {
     final user = currentUser;
     if (user == null) return false;
     
-    if (!canEditEvent) return false;
+    // Super admins can edit any event
+    if (isSuperAdmin) return true;
     
-    // Admins and managers can edit any event
-    if (isManagerOrAbove) return true;
+    // Users with editEvent permission can edit any event
+    if (hasPermission(Permission.editEvent)) return true;
     
-    // Members can only edit their own events
-    return event.ownerId == user.id;
+    // Event owners can edit their own events if they have createEvent permission
+    if (event.ownerId == user.id && hasPermission(Permission.createEvent)) {
+      return true;
+    }
+    
+    return false;
   }
 
   /// Check if user can delete a specific event
@@ -204,13 +165,41 @@ class PermissionService {
     final user = currentUser;
     if (user == null) return false;
     
-    if (!canDeleteEvent) return false;
-    
-    // Only admins and managers can delete events
-    return isManagerOrAbove;
+    // Only users with deleteEvent permission or super admins can delete
+    return canDeleteEvent;
   }
 
-  /// Get a human-readable role name
+  // ============================================================
+  // DISPLAY HELPERS
+  // ============================================================
+
+  /// Get display name based on user's highest permission level
+  static String getDisplayRole(List<Permission> permissions) {
+    if (permissions.contains(Permission.root)) {
+      return 'Root';
+    } else if (permissions.contains(Permission.admin)) {
+      return 'Admin';
+    } else if (permissions.contains(Permission.manageUsers)) {
+      return 'Manager';
+    } else if (permissions.any((p) => [
+      Permission.createEvent,
+      Permission.editEvent,
+      Permission.deleteEvent,
+      Permission.createStakeholder,
+      Permission.editStakeholder,
+      Permission.deleteStakeholder,
+    ].contains(p))) {
+      return 'Member';
+    } else if (permissions.any((p) => [
+      Permission.viewEvent,
+      Permission.viewStakeholder,
+    ].contains(p))) {
+      return 'Viewer';
+    }
+    return 'User';
+  }
+
+  /// Get a human-readable role name (legacy support)
   static String getRoleName(UserRole role) {
     switch (role) {
       case UserRole.admin:

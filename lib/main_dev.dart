@@ -12,7 +12,7 @@
 // ==============================================================================
 
 import 'package:flutter/material.dart';
-import 'config/app_config.dart';
+import 'config/config.dart';
 import 'app.dart';
 
 void main() {
@@ -20,6 +20,10 @@ void main() {
   
   // Initialize development configuration
   AppConfig.initialize(AppFlavor.dev);
+  
+  // Initialize environment config (loads from environment variables)
+  // For local dev, set GOOGLE_MAPS_API_KEY environment variable or use --dart-define
+  EnvConfig.initialize();
   
   // Log startup info in dev mode
   debugPrint('Starting app in DEVELOPMENT mode');

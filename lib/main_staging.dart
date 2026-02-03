@@ -13,7 +13,7 @@
 // ==============================================================================
 
 import 'package:flutter/material.dart';
-import 'config/app_config.dart';
+import 'config/config.dart';
 import 'services/firebase_service.dart';
 import 'app.dart';
 
@@ -22,6 +22,9 @@ void main() async {
   
   // Initialize staging configuration
   AppConfig.initialize(AppFlavor.staging);
+  
+  // Initialize environment config (loads from environment variables)
+  EnvConfig.initialize();
   
   // Log startup info
   debugPrint('Starting app in STAGING mode');

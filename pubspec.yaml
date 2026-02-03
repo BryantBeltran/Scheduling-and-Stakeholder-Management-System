@@ -48,6 +48,9 @@ dependencies:
   
   # Image Picker
   image_picker: ^1.1.2
+  
+  # Google Maps / Places
+  http: ^1.2.0
 
 dev_dependencies:
   flutter_test:

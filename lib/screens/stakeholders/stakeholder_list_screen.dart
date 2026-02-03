@@ -19,11 +19,9 @@ class _StakeholderListScreenState extends State<StakeholderListScreen> {
   List<StakeholderModel> _filteredStakeholders = [];
   StakeholderType? _filterType;
 
-  /// Check if user can create stakeholders (admin/root only)
+  /// Check if user can create stakeholders (based on permissions)
   bool get _canCreateStakeholder {
-    return _permissionService.isAdmin ||
-        _permissionService.hasPermission(Permission.root) ||
-        _permissionService.canCreateStakeholder;
+    return _permissionService.canCreateStakeholder;
   }
 
   @override

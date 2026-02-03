@@ -637,22 +637,26 @@ class _UserListItem extends StatelessWidget {
     // Check permissions first for display
     String displayName;
     Color badgeColor;
+    Color textColor;
     
     if (permissions.contains(Permission.root)) {
       displayName = 'Root';
       badgeColor = const Color(0xFFFFD700); // Gold
+      textColor = const Color(0xFF8B6914); // Dark gold for text
     } else if (permissions.contains(Permission.admin)) {
       displayName = 'Admin';
       badgeColor = Colors.purple;
+      textColor = Colors.purple;
     } else {
       displayName = PermissionService.getRoleName(role);
       badgeColor = _getRoleColor(role);
+      textColor = _getRoleColor(role);
     }
     
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
       decoration: BoxDecoration(
-        color: badgeColor.withOpacity(0.1),
+        color: badgeColor.withOpacity(0.2),
         borderRadius: BorderRadius.circular(12),
       ),
       child: Text(
@@ -660,7 +664,7 @@ class _UserListItem extends StatelessWidget {
         style: TextStyle(
           fontSize: 11,
           fontWeight: FontWeight.bold,
-          color: badgeColor,
+          color: textColor,
         ),
       ),
     );

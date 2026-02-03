@@ -1203,3 +1203,32 @@ function isValidRole(role: string): role is UserRole {
 
 // Export helper functions for use
 export {hasPermission, isValidRole, getDefaultPermissions, PERMISSIONS};
+
+// ============================================================================
+// CONFIGURATION / SECRETS
+// ============================================================================
+
+/**
+ * Get application configuration/secrets
+ * Only authenticated users can access this
+ * Secrets are stored in Firebase Functions secrets
+ */
+export const getAppConfig = onCall(
+  {secrets: ["GOOGLE_MAPS_API_KEY"]},
+  async (request) => {
+    // Require authentication
+    if (!request.auth) {
+      throw new HttpsError("unauthenticated", "User must be authenticated");
+    }
+
+    try {
+      // Return configuration from environment secrets
+      return {
+        googleMapsApiKey: process.env.GOOGLE_MAPS_API_KEY || "",
+      };
+    } catch (error) {
+      logger.error("Error fetching app config:", error);
+      throw new HttpsError("internal", "Failed to fetch configuration");
+    }
+  }
+);

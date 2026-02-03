@@ -10,3 +10,4 @@ export 'mock_data_service.dart';
 export 'permission_service.dart';
 export 'storage_service.dart';
 export 'invite_service.dart';
+export 'places_service.dart';

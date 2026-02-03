@@ -8,6 +8,8 @@
 // Each flavor (dev, staging, prod) has its own configuration values.
 // ==============================================================================
 
+import 'env_config.dart';
+
 /// Enum representing the different app environments/flavors
 enum AppFlavor {
   dev,
@@ -65,6 +67,17 @@ class AppConfig {
     required this.useMockData,
     required this.useFirebase,
   });
+  
+  /// Get Google Maps API key from environment configuration
+  /// Returns empty string if not configured
+  String get googleMapsApiKey {
+    // Lazy load from EnvConfig to support runtime configuration
+    try {
+      return EnvConfig.instance.googleMapsApiKey;
+    } catch (_) {
+      return '';
+    }
+  }
 
   /// Singleton instance of the current configuration
   static AppConfig? _instance;

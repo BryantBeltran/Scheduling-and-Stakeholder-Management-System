@@ -217,7 +217,7 @@ class ProfileScreen extends StatelessWidget {
   }
 
   Color _getRoleColor(UserRole? role, List<Permission>? permissions) {
-    // Check for super admin permissions first
+    // Use permissions-based color
     if (permissions != null) {
       if (permissions.contains(Permission.root)) {
         return const Color(0xFFFFD700); // Gold for root
@@ -225,50 +225,32 @@ class ProfileScreen extends StatelessWidget {
       if (permissions.contains(Permission.admin)) {
         return const Color(0xFFFFCDD2); // Light red for admin
       }
+      if (permissions.contains(Permission.manageUsers)) {
+        return const Color(0xFFBBDEFB); // Light blue for manager-level
+      }
+      if (permissions.any((p) => [
+        Permission.createEvent,
+        Permission.editEvent,
+        Permission.createStakeholder,
+        Permission.editStakeholder,
+      ].contains(p))) {
+        return const Color(0xFF80CBC4); // Teal for member-level
+      }
     }
-    
-    switch (role) {
-      case UserRole.admin:
-        return const Color(0xFFFFCDD2); // Light red
-      case UserRole.manager:
-        return const Color(0xFFBBDEFB); // Light blue
-      case UserRole.member:
-        return const Color(0xFF80CBC4); // Teal
-      case UserRole.viewer:
-        return const Color(0xFFE0E0E0); // Grey
-      default:
-        return const Color(0xFF80CBC4);
-    }
+    return const Color(0xFFE0E0E0); // Grey for viewer
   }
 
   String _getRoleDisplayName(UserRole? role, List<Permission>? permissions) {
-    // Check for super admin permissions first
+    // Use permissions-based display role
     if (permissions != null) {
-      if (permissions.contains(Permission.root)) {
-        return 'Root';
-      }
-      if (permissions.contains(Permission.admin)) {
-        return 'Admin';
-      }
+      return PermissionService.getDisplayRole(permissions);
     }
-    
-    switch (role) {
-      case UserRole.admin:
-        return 'Admin';
-      case UserRole.manager:
-        return 'Manager';
-      case UserRole.member:
-        return 'Member';
-      case UserRole.viewer:
-        return 'Viewer';
-      default:
-        return 'Member';
-    }
+    return 'User';
   }
 
   bool _canManageUsers(UserModel user) {
-    return user.role == UserRole.admin ||
-           user.permissions.contains(Permission.admin) ||
+    return user.permissions.contains(Permission.admin) ||
+           user.permissions.contains(Permission.root) ||
            user.permissions.contains(Permission.manageUsers);
   }
 }

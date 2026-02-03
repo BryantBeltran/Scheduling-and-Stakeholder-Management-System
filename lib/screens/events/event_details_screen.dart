@@ -6,6 +6,7 @@
 // ==============================================================================
 
 import 'package:flutter/material.dart';
+import '../../config/app_config.dart';
 import '../../models/models.dart';
 import '../../services/services.dart';
 import 'event_edit_screen.dart';
@@ -676,27 +677,33 @@ class _EventDetailsScreenState extends State<EventDetailsScreen> {
   Widget _buildMetadataCard() {
     return Card(
       elevation: 0,
-      color: Colors.grey[50],
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(16),
+        side: BorderSide(color: Colors.grey[200]!),
       ),
       child: Padding(
-        padding: const EdgeInsets.all(16),
+        padding: const EdgeInsets.all(20),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(
-              'Event Information',
-              style: TextStyle(
-                fontSize: 12,
-                fontWeight: FontWeight.bold,
-                color: Colors.grey[600],
-              ),
+            Row(
+              children: [
+                Icon(Icons.info_outline, color: Colors.grey[600]),
+                const SizedBox(width: 8),
+                const Text(
+                  'Event Information',
+                  style: TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ],
             ),
-            const SizedBox(height: 12),
-            _buildMetadataRow('Event ID', _event!.id),
+            const SizedBox(height: 16),
             _buildMetadataRow('Created by', _event!.ownerName ?? 'Unknown'),
+            const SizedBox(height: 8),
             _buildMetadataRow('Created', _formatDateTime(_event!.createdAt)),
+            const SizedBox(height: 8),
             _buildMetadataRow('Last updated', _formatDateTime(_event!.updatedAt)),
           ],
         ),

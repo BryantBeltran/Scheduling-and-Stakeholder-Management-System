@@ -14,7 +14,7 @@
 // ==============================================================================
 
 import 'package:flutter/material.dart';
-import 'config/app_config.dart';
+import 'config/config.dart';
 import 'services/firebase_service.dart';
 import 'app.dart';
 
@@ -26,6 +26,10 @@ void main() async {
   
   // Initialize Firebase for production
   await FirebaseService.instance.initialize();
+  
+  // Initialize environment config from Firebase Secrets (Cloud Functions + Secret Manager)
+  // API keys are stored securely and never visible in Firebase Console
+  await EnvConfig.initFromFirebase();
   
   runApp(const SchedulingApp());
 }

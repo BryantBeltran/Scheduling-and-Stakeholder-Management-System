@@ -561,19 +561,12 @@ class _EventListItem extends StatelessWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Row(
-                      children: [
-                        Expanded(
-                          child: Text(
-                            '${event.title} ${duration > 0 ? "${duration}d" : ""}',
-                            style: const TextStyle(
-                              fontWeight: FontWeight.bold,
-                              fontSize: 16,
-                            ),
-                          ),
-                        ),
-                        const Icon(Icons.chevron_right, color: Colors.grey),
-                      ],
+                    Text(
+                      '${event.title} ${duration > 0 ? "${duration}d" : ""}',
+                      style: const TextStyle(
+                        fontWeight: FontWeight.bold,
+                        fontSize: 16,
+                      ),
                     ),
                     const SizedBox(height: 8),
                     Text(
@@ -606,7 +599,7 @@ class _EventListItem extends StatelessWidget {
                         Icon(Icons.access_time, size: 14, color: Colors.grey[600]),
                         const SizedBox(width: 4),
                         Text(
-                          'Time',
+                          '${event.startTime.hour.toString().padLeft(2, '0')}:${event.startTime.minute.toString().padLeft(2, '0')}',
                           style: TextStyle(
                             fontSize: 12,
                             color: Colors.grey[600],
@@ -615,11 +608,16 @@ class _EventListItem extends StatelessWidget {
                         const SizedBox(width: 16),
                         Icon(Icons.location_on, size: 14, color: Colors.grey[600]),
                         const SizedBox(width: 4),
-                        Text(
-                          'Location',
-                          style: TextStyle(
-                            fontSize: 12,
-                            color: Colors.grey[600],
+                        Expanded(
+                          child: Text(
+                            event.location.isVirtual 
+                                ? (event.location.virtualLink ?? 'Virtual')
+                                : event.location.name,
+                            style: TextStyle(
+                              fontSize: 12,
+                              color: Colors.grey[600],
+                            ),
+                            overflow: TextOverflow.ellipsis,
                           ),
                         ),
                       ],
@@ -627,6 +625,11 @@ class _EventListItem extends StatelessWidget {
                   ],
                 ),
               ),
+            ),
+            // Centered chevron arrow
+            const Padding(
+              padding: EdgeInsets.only(right: 12),
+              child: Icon(Icons.chevron_right, color: Colors.grey),
             ),
           ],
         ),

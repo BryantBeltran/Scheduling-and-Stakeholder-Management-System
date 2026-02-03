@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../../models/models.dart';
 import '../../services/services.dart';
+import '../../widgets/widgets.dart';
 import 'stakeholder_picker_widget.dart';
 
 /// Screen for creating new events
@@ -521,10 +522,10 @@ class _EventCreateScreenState extends State<EventCreateScreen> {
                       ),
                     ),
                     const SizedBox(height: 8),
-                    TextFormField(
+                    LocationAutocompleteField(
                       controller: _locationController,
                       decoration: InputDecoration(
-                        hintText: 'Location',
+                        hintText: 'Search for a location',
                         hintStyle: TextStyle(color: Colors.grey[400]),
                         prefixIcon: Icon(Icons.location_on, color: Colors.grey[600]),
                         border: OutlineInputBorder(
@@ -535,6 +536,9 @@ class _EventCreateScreenState extends State<EventCreateScreen> {
                         fillColor: Colors.white,
                         contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
                       ),
+                      onPlaceSelected: (details) {
+                        _locationController.text = details.formattedAddress;
+                      },
                       validator: (value) {
                         if (value == null || value.trim().isEmpty) {
                           return 'Please enter a location';
