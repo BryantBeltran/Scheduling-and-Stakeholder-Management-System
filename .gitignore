@@ -18,6 +18,7 @@ functions/lib/
 functions/.env
 Thumbs.db
 .clj-kondo/
+.lsp/
 
 # IntelliJ related
 *.iml
