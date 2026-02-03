@@ -332,6 +332,9 @@ class AuthService {
 
         _currentUser = _convertFirebaseUser(userCredential.user!);
         
+        // Check if this is a new user (additionalUserInfo indicates first sign-in)
+        final isNewUser = userCredential.additionalUserInfo?.isNewUser ?? false;
+        
         // Save/update user in Firestore
         await _userService.saveUser(_currentUser!);
         
@@ -341,6 +344,8 @@ class AuthService {
           _currentUser = fullUser;
         }
         
+        // Don't emit auth state if user needs onboarding
+        // The UI will check and navigate to onboarding
         _authStateController.add(_currentUser);
         return _currentUser!;
       } on firebase_auth.FirebaseAuthException catch (e) {

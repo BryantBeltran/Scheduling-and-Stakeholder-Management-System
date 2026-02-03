@@ -39,13 +39,22 @@ class _RegisterPasswordScreenState extends State<RegisterPasswordScreen> {
     });
 
     try {
+      // Create account but don't navigate yet - go to onboarding first
       await _authService.signUpWithEmailAndPassword(
         email: widget.email,
         password: _passwordController.text,
         displayName: _nameController.text.trim(),
       );
+      
       if (mounted) {
-        Navigator.of(context).pushReplacementNamed('/home');
+        // Navigate to onboarding to collect additional info
+        Navigator.of(context).pushNamed(
+          '/onboarding',
+          arguments: {
+            'email': widget.email,
+            'displayName': _nameController.text.trim(),
+          },
+        );
       }
     } on AuthException catch (e) {
       setState(() => _errorMessage = e.message);
