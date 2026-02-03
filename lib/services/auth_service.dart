@@ -332,9 +332,6 @@ class AuthService {
 
         _currentUser = _convertFirebaseUser(userCredential.user!);
         
-        // Check if this is a new user (additionalUserInfo indicates first sign-in)
-        final isNewUser = userCredential.additionalUserInfo?.isNewUser ?? false;
-        
         // Save/update user in Firestore
         await _userService.saveUser(_currentUser!);
         

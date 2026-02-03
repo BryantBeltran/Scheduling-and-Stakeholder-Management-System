@@ -63,7 +63,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
       // Sign in with Google (works for both new and existing users)
       final user = await _authService.signInWithGoogle();
       
-      if (user != null && mounted) {
+      if (mounted) {
         // Check if user already has a complete profile
         final existingUser = await _userService.getUser(user.id);
         
@@ -99,7 +99,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
       // Sign in with Apple (works for both new and existing users)
       final user = await _authService.signInWithApple();
       
-      if (user != null && mounted) {
+      if (mounted) {
         // Check if user already has a complete profile
         final existingUser = await _userService.getUser(user.id);
         

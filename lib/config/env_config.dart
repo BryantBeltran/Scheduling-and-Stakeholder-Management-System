@@ -7,6 +7,7 @@
 // ==============================================================================
 
 import 'package:cloud_functions/cloud_functions.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 
 /// Environment configuration for secrets and API keys
 /// 
@@ -50,13 +51,21 @@ class EnvConfig {
   
   /// Initialize from environment variables (for local development)
   /// 
-  /// Uses compile-time constants from --dart-define flags.
+  /// Loads from .env file first, then falls back to --dart-define flags.
   /// Example: flutter run --dart-define=GOOGLE_MAPS_API_KEY=your_key_here
-  static void initialize({
+  static Future<void> initialize({
     String? googleMapsApiKey,
-  }) {
+  }) async {
+    // Try to load .env file
+    try {
+      await dotenv.load(fileName: '.env');
+    } catch (e) {
+      // .env file not found or couldn't load - that's okay
+    }
+
     _instance = EnvConfig._(
       googleMapsApiKey: googleMapsApiKey ?? 
+        dotenv.env['GOOGLE_MAPS_API_KEY'] ??
         const String.fromEnvironment('GOOGLE_MAPS_API_KEY', defaultValue: ''),
     );
   }

@@ -23,8 +23,8 @@ void main() async {
   // Initialize staging configuration
   AppConfig.initialize(AppFlavor.staging);
   
-  // Initialize environment config (loads from environment variables)
-  EnvConfig.initialize();
+  // Initialize environment config (loads from .env file or environment variables)
+  await EnvConfig.initialize();
   
   // Log startup info
   debugPrint('Starting app in STAGING mode');

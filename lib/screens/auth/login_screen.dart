@@ -63,7 +63,7 @@ class _LoginScreenState extends State<LoginScreen> {
     try {
       final user = await _authService.signInWithGoogle();
       
-      if (user != null && mounted) {
+      if (mounted) {
         // Check if user already has a complete profile
         final existingUser = await _userService.getUser(user.id);
         
