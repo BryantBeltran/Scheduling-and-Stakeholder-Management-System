@@ -1,5 +1,8 @@
 import 'package:flutter/material.dart';
+import '../../models/models.dart';
 import '../../services/services.dart';
+import 'profile_edit_screen.dart';
+import 'settings_screen.dart';
 
 class ProfileScreen extends StatelessWidget {
   const ProfileScreen({super.key});
@@ -7,173 +10,248 @@ class ProfileScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final authService = AuthService();
-    final user = authService.currentUser;
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Profile'),
+        title: const Text(
+          'Profile',
+          style: TextStyle(fontWeight: FontWeight.bold, fontSize: 20),
+        ),
+        centerTitle: true,
         elevation: 0,
-        backgroundColor: Colors.transparent,
+        backgroundColor: Colors.white,
+        foregroundColor: Colors.black,
       ),
-      body: ListView(
-        padding: const EdgeInsets.all(16),
-        children: [
-          // Profile header card
-          Card(
-            elevation: 0,
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(16),
-              side: BorderSide(color: Colors.grey[200]!),
-            ),
-            child: Padding(
-              padding: const EdgeInsets.all(24),
-              child: Column(
-                children: [
-                  // Avatar
-                  Container(
-                    decoration: BoxDecoration(
-                      shape: BoxShape.circle,
-                      border: Border.all(
-                        color: Theme.of(context).primaryColor.withOpacity(0.2),
-                        width: 3,
+      body: StreamBuilder<UserModel?>(
+        stream: authService.authStateChanges,
+        initialData: authService.currentUser,
+        builder: (context, snapshot) {
+          final user = snapshot.data;
+          
+          return ListView(
+            children: [
+              // Profile header
+              Container(
+                padding: const EdgeInsets.symmetric(vertical: 32, horizontal: 24),
+                child: Column(
+                  children: [
+                    // Larger circular avatar with photo support
+                    Container(
+                      width: 120,
+                      height: 120,
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        color: const Color(0xFF5B7C99),
+                        image: (user?.photoUrl != null && user!.photoUrl!.isNotEmpty)
+                            ? DecorationImage(
+                                image: NetworkImage(user.photoUrl!),
+                                fit: BoxFit.cover,
+                              )
+                            : null,
+                      ),
+                      child: (user?.photoUrl == null || user!.photoUrl!.isEmpty)
+                          ? Center(
+                              child: Text(
+                                (user?.displayName.isNotEmpty ?? false) 
+                                    ? user!.displayName[0].toUpperCase() 
+                                    : 'U',
+                                style: const TextStyle(
+                                  fontSize: 48,
+                                  color: Colors.white,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                            )
+                          : null,
+                    ),
+                    const SizedBox(height: 16),
+                    // Username
+                    Text(
+                      user?.displayName ?? 'Username',
+                      style: const TextStyle(
+                        fontSize: 24,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.black,
                       ),
                     ),
-                    child: CircleAvatar(
-                      radius: 50,
-                      backgroundColor: Theme.of(context).primaryColor.withOpacity(0.1),
+                    const SizedBox(height: 12),
+                    // Role badge - now shows actual role with permission-based override
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 10),
+                      decoration: BoxDecoration(
+                        color: _getRoleColor(user?.role, user?.permissions),
+                        borderRadius: BorderRadius.circular(24),
+                      ),
                       child: Text(
-                        user?.displayName[0].toUpperCase() ?? 'U',
-                        style: TextStyle(
-                          fontSize: 40,
-                          color: Theme.of(context).primaryColor,
-                          fontWeight: FontWeight.bold,
+                        _getRoleDisplayName(user?.role, user?.permissions),
+                        style: const TextStyle(
+                          color: Colors.black,
+                          fontWeight: FontWeight.w600,
+                          fontSize: 16,
                         ),
                       ),
                     ),
-                  ),
-                  const SizedBox(height: 16),
-                  // Username
-                  Text(
-                    user?.displayName ?? 'Username',
-                    style: const TextStyle(
-                      fontSize: 24,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                  const SizedBox(height: 12),
-                  // Role badge
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
-                    decoration: BoxDecoration(
-                      color: Theme.of(context).primaryColor,
-                      borderRadius: BorderRadius.circular(20),
-                    ),
-                    child: Text(
-                      user?.role.name.replaceFirst(
-                        user.role.name[0],
-                        user.role.name[0].toUpperCase(),
-                      ) ?? 'Member',
-                      style: const TextStyle(
-                        color: Colors.white,
-                        fontWeight: FontWeight.w600,
-                        fontSize: 14,
-                      ),
-                    ),
-                  ),
-                ],
+                  ],
+                ),
               ),
-            ),
-          ),
 
-          const SizedBox(height: 24),
+              const Divider(height: 1, thickness: 1),
 
-          // Menu items
-          _ProfileMenuItem(
-            icon: Icons.person_outline,
-            title: 'Edit Profile',
-            onTap: () {
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(content: Text('Edit profile coming soon!')),
-              );
-            },
-          ),
-          const SizedBox(height: 12),
-          _ProfileMenuItem(
-            icon: Icons.notifications_outlined,
-            title: 'Notifications',
-            onTap: () {
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(content: Text('Notifications settings coming soon!')),
-              );
-            },
-          ),
-          const SizedBox(height: 12),
-          _ProfileMenuItem(
-            icon: Icons.security,
-            title: 'Privacy & Security',
-            onTap: () {
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(content: Text('Privacy settings coming soon!')),
-              );
-            },
-          ),
-          const SizedBox(height: 12),
-          _ProfileMenuItem(
-            icon: Icons.info_outline,
-            title: 'About',
-            onTap: () {
-              showAboutDialog(
-                context: context,
-                applicationName: 'Scheduling & Stakeholder Management',
-                applicationVersion: '1.0.0',
-                applicationIcon: const Icon(Icons.schedule, size: 48),
-              );
-            },
-          ),
-
-          const SizedBox(height: 24),
-
-          // Sign out button
-          _ProfileMenuItem(
-            icon: Icons.logout,
-            title: 'Sign Out',
-            isDestructive: true,
-            onTap: () async {
-              final confirm = await showDialog<bool>(
-                context: context,
-                builder: (context) => AlertDialog(
-                  title: const Text('Sign Out'),
-                  content: const Text('Are you sure you want to sign out?'),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(16),
-                  ),
-                  actions: [
-                    TextButton(
-                      onPressed: () => Navigator.pop(context, false),
-                      child: const Text('Cancel'),
+              // Menu items
+              _ProfileMenuItem(
+                icon: Icons.person_outline,
+                title: 'Edit Profile',
+                onTap: () {
+                  Navigator.of(context).push(
+                    MaterialPageRoute(
+                      builder: (context) => const ProfileEditScreen(),
                     ),
-                    TextButton(
-                      onPressed: () => Navigator.pop(context, true),
-                      style: TextButton.styleFrom(
-                        foregroundColor: Colors.red,
-                      ),
-                      child: const Text('Sign Out'),
+                  );
+                },
+              ),
+              Divider(height: 1, color: Colors.grey[300]),
+              _ProfileMenuItem(
+                icon: Icons.settings_outlined,
+                title: 'Settings',
+                onTap: () {
+                  Navigator.of(context).push(
+                    MaterialPageRoute(
+                      builder: (context) => const SettingsScreen(),
+                    ),
+                  );
+                },
+              ),
+              Divider(height: 1, color: Colors.grey[300]),
+              _ProfileMenuItem(
+                icon: Icons.notifications_outlined,
+                title: 'Notifications',
+                onTap: () {
+                  Navigator.of(context).push(
+                    MaterialPageRoute(
+                      builder: (context) => const SettingsScreen(),
+                    ),
+                  );
+                },
+              ),
+              Divider(height: 1, color: Colors.grey[300]),
+              _ProfileMenuItem(
+                icon: Icons.shield_outlined,
+                title: 'Privacy & Security',
+                onTap: () {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text('Privacy settings coming soon!')),
+                  );
+                },
+              ),
+              
+              // User Management - Only visible to admins
+              if (user != null && _canManageUsers(user))
+                Column(
+                  children: [
+                    Divider(height: 1, color: Colors.grey[300]),
+                    _ProfileMenuItem(
+                      icon: Icons.admin_panel_settings_outlined,
+                      title: 'User Management',
+                      onTap: () {
+                        Navigator.of(context).pushNamed('/admin/users');
+                      },
                     ),
                   ],
                 ),
-              );
+              
+              Divider(height: 1, color: Colors.grey[300]),
+              _ProfileMenuItem(
+                icon: Icons.info_outline,
+                title: 'About',
+                onTap: () {
+                  showAboutDialog(
+                    context: context,
+                    applicationName: 'Scheduling & Stakeholder Management',
+                    applicationVersion: '1.0.0',
+                    applicationIcon: const Icon(Icons.schedule, size: 48),
+                  );
+                },
+              ),
 
-              if (confirm == true && context.mounted) {
-                await authService.signOut();
-                if (context.mounted) {
-                  Navigator.of(context).pushReplacementNamed('/login');
-                }
-              }
-            },
-          ),
-        ],
+              Divider(height: 1, thickness: 1),
+
+              // Sign out button
+              _ProfileMenuItem(
+                icon: Icons.exit_to_app,
+                title: 'Sign Out',
+                isDestructive: true,
+                onTap: () async {
+                  final confirm = await showDialog<bool>(
+                    context: context,
+                    builder: (context) => AlertDialog(
+                      title: const Text('Sign Out'),
+                      content: const Text('Are you sure you want to sign out?'),
+                      actions: [
+                        TextButton(
+                          onPressed: () => Navigator.pop(context, false),
+                          child: const Text('Cancel'),
+                        ),
+                        TextButton(
+                          onPressed: () => Navigator.pop(context, true),
+                          child: const Text('Sign Out'),
+                        ),
+                      ],
+                    ),
+                  );
+
+                  if (confirm == true && context.mounted) {
+                    await authService.signOut();
+                    if (context.mounted) {
+                      Navigator.of(context).pushReplacementNamed('/login');
+                    }
+                  }
+                },
+              ),
+
+              const SizedBox(height: 32),
+            ],
+          );
+        },
       ),
     );
+  }
+
+  Color _getRoleColor(UserRole? role, List<Permission>? permissions) {
+    // Use permissions-based color
+    if (permissions != null) {
+      if (permissions.contains(Permission.root)) {
+        return const Color(0xFFFFD700); // Gold for root
+      }
+      if (permissions.contains(Permission.admin)) {
+        return const Color(0xFFFFCDD2); // Light red for admin
+      }
+      if (permissions.contains(Permission.manageUsers)) {
+        return const Color(0xFFBBDEFB); // Light blue for manager-level
+      }
+      if (permissions.any((p) => [
+        Permission.createEvent,
+        Permission.editEvent,
+        Permission.createStakeholder,
+        Permission.editStakeholder,
+      ].contains(p))) {
+        return const Color(0xFF80CBC4); // Teal for member-level
+      }
+    }
+    return const Color(0xFFE0E0E0); // Grey for viewer
+  }
+
+  String _getRoleDisplayName(UserRole? role, List<Permission>? permissions) {
+    // Use permissions-based display role
+    if (permissions != null) {
+      return PermissionService.getDisplayRole(permissions);
+    }
+    return 'User';
+  }
+
+  bool _canManageUsers(UserModel user) {
+    return user.permissions.contains(Permission.admin) ||
+           user.permissions.contains(Permission.root) ||
+           user.permissions.contains(Permission.manageUsers);
   }
 }
 
@@ -194,34 +272,26 @@ class _ProfileMenuItem extends StatelessWidget {
   Widget build(BuildContext context) {
     final color = isDestructive ? Colors.red : Colors.black87;
     
-    return Card(
-      elevation: 0,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(12),
-        side: BorderSide(color: Colors.grey[200]!),
-      ),
-      child: InkWell(
-        borderRadius: BorderRadius.circular(12),
-        onTap: onTap,
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
-          child: Row(
-            children: [
-              Icon(icon, color: color),
-              const SizedBox(width: 16),
-              Expanded(
-                child: Text(
-                  title,
-                  style: TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.w500,
-                    color: color,
-                  ),
+    return InkWell(
+      onTap: onTap,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 20),
+        child: Row(
+          children: [
+            Icon(icon, color: color, size: 24),
+            const SizedBox(width: 16),
+            Expanded(
+              child: Text(
+                title,
+                style: TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.w400,
+                  color: color,
                 ),
               ),
-              Icon(Icons.chevron_right, color: Colors.grey[400]),
-            ],
-          ),
+            ),
+            Icon(Icons.chevron_right, color: Colors.grey[400], size: 24),
+          ],
         ),
       ),
     );

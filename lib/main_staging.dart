@@ -13,22 +13,25 @@
 // ==============================================================================
 
 import 'package:flutter/material.dart';
-import 'config/app_config.dart';
-import 'services/services.dart';
+import 'config/config.dart';
+import 'services/firebase_service.dart';
 import 'app.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   
-  // Initialize Firebase
-  await FirebaseService.initialize();
-  
   // Initialize staging configuration
   AppConfig.initialize(AppFlavor.staging);
   
-  // Log startup info
-  debugPrint('🎭 Starting app in STAGING mode');
-  debugPrint('📡 API: ${AppConfig.instance.apiBaseUrl}');
+  // Initialize environment config (loads from environment variables)
+  EnvConfig.initialize();
   
+  // Log startup info
+  debugPrint('Starting app in STAGING mode');
+  debugPrint('API: ${AppConfig.instance.apiBaseUrl}');
+  
+  // Initialize Firebase for staging
+  await FirebaseService.instance.initialize();
+  debugPrint('Firebase Initialized!');
   runApp(const SchedulingApp());
 }

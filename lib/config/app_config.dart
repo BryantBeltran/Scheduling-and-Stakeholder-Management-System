@@ -8,6 +8,8 @@
 // Each flavor (dev, staging, prod) has its own configuration values.
 // ==============================================================================
 
+import 'env_config.dart';
+
 /// Enum representing the different app environments/flavors
 enum AppFlavor {
   dev,
@@ -46,6 +48,12 @@ class AppConfig {
   
   /// Logging level
   final String logLevel;
+  
+  /// Whether to use mock data instead of Firebase
+  final bool useMockData;
+  
+  /// Whether to use Firebase
+  final bool useFirebase;
 
   const AppConfig._({
     required this.flavor,
@@ -56,7 +64,20 @@ class AppConfig {
     this.firebaseProjectId,
     required this.analyticsEnabled,
     required this.logLevel,
+    required this.useMockData,
+    required this.useFirebase,
   });
+  
+  /// Get Google Maps API key from environment configuration
+  /// Returns empty string if not configured
+  String get googleMapsApiKey {
+    // Lazy load from EnvConfig to support runtime configuration
+    try {
+      return EnvConfig.instance.googleMapsApiKey;
+    } catch (_) {
+      return '';
+    }
+  }
 
   /// Singleton instance of the current configuration
   static AppConfig? _instance;
@@ -102,6 +123,8 @@ class AppConfig {
           firebaseProjectId: 'ssms-dev',
           analyticsEnabled: false,
           logLevel: 'debug',
+          useMockData: true,
+          useFirebase: false,
         );
       
       case AppFlavor.staging:
@@ -114,6 +137,8 @@ class AppConfig {
           firebaseProjectId: 'ssms-staging',
           analyticsEnabled: true,
           logLevel: 'info',
+          useMockData: false,
+          useFirebase: true,
         );
       
       case AppFlavor.prod:
@@ -126,6 +151,8 @@ class AppConfig {
           firebaseProjectId: 'ssms-prod',
           analyticsEnabled: true,
           logLevel: 'warning',
+          useMockData: false,
+          useFirebase: true,
         );
     }
   }

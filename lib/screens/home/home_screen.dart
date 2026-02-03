@@ -35,6 +35,7 @@ import '../../models/models.dart';
 import '../../services/services.dart';
 import '../events/event_list_screen.dart';
 import '../stakeholders/stakeholder_list_screen.dart';
+import '../stakeholders/stakeholder_dashboard_screen.dart';
 import '../profile/profile_screen.dart';
 
 class HomeScreen extends StatefulWidget {
@@ -46,6 +47,24 @@ class HomeScreen extends StatefulWidget {
 
 class _HomeScreenState extends State<HomeScreen> {
   int _currentIndex = 0;
+  final _eventService = EventService();
+  final _stakeholderService = StakeholderService();
+  final _permissionService = PermissionService();
+
+  @override
+  void initState() {
+    super.initState();
+    // Initialize event stream from Firestore or mock data
+    _eventService.initializeEventStream();
+    // Initialize stakeholder data (dev: mock, prod: Firestore)
+    _stakeholderService.initializeSampleData();
+  }
+
+  /// Check if user can access the Stakeholders tab
+  /// All authenticated users (Member+) can view stakeholders
+  bool get _canAccessStakeholders {
+    return _permissionService.canViewStakeholder;
+  }
 
   final List<Widget> _screens = const [
     DashboardScreen(),
@@ -54,29 +73,46 @@ class _HomeScreenState extends State<HomeScreen> {
     ProfileScreen(),
   ];
 
+  void _onNavTap(int index) {
+    // Check permission for Stakeholders tab (index 2)
+    if (index == 2 && !_canAccessStakeholders) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('You do not have permission to view stakeholders'),
+          backgroundColor: Colors.red,
+        ),
+      );
+      return;
+    }
+    setState(() => _currentIndex = index);
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       body: _screens[_currentIndex],
       bottomNavigationBar: BottomNavigationBar(
         currentIndex: _currentIndex,
-        onTap: (index) => setState(() => _currentIndex = index),
+        onTap: _onNavTap,
+        type: BottomNavigationBarType.fixed,
+        selectedItemColor: Colors.black,
+        unselectedItemColor: Colors.grey,
         items: const [
           BottomNavigationBarItem(
-            icon: Icon(Icons.dashboard),
-            label: 'Dashboard',
+            icon: Icon(Icons.home),
+            label: '',
           ),
           BottomNavigationBarItem(
-            icon: Icon(Icons.event),
-            label: 'Events',
+            icon: Icon(Icons.calendar_today),
+            label: '',
           ),
           BottomNavigationBarItem(
             icon: Icon(Icons.people),
-            label: 'Stakeholders',
+            label: '',
           ),
           BottomNavigationBarItem(
             icon: Icon(Icons.person),
-            label: 'Profile',
+            label: '',
           ),
         ],
       ),
@@ -84,18 +120,66 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 }
 
-class DashboardScreen extends StatelessWidget {
+class DashboardScreen extends StatefulWidget {
   const DashboardScreen({super.key});
 
   @override
+  State<DashboardScreen> createState() => _DashboardScreenState();
+}
+
+class _DashboardScreenState extends State<DashboardScreen> {
+  bool _isLoading = true;
+  List<EventModel> _events = [];
+  List<StakeholderModel> _stakeholders = [];
+  
+  @override
+  void initState() {
+    super.initState();
+    _loadData();
+  }
+  
+  Future<void> _loadData() async {
+    setState(() => _isLoading = true);
+    
+    try {
+      final eventService = EventService();
+      final stakeholderService = StakeholderService();
+      
+      // Fetch events from Firestore or mock data
+      _events = await eventService.getAllEvents();
+      
+      // Get stakeholders from Firestore or mock data
+      _stakeholders = await stakeholderService.getAllStakeholders();
+    } catch (e) {
+      debugPrint('Error loading data: $e');
+      // Initialize with empty lists on error
+      _events = [];
+      _stakeholders = [];
+    }
+    
+    setState(() => _isLoading = false);
+  }
+
+  @override
   Widget build(BuildContext context) {
-    final eventService = EventService();
-    final stakeholderService = StakeholderService();
     final authService = AuthService();
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Dashboard'),
+        leading: IconButton(
+          icon: const Icon(Icons.menu),
+          onPressed: () {
+            // TODO: Open drawer/menu
+          },
+        ),
+        title: const Text(
+          'Dashboard',
+          style: TextStyle(fontWeight: FontWeight.bold, fontSize: 20),
+        ),
+        centerTitle: true,
+        elevation: 0,
+        backgroundColor: Colors.white,
+        foregroundColor: Colors.black,
         actions: [
           IconButton(
             icon: const Icon(Icons.notifications_outlined),
@@ -106,242 +190,355 @@ class DashboardScreen extends StatelessWidget {
               );
             },
           ),
+          Padding(
+            padding: const EdgeInsets.only(right: 12.0),
+            child: StreamBuilder<UserModel?>(
+              stream: authService.authStateChanges,
+              builder: (context, snapshot) {
+                final user = snapshot.data ?? authService.currentUser;
+                return CircleAvatar(
+                  radius: 18,
+                  backgroundColor: Colors.grey[300],
+                  child: Text(
+                    (user?.displayName.isNotEmpty ?? false) 
+                        ? user!.displayName[0].toUpperCase() 
+                        : 'U',
+                    style: const TextStyle(
+                      color: Colors.black,
+                      fontWeight: FontWeight.bold,
+                      fontSize: 14,
+                    ),
+                  ),
+                );
+              },
+            ),
+          ),
         ],
       ),
       body: RefreshIndicator(
         onRefresh: () async {
-          // Firestore streams auto-refresh, just show feedback
-          await Future.delayed(const Duration(seconds: 1));
+          await _loadData();
         },
-        child: StreamBuilder<UserModel?>(
+        child: _isLoading
+            ? const Center(child: CircularProgressIndicator())
+            : StreamBuilder<UserModel?>(
           stream: authService.authStateChanges,
           builder: (context, authSnapshot) {
-            final user = authSnapshot.data ?? authService.currentUser;
-            
-            return StreamBuilder<List<EventModel>>(
-              stream: eventService.eventsStream,
-              builder: (context, eventsSnapshot) {
-                return StreamBuilder<List<StakeholderModel>>(
-                  stream: stakeholderService.stakeholdersStream,
-                  builder: (context, stakeholdersSnapshot) {
-                    if (!eventsSnapshot.hasData || !stakeholdersSnapshot.hasData) {
-                      return const Center(child: CircularProgressIndicator());
-                    }
+            final now = DateTime.now();
+            final upcomingEvents = _events
+                .where((e) => e.startTime.isAfter(now))
+                .toList()
+              ..sort((a, b) => a.startTime.compareTo(b.startTime));
+            final completedEvents = _events
+                .where((e) => e.status == EventStatus.completed)
+                .toList();
 
-                    final events = eventsSnapshot.data!;
-                    final stakeholders = stakeholdersSnapshot.data!;
-                    final now = DateTime.now();
-                    final upcomingEvents = events
-                        .where((e) => e.startTime.isAfter(now))
-                        .toList()
-                      ..sort((a, b) => a.startTime.compareTo(b.startTime));
-                    final completedEvents = events
-                        .where((e) => e.status == EventStatus.completed)
-                        .toList();
-
-                    return ListView(
-                      padding: const EdgeInsets.all(16),
+            return ListView(
+                      padding: const EdgeInsets.all(20),
                       children: [
-                        // Welcome card
+                        // Statistics - Combined Total Events/Stakeholders Card
                         Card(
-                          child: Padding(
-                            padding: const EdgeInsets.all(16),
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Row(
-                                  children: [
-                                    CircleAvatar(
-                                      radius: 30,
-                                      backgroundColor: Theme.of(context).primaryColor,
-                                      child: Text(
-                                        user?.displayName[0].toUpperCase() ?? 'U',
-                                        style: const TextStyle(
-                                          fontSize: 24,
-                                          color: Colors.white,
-                                          fontWeight: FontWeight.bold,
-                                        ),
-                                      ),
-                                    ),
-                                    const SizedBox(width: 16),
-                                    Expanded(
-                                      child: Column(
+                          elevation: 0,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12),
+                            side: BorderSide(color: Colors.grey[200]!),
+                          ),
+                          child: Row(
+                            children: [
+                              Expanded(
+                                child: Padding(
+                                  padding: const EdgeInsets.all(20),
+                                  child: Row(
+                                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                    children: [
+                                      Column(
                                         crossAxisAlignment: CrossAxisAlignment.start,
                                         children: [
                                           Text(
-                                            'Welcome back,',
-                                            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                                            'Total Events',
+                                            style: TextStyle(
+                                              fontSize: 14,
                                               color: Colors.grey[600],
                                             ),
                                           ),
+                                          const SizedBox(height: 8),
                                           Text(
-                                            user?.displayName ?? 'User',
-                                            style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                                            '${_events.length}',
+                                            style: const TextStyle(
+                                              fontSize: 28,
                                               fontWeight: FontWeight.bold,
                                             ),
                                           ),
                                         ],
                                       ),
-                                    ),
-                                  ],
+                                      Icon(
+                                        Icons.calendar_today,
+                                        color: Colors.blue,
+                                        size: 36,
+                                      ),
+                                    ],
+                                  ),
                                 ),
-                              ],
-                            ),
+                              ),
+                              Container(
+                                width: 1,
+                                height: 80,
+                                color: Colors.grey[300],
+                              ),
+                              Expanded(
+                                child: Padding(
+                                  padding: const EdgeInsets.all(20),
+                                  child: Row(
+                                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                    children: [
+                                      Column(
+                                        crossAxisAlignment: CrossAxisAlignment.start,
+                                        children: [
+                                          Text(
+                                            'Stakeholders',
+                                            style: TextStyle(
+                                              fontSize: 14,
+                                              color: Colors.grey[600],
+                                            ),
+                                          ),
+                                          const SizedBox(height: 8),
+                                          Text(
+                                            '${_stakeholders.length}',
+                                            style: const TextStyle(
+                                              fontSize: 28,
+                                              fontWeight: FontWeight.bold,
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                      Icon(
+                                        Icons.people,
+                                        color: Colors.green,
+                                        size: 36,
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ),
+                            ],
                           ),
                         ),
-                        const SizedBox(height: 16),
-
-                        // Statistics
-                        Row(
-                          children: [
-                            Expanded(
-                              child: _StatCard(
-                                icon: Icons.event,
-                                title: 'Total Events',
-                                value: '${events.length}',
-                                color: Colors.blue,
+                        const SizedBox(height: 20),
+                        // Statistics - Combined Upcoming/Completed Card
+                        Card(
+                          elevation: 0,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12),
+                            side: BorderSide(color: Colors.grey[200]!),
+                          ),
+                          child: Row(
+                            children: [
+                              Expanded(
+                                child: Padding(
+                                  padding: const EdgeInsets.all(20),
+                                  child: Row(
+                                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                    children: [
+                                      Column(
+                                        crossAxisAlignment: CrossAxisAlignment.start,
+                                        children: [
+                                          Text(
+                                            'Upcoming',
+                                            style: TextStyle(
+                                              fontSize: 14,
+                                              color: Colors.grey[600],
+                                            ),
+                                          ),
+                                          const SizedBox(height: 8),
+                                          Text(
+                                            '${upcomingEvents.length}',
+                                            style: const TextStyle(
+                                              fontSize: 28,
+                                              fontWeight: FontWeight.bold,
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                      Icon(
+                                        Icons.access_time,
+                                        color: Colors.orange,
+                                        size: 36,
+                                      ),
+                                    ],
+                                  ),
+                                ),
                               ),
-                            ),
-                            const SizedBox(width: 12),
-                            Expanded(
-                              child: _StatCard(
-                                icon: Icons.people,
-                                title: 'Stakeholders',
-                                value: '${stakeholders.length}',
-                                color: Colors.green,
+                              Container(
+                                width: 1,
+                                height: 80,
+                                color: Colors.grey[300],
                               ),
-                            ),
-                          ],
+                              Expanded(
+                                child: Padding(
+                                  padding: const EdgeInsets.all(20),
+                                  child: Row(
+                                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                    children: [
+                                      Column(
+                                        crossAxisAlignment: CrossAxisAlignment.start,
+                                        children: [
+                                          Text(
+                                            'Completed',
+                                            style: TextStyle(
+                                              fontSize: 14,
+                                              color: Colors.grey[600],
+                                            ),
+                                          ),
+                                          const SizedBox(height: 8),
+                                          Text(
+                                            '${completedEvents.length}',
+                                            style: const TextStyle(
+                                              fontSize: 28,
+                                              fontWeight: FontWeight.bold,
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                      Icon(
+                                        Icons.check_circle,
+                                        color: Colors.purple,
+                                        size: 36,
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
                         ),
-                        const SizedBox(height: 12),
-                        Row(
-                          children: [
-                            Expanded(
-                              child: _StatCard(
-                                icon: Icons.schedule,
-                                title: 'Upcoming',
-                                value: '${upcomingEvents.length}',
-                                color: Colors.orange,
-                              ),
-                            ),
-                            const SizedBox(width: 12),
-                            Expanded(
-                              child: _StatCard(
-                                icon: Icons.check_circle,
-                                title: 'Completed',
-                                value: '${completedEvents.length}',
-                                color: Colors.purple,
-                              ),
-                            ),
-                          ],
-                        ),
-                        const SizedBox(height: 24),
-
+                        const SizedBox(height: 20),
+                        
+                        // Stakeholder Dashboard Card (shows if user is a stakeholder)
+                        if (authSnapshot.data?.isStakeholder == true)
+                          _buildStakeholderDashboardCard(context),
+                        if (authSnapshot.data?.isStakeholder == true)
+                          const SizedBox(height: 20),
+                        
                         // Upcoming Events Section
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                          children: [
-                            Text(
-                              'Upcoming Events',
-                              style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                                fontWeight: FontWeight.bold,
-                              ),
-                            ),
-                            TextButton(
-                              onPressed: () {
-                                // Navigate to events tab
-                                // Note: In production, use proper state management (Provider, Riverpod, etc.)
-                                // to control navigation between tabs
-                              },
-                              child: const Text('View All'),
-                            ),
-                          ],
-                        ),
-                        const SizedBox(height: 8),
-
-                        // Upcoming events list
-                        ...upcomingEvents.take(3).map((event) {
-                          return _EventCard(event: event);
-                        }),
-
-                        if (upcomingEvents.isEmpty)
-                          Center(
-                            child: Padding(
-                              padding: const EdgeInsets.all(32),
-                              child: Column(
-                                children: [
-                                  Icon(
-                                    Icons.event_busy,
-                                    size: 64,
-                                    color: Colors.grey[400],
-                                  ),
-                                  const SizedBox(height: 16),
-                                  Text(
-                                    'No upcoming events',
-                                    style: TextStyle(
-                                      fontSize: 16,
-                                      color: Colors.grey[600],
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
+                        Card(
+                          elevation: 0,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12),
+                            side: BorderSide(color: Colors.grey[200]!),
                           ),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Padding(
+                                padding: const EdgeInsets.fromLTRB(20, 20, 20, 16),
+                                child: const Text(
+                                  'Upcoming Events',
+                                  style: TextStyle(
+                                    fontSize: 18,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                              ),
+                              // Scrollable event list
+                              SizedBox(
+                                height: upcomingEvents.isEmpty ? 100 : 300,
+                                child: upcomingEvents.isEmpty
+                                    ? Center(
+                                        child: Padding(
+                                          padding: const EdgeInsets.all(20),
+                                          child: Text(
+                                            'No upcoming events',
+                                            style: TextStyle(
+                                              color: Colors.grey[600],
+                                              fontSize: 16,
+                                            ),
+                                          ),
+                                        ),
+                                      )
+                                    : ListView.separated(
+                                        padding: const EdgeInsets.fromLTRB(20, 0, 20, 20),
+                                        itemCount: upcomingEvents.length,
+                                        separatorBuilder: (context, index) => const SizedBox(height: 16),
+                                        itemBuilder: (context, index) {
+                                          return _EventCard(event: upcomingEvents[index]);
+                                        },
+                                      ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        const SizedBox(height: 20),
                       ],
                     );
-                  },
-                );
-              },
-            );
           },
         ),
       ),
-      floatingActionButton: FloatingActionButton(
-        onPressed: () {
-          Navigator.of(context).pushNamed('/event/create');
-        },
-        child: const Icon(Icons.add),
-      ),
     );
   }
-}
 
-class _StatCard extends StatelessWidget {
-  final IconData icon;
-  final String title;
-  final String value;
-  final Color color;
-
-  const _StatCard({
-    required this.icon,
-    required this.title,
-    required this.value,
-    required this.color,
-  });
-
-  @override
-  Widget build(BuildContext context) {
+  Widget _buildStakeholderDashboardCard(BuildContext context) {
     return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Icon(icon, color: color, size: 32),
-            const SizedBox(height: 8),
-            Text(
-              value,
-              style: Theme.of(context).textTheme.headlineMedium?.copyWith(
-                fontWeight: FontWeight.bold,
-              ),
+      elevation: 0,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(12),
+        side: BorderSide(color: const Color(0xFF5B7C99).withValues(alpha: 0.3)),
+      ),
+      color: const Color(0xFF5B7C99).withValues(alpha: 0.05),
+      child: InkWell(
+        onTap: () {
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (context) => const StakeholderDashboardScreen(),
             ),
-            Text(
-              title,
-              style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                color: Colors.grey[600],
+          );
+        },
+        borderRadius: BorderRadius.circular(12),
+        child: Padding(
+          padding: const EdgeInsets.all(20),
+          child: Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: const Color(0xFF5B7C99).withValues(alpha: 0.15),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: const Icon(
+                  Icons.event_available,
+                  color: Color(0xFF5B7C99),
+                  size: 28,
+                ),
               ),
-            ),
-          ],
+              const SizedBox(width: 16),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text(
+                      'My Assigned Events',
+                      style: TextStyle(
+                        fontWeight: FontWeight.bold,
+                        fontSize: 16,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      'View events you\'re assigned to as a stakeholder',
+                      style: TextStyle(
+                        fontSize: 13,
+                        color: Colors.grey[600],
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const Icon(
+                Icons.chevron_right,
+                color: Color(0xFF5B7C99),
+              ),
+            ],
+          ),
         ),
       ),
     );
@@ -355,53 +552,176 @@ class _EventCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Card(
-      child: ListTile(
-        leading: CircleAvatar(
-          backgroundColor: _getPriorityColor(event.priority),
-          child: Icon(
-            _getStatusIcon(event.status),
-            color: Colors.white,
-            size: 20,
-          ),
+    return InkWell(
+      onTap: () {
+        Navigator.of(context).pushNamed('/event/details', arguments: event.id);
+      },
+      borderRadius: BorderRadius.circular(12),
+      child: Container(
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: Colors.grey[200]!),
         ),
-        title: Text(
-          event.title,
-          style: const TextStyle(fontWeight: FontWeight.bold),
-        ),
-        subtitle: Column(
+        child: Row(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const SizedBox(height: 4),
-            Row(
-              children: [
-                const Icon(Icons.location_on, size: 14, color: Colors.grey),
-                const SizedBox(width: 4),
-                Expanded(
-                  child: Text(
-                    event.location.name,
-                    style: const TextStyle(fontSize: 12),
+            // Date Column
+            Container(
+              width: 56,
+              padding: const EdgeInsets.symmetric(vertical: 8),
+              decoration: BoxDecoration(
+                color: _getPriorityColor(event.priority).withOpacity(0.1),
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    _getMonthAbbr(event.startTime.month),
+                    style: TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w500,
+                      color: _getPriorityColor(event.priority),
+                    ),
                   ),
-                ),
-              ],
+                  Text(
+                    '${event.startTime.day}',
+                    style: TextStyle(
+                      fontSize: 22,
+                      fontWeight: FontWeight.bold,
+                      color: _getPriorityColor(event.priority),
+                    ),
+                  ),
+                ],
+              ),
             ),
-            const SizedBox(height: 2),
-            Row(
-              children: [
-                const Icon(Icons.access_time, size: 14, color: Colors.grey),
-                const SizedBox(width: 4),
-                Text(
-                  _formatDateTime(event.startTime),
-                  style: const TextStyle(fontSize: 12),
-                ),
-              ],
+            const SizedBox(width: 16),
+            // Event Details
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Expanded(
+                        child: Text(
+                          event.title,
+                          style: const TextStyle(
+                            fontWeight: FontWeight.bold,
+                            fontSize: 16,
+                          ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                      _buildStatusBadge(event.status),
+                    ],
+                  ),
+                  const SizedBox(height: 8),
+                  Row(
+                    children: [
+                      Icon(Icons.access_time, size: 14, color: Colors.grey[600]),
+                      const SizedBox(width: 4),
+                      Text(
+                        _formatTimeRange(event.startTime, event.endTime),
+                        style: TextStyle(
+                          fontSize: 13,
+                          color: Colors.grey[700],
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 4),
+                  Row(
+                    children: [
+                      Icon(
+                        event.location.isVirtual ? Icons.videocam : Icons.location_on,
+                        size: 14,
+                        color: Colors.grey[600],
+                      ),
+                      const SizedBox(width: 4),
+                      Expanded(
+                        child: Text(
+                          event.location.name,
+                          style: TextStyle(
+                            fontSize: 13,
+                            color: Colors.grey[700],
+                          ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                    ],
+                  ),
+                  if (event.stakeholderIds.isNotEmpty) ...[
+                    const SizedBox(height: 8),
+                    Row(
+                      children: [
+                        Icon(Icons.people, size: 14, color: Colors.grey[600]),
+                        const SizedBox(width: 4),
+                        Text(
+                          '${event.stakeholderIds.length} stakeholder${event.stakeholderIds.length > 1 ? 's' : ''}',
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: Colors.grey[600],
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ],
+              ),
             ),
+            const SizedBox(width: 8),
+            Icon(Icons.chevron_right, color: Colors.grey[400]),
           ],
         ),
-        trailing: const Icon(Icons.chevron_right),
-        onTap: () {
-          Navigator.of(context).pushNamed('/event/details', arguments: event.id);
-        },
+      ),
+    );
+  }
+
+  Widget _buildStatusBadge(EventStatus status) {
+    Color color;
+    String label;
+    
+    switch (status) {
+      case EventStatus.draft:
+        color = Colors.grey;
+        label = 'Draft';
+        break;
+      case EventStatus.scheduled:
+        color = Colors.blue;
+        label = 'Scheduled';
+        break;
+      case EventStatus.inProgress:
+        color = Colors.orange;
+        label = 'Active';
+        break;
+      case EventStatus.completed:
+        color = Colors.green;
+        label = 'Done';
+        break;
+      case EventStatus.cancelled:
+        color = Colors.red;
+        label = 'Cancelled';
+        break;
+    }
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+      decoration: BoxDecoration(
+        color: color.withOpacity(0.1),
+        borderRadius: BorderRadius.circular(10),
+      ),
+      child: Text(
+        label,
+        style: TextStyle(
+          fontSize: 10,
+          fontWeight: FontWeight.bold,
+          color: color,
+        ),
       ),
     );
   }
@@ -419,40 +739,21 @@ class _EventCard extends StatelessWidget {
     }
   }
 
-  IconData _getStatusIcon(EventStatus status) {
-    switch (status) {
-      case EventStatus.draft:
-        return Icons.edit;
-      case EventStatus.scheduled:
-        return Icons.schedule;
-      case EventStatus.inProgress:
-        return Icons.play_arrow;
-      case EventStatus.completed:
-        return Icons.check;
-      case EventStatus.cancelled:
-        return Icons.cancel;
-    }
+  String _getMonthAbbr(int month) {
+    const months = ['JAN', 'FEB', 'MAR', 'APR', 'MAY', 'JUN',
+                    'JUL', 'AUG', 'SEP', 'OCT', 'NOV', 'DEC'];
+    return months[month - 1];
   }
 
-  String _formatDateTime(DateTime dateTime) {
-    final now = DateTime.now();
-    final today = DateTime(now.year, now.month, now.day);
-    final tomorrow = today.add(const Duration(days: 1));
-    final eventDate = DateTime(dateTime.year, dateTime.month, dateTime.day);
-
-    String dateStr;
-    if (eventDate == today) {
-      dateStr = 'Today';
-    } else if (eventDate == tomorrow) {
-      dateStr = 'Tomorrow';
-    } else {
-      dateStr = '${dateTime.month}/${dateTime.day}/${dateTime.year}';
-    }
-
-    final hour = dateTime.hour > 12 ? dateTime.hour - 12 : dateTime.hour;
-    final period = dateTime.hour >= 12 ? 'PM' : 'AM';
-    final minute = dateTime.minute.toString().padLeft(2, '0');
-
-    return '$dateStr at $hour:$minute $period';
+  String _formatTimeRange(DateTime start, DateTime end) {
+    final startHour = start.hour > 12 ? start.hour - 12 : (start.hour == 0 ? 12 : start.hour);
+    final startMin = start.minute.toString().padLeft(2, '0');
+    final startPeriod = start.hour >= 12 ? 'PM' : 'AM';
+    
+    final endHour = end.hour > 12 ? end.hour - 12 : (end.hour == 0 ? 12 : end.hour);
+    final endMin = end.minute.toString().padLeft(2, '0');
+    final endPeriod = end.hour >= 12 ? 'PM' : 'AM';
+    
+    return '$startHour:$startMin $startPeriod - $endHour:$endMin $endPeriod';
   }
 }

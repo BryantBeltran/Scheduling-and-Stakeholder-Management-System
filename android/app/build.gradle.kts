@@ -17,12 +17,11 @@
 
 plugins {
     id("com.android.application")
-    // START: FlutterFire Configuration
-    id("com.google.gms.google-services")
-    // END: FlutterFire Configuration
     id("kotlin-android")
     // The Flutter Gradle Plugin must be applied after the Android and Kotlin Gradle plugins.
     id("dev.flutter.flutter-gradle-plugin")
+    // Google Services plugin for Firebase
+    id("com.google.gms.google-services")
 }
 
 android {
@@ -89,11 +88,36 @@ android {
         
         debug {
             // Debug builds are automatically signed with debug key
-            // Note: No applicationIdSuffix to match Firebase configuration
+            // Only dev/staging get .debug suffix
+        }
+    }
+    
+    // Configure debug suffix only for dev and staging flavors
+    applicationVariants.all {
+        val flavor = productFlavors[0].name
+        if (flavor == "dev" || flavor == "staging") {
+            if (buildType.name == "debug") {
+                outputs.forEach { output ->
+                    if (output is com.android.build.gradle.internal.api.ApkVariantOutputImpl) {
+                        output.outputFileName = output.outputFileName.replace(".apk", "-debug.apk")
+                    }
+                }
+            }
         }
     }
 }
 
 flutter {
     source = "../.."
+}
+
+dependencies {
+    // Import the Firebase BoM
+    implementation(platform("com.google.firebase:firebase-bom:34.8.0"))
+
+    // Firebase products - versions managed by BoM
+    implementation("com.google.firebase:firebase-analytics")
+    implementation("com.google.firebase:firebase-auth")
+    implementation("com.google.firebase:firebase-firestore")
+    implementation("com.google.firebase:firebase-storage")
 }

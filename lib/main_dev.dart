@@ -12,29 +12,23 @@
 // ==============================================================================
 
 import 'package:flutter/material.dart';
-import 'config/app_config.dart';
-import 'services/services.dart';
+import 'config/config.dart';
 import 'app.dart';
 
-void main() async {
+void main() {
   WidgetsFlutterBinding.ensureInitialized();
-  
-  try {
-    // Initialize Firebase
-    await FirebaseService.initialize();
-    debugPrint('Firebase initialized successfully');
-  } catch (e, stackTrace) {
-    debugPrint('Firebase initialization failed: $e');
-    debugPrint('Stack trace: $stackTrace');
-  }
   
   // Initialize development configuration
   AppConfig.initialize(AppFlavor.dev);
   
+  // Initialize environment config (loads from environment variables)
+  // For local dev, set GOOGLE_MAPS_API_KEY environment variable or use --dart-define
+  EnvConfig.initialize();
+  
   // Log startup info in dev mode
-  debugPrint('🚀 Starting app in DEVELOPMENT mode');
-  debugPrint('📡 API: ${AppConfig.instance.apiBaseUrl}');
-  debugPrint('🔧 Debug features: ${AppConfig.instance.enableDebugFeatures}');
+  debugPrint('Starting app in DEVELOPMENT mode');
+  debugPrint('API: ${AppConfig.instance.apiBaseUrl}');
+  debugPrint('Debug features: ${AppConfig.instance.enableDebugFeatures}');
   
   runApp(const SchedulingApp());
 }

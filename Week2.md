@@ -4,14 +4,14 @@ A comprehensive Flutter application for managing events and stakeholders with an
 
 ## Features
 
-### 📱 Core Functionality
+### Core Functionality
 - **User Authentication**: Login, registration, and password recovery
 - **Event Management**: Create, view, filter, and search events
 - **Stakeholder Management**: Manage stakeholders with various types and participation statuses
 - **Dashboard**: Overview with statistics and upcoming events
 - **User Profile**: View and manage user profile information
 
-### 🎨 UI/UX Design
+### UI/UX Design
 - Modern Material Design 3 UI
 - Responsive layouts optimized for Android devices
 - Custom theme with primary and accent colors
@@ -19,7 +19,7 @@ A comprehensive Flutter application for managing events and stakeholders with an
 - Search and filter capabilities
 - Status and priority indicators with color coding
 
-### 📊 Data Models
+### Data Models
 
 #### Users
 - **Fields**: ID, email, display name, photo URL, role, permissions, timestamps
@@ -268,8 +268,8 @@ For questions or support, please open an issue in the repository.
 ---
 
 **Week 2 Deliverables Completed:**
-- ✅ Low-fidelity wireframes (implemented in code)
-- ✅ User flows (authentication, event creation, stakeholder assignment)
-- ✅ Database schema (defined in models and documented)
-- ✅ ER diagram (documented in README)
-- ✅ Android implementation focus
+- [x] Low-fidelity wireframes (implemented in code)
+- [x] User flows (authentication, event creation, stakeholder assignment)
+- [x] Database schema (defined in models and documented)
+- [x] ER diagram (documented in README)
+- [x] Android implementation focus

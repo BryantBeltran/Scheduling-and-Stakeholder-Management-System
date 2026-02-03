@@ -28,13 +28,28 @@ enum UserRole {
 
 /// User permissions
 enum Permission {
+  // Event permissions
   createEvent,
   editEvent,
   deleteEvent,
+  viewEvent,
+  
+  // Stakeholder permissions
+  createStakeholder,
+  editStakeholder,
+  deleteStakeholder,
+  viewStakeholder,
   assignStakeholder,
+  inviteStakeholder,  // Can send invites to stakeholders
+  
+  // Admin permissions
   manageUsers,
   viewReports,
   editSettings,
+  
+  // Super admin permissions
+  admin,  // Full admin access
+  root,   // Root/debug access
 }
 
 /// User model representing authenticated users in the system.
@@ -80,6 +95,9 @@ class UserModel {
   
   /// Whether the user account is active (inactive users cannot log in)
   final bool isActive;
+  
+  /// ID of linked stakeholder record (null if not a stakeholder)
+  final String? stakeholderId;
 
   const UserModel({
     required this.id,
@@ -91,7 +109,11 @@ class UserModel {
     required this.createdAt,
     this.lastLoginAt,
     this.isActive = true,
+    this.stakeholderId,
   });
+  
+  /// Returns true if this user is linked to a stakeholder record
+  bool get isStakeholder => stakeholderId != null;
 
   /// Returns the default set of permissions for a given role.
   ///
@@ -109,23 +131,35 @@ class UserModel {
   static List<Permission> getDefaultPermissions(UserRole role) {
     switch (role) {
       case UserRole.admin:
-        return Permission.values.toList();
+        // Admin gets all permissions except root
+        return Permission.values.where((p) => p != Permission.root).toList();
       case UserRole.manager:
         return [
           Permission.createEvent,
           Permission.editEvent,
           Permission.deleteEvent,
+          Permission.viewEvent,
+          Permission.createStakeholder,
+          Permission.editStakeholder,
+          Permission.deleteStakeholder,
+          Permission.viewStakeholder,
           Permission.assignStakeholder,
+          Permission.inviteStakeholder,
           Permission.viewReports,
         ];
       case UserRole.member:
         return [
           Permission.createEvent,
           Permission.editEvent,
+          Permission.viewEvent,
+          Permission.viewStakeholder,
           Permission.assignStakeholder,
         ];
       case UserRole.viewer:
-        return [];
+        return [
+          Permission.viewEvent,
+          Permission.viewStakeholder,
+        ];
     }
   }
 
@@ -166,6 +200,7 @@ class UserModel {
     DateTime? createdAt,
     DateTime? lastLoginAt,
     bool? isActive,
+    String? stakeholderId,
   }) {
     return UserModel(
       id: id ?? this.id,
@@ -177,6 +212,7 @@ class UserModel {
       createdAt: createdAt ?? this.createdAt,
       lastLoginAt: lastLoginAt ?? this.lastLoginAt,
       isActive: isActive ?? this.isActive,
+      stakeholderId: stakeholderId ?? this.stakeholderId,
     );
   }
 
@@ -201,6 +237,7 @@ class UserModel {
       'createdAt': createdAt.toIso8601String(),
       'lastLoginAt': lastLoginAt?.toIso8601String(),
       'isActive': isActive,
+      'stakeholderId': stakeholderId,
     };
   }
 
@@ -220,6 +257,7 @@ class UserModel {
           ? DateTime.parse(json['lastLoginAt'] as String)
           : null,
       isActive: json['isActive'] as bool? ?? true,
+      stakeholderId: json['stakeholderId'] as String?,
     );
   }
 

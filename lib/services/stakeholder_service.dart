@@ -7,161 +7,136 @@
 // - Contact management best practices
 //
 // Implementation Details:
-// - Firestore integration for persistent storage
+// - In-memory stakeholder storage with reactive updates
 // - Multiple filtering options (by type, status, event association)
 // - Search functionality across name, email, and organization
 // - Event assignment/removal methods for relationship management
 //
-// Reference: https://firebase.google.com/docs/firestore/quickstart
+// Changes from standard patterns:
+// - Combined stakeholder and participant management in one service
+// - Added participation status update methods
+// - Event assignment methods for many-to-many relationships
+// - Sample data includes diverse stakeholder types for testing
+//
+// TODO for Production:
+// - Replace in-memory storage with Firestore or REST API
+// - Implement contact import from device contacts
+// - Add duplicate detection and merge functionality
+// - Implement relationship history tracking
 // ==============================================================================
 
 import 'dart:async';
-import 'package:cloud_firestore/cloud_firestore.dart';
+import '../config/app_config.dart';
 import '../models/models.dart';
+import 'mock_data_service.dart';
 
-/// Firebase Firestore stakeholder service
+/// Mock stakeholder service for development
+/// Replace with actual backend/Firebase in production
 class StakeholderService {
   static final StakeholderService _instance = StakeholderService._internal();
   factory StakeholderService() => _instance;
   StakeholderService._internal();
 
-  final FirebaseFirestore _firestore = FirebaseFirestore.instance;
-  final String _collection = 'stakeholders';
+  final List<StakeholderModel> _stakeholders = [];
+  final _stakeholdersController = StreamController<List<StakeholderModel>>.broadcast();
 
-  /// Stream of all stakeholders with real-time updates
-  Stream<List<StakeholderModel>> get stakeholdersStream {
-    return _firestore
-        .collection(_collection)
-        .orderBy('name', descending: false)
-        .snapshots()
-        .map((snapshot) => snapshot.docs
-            .map((doc) => StakeholderModel.fromJson({
-                  'id': doc.id,
-                  ...doc.data(),
-                }))
-            .toList());
+  /// Stream of stakeholders
+  Stream<List<StakeholderModel>> get stakeholdersStream => _stakeholdersController.stream;
+
+  /// Get all stakeholders
+  List<StakeholderModel> get stakeholders => List.unmodifiable(_stakeholders);
+
+  /// Get all stakeholders (async version for consistency with Firebase)
+  Future<List<StakeholderModel>> getAllStakeholders() async {
+    // Use mock data in development
+    if (AppConfig.isInitialized && AppConfig.instance.useMockData) {
+      return MockDataService.getMockStakeholders();
+    }
+    // In a real Firebase implementation, this would fetch from Firestore
+    // For now, return the in-memory list
+    return List.unmodifiable(_stakeholders);
   }
 
-  /// Get all stakeholders (one-time fetch)
-  Future<List<StakeholderModel>> get stakeholders async {
-    final snapshot = await _firestore.collection(_collection).get();
-    return snapshot.docs
-        .map((doc) => StakeholderModel.fromJson({
-              'id': doc.id,
-              ...doc.data(),
-            }))
-        .toList();
+  /// Initialize with sample data (only in dev mode)
+  void initializeSampleData() {
+    if (_stakeholders.isNotEmpty) return;
+
+    // Only use mock data in development mode
+    if (AppConfig.isInitialized && AppConfig.instance.useMockData) {
+      _stakeholders.addAll(MockDataService.getMockStakeholders());
+      _stakeholdersController.add(_stakeholders);
+    }
+    // Production mode: Data comes from Firestore, no sample data added
   }
 
   /// Get stakeholder by ID
-  Future<StakeholderModel?> getStakeholderById(String id) async {
-    final doc = await _firestore.collection(_collection).doc(id).get();
-    if (!doc.exists) return null;
-    return StakeholderModel.fromJson({
-      'id': doc.id,
-      ...doc.data()!,
-    });
+  StakeholderModel? getStakeholderById(String id) {
+    try {
+      return _stakeholders.firstWhere((s) => s.id == id);
+    } catch (_) {
+      return null;
+    }
   }
 
-  /// Get stakeholders by event ID
-  Stream<List<StakeholderModel>> getStakeholdersByEventIdStream(String eventId) {
-    return _firestore
-        .collection(_collection)
-        .where('eventIds', arrayContains: eventId)
-        .snapshots()
-        .map((snapshot) => snapshot.docs
-            .map((doc) => StakeholderModel.fromJson({
-                  'id': doc.id,
-                  ...doc.data(),
-                }))
-            .toList());
-  }
-
-  /// Get stakeholders by event ID (one-time fetch)
-  Future<List<StakeholderModel>> getStakeholdersByEventId(String eventId) async {
-    final snapshot = await _firestore
-        .collection(_collection)
-        .where('eventIds', arrayContains: eventId)
-        .get();
-
-    return snapshot.docs
-        .map((doc) => StakeholderModel.fromJson({
-              'id': doc.id,
-              ...doc.data(),
-            }))
-        .toList();
+  /// Returns all stakeholders assigned to a specific event.
+  ///
+  /// Filters stakeholders where their `eventIds` list contains the given event ID.
+  ///
+  /// Example:
+  /// ```dart
+  /// final attendees = stakeholderService.getStakeholdersByEventId('evt_123');
+  /// print('${attendees.length} people assigned to this event');
+  /// ```
+  List<StakeholderModel> getStakeholdersByEventId(String eventId) {
+    return _stakeholders.where((s) => s.eventIds.contains(eventId)).toList();
   }
 
   /// Get stakeholders by type
-  Stream<List<StakeholderModel>> getStakeholdersByTypeStream(StakeholderType type) {
-    return _firestore
-        .collection(_collection)
-        .where('type', isEqualTo: type.toString().split('.').last)
-        .snapshots()
-        .map((snapshot) => snapshot.docs
-            .map((doc) => StakeholderModel.fromJson({
-                  'id': doc.id,
-                  ...doc.data(),
-                }))
-            .toList());
-  }
-
-  /// Get stakeholders by type (one-time fetch)
-  Future<List<StakeholderModel>> getStakeholdersByType(StakeholderType type) async {
-    final snapshot = await _firestore
-        .collection(_collection)
-        .where('type', isEqualTo: type.toString().split('.').last)
-        .get();
-
-    return snapshot.docs
-        .map((doc) => StakeholderModel.fromJson({
-              'id': doc.id,
-              ...doc.data(),
-            }))
-        .toList();
+  List<StakeholderModel> getStakeholdersByType(StakeholderType type) {
+    return _stakeholders.where((s) => s.type == type).toList();
   }
 
   /// Get stakeholders by participation status
-  Future<List<StakeholderModel>> getStakeholdersByStatus(ParticipationStatus status) async {
-    final snapshot = await _firestore
-        .collection(_collection)
-        .where('participationStatus', isEqualTo: status.toString().split('.').last)
-        .get();
-
-    return snapshot.docs
-        .map((doc) => StakeholderModel.fromJson({
-              'id': doc.id,
-              ...doc.data(),
-            }))
-        .toList();
+  List<StakeholderModel> getStakeholdersByStatus(ParticipationStatus status) {
+    return _stakeholders.where((s) => s.participationStatus == status).toList();
   }
 
   /// Create a new stakeholder
   Future<StakeholderModel> createStakeholder(StakeholderModel stakeholder) async {
-    final docRef = _firestore.collection(_collection).doc();
-    
+    await Future.delayed(const Duration(milliseconds: 500));
+
     final newStakeholder = stakeholder.copyWith(
-      id: docRef.id,
+      id: 'stakeholder_${DateTime.now().millisecondsSinceEpoch}',
       createdAt: DateTime.now(),
       updatedAt: DateTime.now(),
     );
 
-    await docRef.set(newStakeholder.toJson());
+    _stakeholders.add(newStakeholder);
+    _stakeholdersController.add(_stakeholders);
     return newStakeholder;
   }
 
   /// Update an existing stakeholder
   Future<StakeholderModel> updateStakeholder(StakeholderModel stakeholder) async {
+    await Future.delayed(const Duration(milliseconds: 500));
+
+    final index = _stakeholders.indexWhere((s) => s.id == stakeholder.id);
+    if (index == -1) {
+      throw Exception('Stakeholder not found');
+    }
+
     final updatedStakeholder = stakeholder.copyWith(updatedAt: DateTime.now());
-    
-    await _firestore.collection(_collection).doc(stakeholder.id).update(updatedStakeholder.toJson());
-    
+    _stakeholders[index] = updatedStakeholder;
+    _stakeholdersController.add(_stakeholders);
     return updatedStakeholder;
   }
 
   /// Delete a stakeholder
   Future<void> deleteStakeholder(String stakeholderId) async {
-    await _firestore.collection(_collection).doc(stakeholderId).delete();
+    await Future.delayed(const Duration(milliseconds: 500));
+
+    _stakeholders.removeWhere((s) => s.id == stakeholderId);
+    _stakeholdersController.add(_stakeholders);
   }
 
   /// Update participation status
@@ -169,15 +144,26 @@ class StakeholderService {
     String stakeholderId,
     ParticipationStatus status,
   ) async {
-    final stakeholder = await getStakeholderById(stakeholderId);
+    final stakeholder = getStakeholderById(stakeholderId);
     if (stakeholder == null) throw Exception('Stakeholder not found');
 
     return updateStakeholder(stakeholder.copyWith(participationStatus: status));
   }
 
-  /// Assign stakeholder to event
+  /// Assigns a stakeholder to an event.
+  ///
+  /// Adds the event ID to the stakeholder's `eventIds` list if not already present.
+  /// Returns the updated stakeholder model.
+  ///
+  /// Throws an exception if the stakeholder is not found.
+  ///
+  /// Example:
+  /// ```dart
+  /// await stakeholderService.assignToEvent('sh_123', 'evt_456');
+  /// print('Stakeholder assigned to event');
+  /// ```
   Future<StakeholderModel> assignToEvent(String stakeholderId, String eventId) async {
-    final stakeholder = await getStakeholderById(stakeholderId);
+    final stakeholder = getStakeholderById(stakeholderId);
     if (stakeholder == null) throw Exception('Stakeholder not found');
 
     if (stakeholder.eventIds.contains(eventId)) {
@@ -191,7 +177,7 @@ class StakeholderService {
 
   /// Remove stakeholder from event
   Future<StakeholderModel> removeFromEvent(String stakeholderId, String eventId) async {
-    final stakeholder = await getStakeholderById(stakeholderId);
+    final stakeholder = getStakeholderById(stakeholderId);
     if (stakeholder == null) throw Exception('Stakeholder not found');
 
     return updateStakeholder(stakeholder.copyWith(
@@ -200,21 +186,17 @@ class StakeholderService {
   }
 
   /// Search stakeholders
-  Future<List<StakeholderModel>> searchStakeholders(String query) async {
-    // Note: Firestore doesn't support full-text search natively
-    // For production, consider using Algolia or ElasticSearch
-    final snapshot = await _firestore.collection(_collection).get();
-    
+  List<StakeholderModel> searchStakeholders(String query) {
     final lowercaseQuery = query.toLowerCase();
-    return snapshot.docs
-        .map((doc) => StakeholderModel.fromJson({
-              'id': doc.id,
-              ...doc.data(),
-            }))
-        .where((stakeholder) =>
-            stakeholder.name.toLowerCase().contains(lowercaseQuery) ||
-            stakeholder.email.toLowerCase().contains(lowercaseQuery) ||
-            (stakeholder.organization?.toLowerCase().contains(lowercaseQuery) ?? false))
-        .toList();
+    return _stakeholders.where((stakeholder) {
+      return stakeholder.name.toLowerCase().contains(lowercaseQuery) ||
+          stakeholder.email.toLowerCase().contains(lowercaseQuery) ||
+          (stakeholder.organization?.toLowerCase().contains(lowercaseQuery) ?? false);
+    }).toList();
+  }
+
+  /// Dispose resources
+  void dispose() {
+    _stakeholdersController.close();
   }
 }

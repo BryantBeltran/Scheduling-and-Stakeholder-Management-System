@@ -20,12 +20,6 @@ Thumbs.db
 .clj-kondo/
 .lsp/
 
-# Firebase - Keep secrets safe
-lib/firebase_options.dart
-google-services.json
-GoogleService-Info.plist
-firebase_app_id_file.json
-
 # IntelliJ related
 *.iml
 *.ipr
@@ -41,18 +35,17 @@ firebase_app_id_file.json
 **/doc/api/
 **/ios/Flutter/.last_build_id
 .dart_tool/
-.flutter-plugins
 .flutter-plugins-dependencies
 .pub-cache/
 .pub/
 /build/
 /coverage/
-
-# Generated plugin files
-**/GeneratedPluginRegistrant.swift
-**/generated_plugin_registrant.cc
-**/generated_plugin_registrant.h
-**/generated_plugins.cmake
+.melos_tool/
+generated_plugin_registrant.dart
+.packages
+.pub/
+build/
+.flutter-plugins
 
 # Symbolication related
 app.*.symbols

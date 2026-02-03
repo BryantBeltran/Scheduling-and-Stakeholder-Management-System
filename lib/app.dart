@@ -16,6 +16,12 @@ import 'screens/auth/register_password_screen.dart';
 import 'screens/auth/forgot_password_screen.dart';
 import 'screens/home/home_screen.dart';
 import 'screens/dev/dev_screen_navigator.dart';
+import 'screens/events/event_create_screen.dart';
+import 'screens/events/event_details_screen.dart';
+import 'screens/events/event_edit_screen.dart';
+import 'screens/stakeholders/stakeholder_details_screen.dart';
+import 'screens/admin/user_management_screen.dart';
+import 'widgets/protected_route.dart';
 import 'services/services.dart';
 import 'models/models.dart';
 
@@ -42,6 +48,7 @@ class SchedulingApp extends StatelessWidget {
         '/register': (context) => const RegisterScreen(),
         '/forgot-password': (context) => const ForgotPasswordScreen(),
         '/home': (context) => const HomeScreen(),
+        '/event/create': (context) => const EventCreateScreen(),
       },
       onGenerateRoute: (settings) {
         if (settings.name == '/register-password') {
@@ -49,6 +56,33 @@ class SchedulingApp extends StatelessWidget {
           final email = args?['email'] ?? '';
           return MaterialPageRoute(
             builder: (context) => RegisterPasswordScreen(email: email),
+          );
+        }
+        if (settings.name == '/stakeholder/details') {
+          final stakeholderId = settings.arguments as String;
+          return MaterialPageRoute(
+            builder: (context) => StakeholderDetailsScreen(
+              stakeholderId: stakeholderId,
+            ),
+          );
+        }
+        if (settings.name == '/event/details') {
+          final eventId = settings.arguments as String;
+          return MaterialPageRoute(
+            builder: (context) => EventDetailsScreen(eventId: eventId),
+          );
+        }
+        if (settings.name == '/event/edit') {
+          final event = settings.arguments as EventModel;
+          return MaterialPageRoute(
+            builder: (context) => EventEditScreen(event: event),
+          );
+        }
+        if (settings.name == '/admin/users') {
+          return MaterialPageRoute(
+            builder: (context) => ProtectedRoute.userManagement(
+              child: const UserManagementScreen(),
+            ),
           );
         }
         return null;
