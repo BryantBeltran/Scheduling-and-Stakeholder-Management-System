@@ -150,12 +150,57 @@ class UserService {
           'lastLoginAt': FieldValue.serverTimestamp(),
           'updatedAt': FieldValue.serverTimestamp(),
           'isActive': true,
+          'onboardingComplete': false,
         });
         debugPrint('Created new user: ${user.email}');
       }
     } catch (e) {
       debugPrint('Error saving user to Firestore: $e');
       rethrow;
+    }
+  }
+
+  /// Complete user onboarding with additional profile information
+  Future<void> completeOnboarding(
+    UserModel user, {
+    String? organization,
+    String? phone,
+  }) async {
+    if (!AppConfig.instance.useFirebase) {
+      debugPrint('[Dev] Mock complete onboarding: ${user.email}');
+      return;
+    }
+
+    try {
+      await _firestore.collection('users').doc(user.id).update({
+        'displayName': user.displayName,
+        'organization': organization ?? '',
+        'phone': phone ?? '',
+        'onboardingComplete': true,
+        'updatedAt': FieldValue.serverTimestamp(),
+      });
+      debugPrint('Completed onboarding for user: ${user.email}');
+    } catch (e) {
+      debugPrint('Error completing onboarding: $e');
+      rethrow;
+    }
+  }
+
+  /// Check if user needs onboarding
+  Future<bool> needsOnboarding(String userId) async {
+    if (!AppConfig.instance.useFirebase) {
+      return false;
+    }
+
+    try {
+      final doc = await _firestore.collection('users').doc(userId).get();
+      if (!doc.exists) return true;
+      
+      final data = doc.data();
+      return data?['onboardingComplete'] != true;
+    } catch (e) {
+      debugPrint('Error checking onboarding status: $e');
+      return false;
     }
   }
 

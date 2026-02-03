@@ -13,6 +13,7 @@ import 'theme/app_theme.dart';
 import 'screens/auth/login_screen.dart';
 import 'screens/auth/register_screen.dart';
 import 'screens/auth/register_password_screen.dart';
+import 'screens/auth/onboarding_screen.dart';
 import 'screens/auth/forgot_password_screen.dart';
 import 'screens/home/home_screen.dart';
 import 'screens/dev/dev_screen_navigator.dart';
@@ -57,6 +58,28 @@ class SchedulingApp extends StatelessWidget {
           return MaterialPageRoute(
             builder: (context) => RegisterPasswordScreen(email: email),
           );
+        }
+        if (settings.name == '/onboarding') {
+          final args = settings.arguments as Map<String, dynamic>?;
+          
+          // Check if this is OAuth flow (with UserModel) or email/password flow
+          if (args?['user'] != null) {
+            // OAuth flow - user from Google/Apple Sign-In
+            final user = args!['user'] as UserModel;
+            return MaterialPageRoute(
+              builder: (context) => OnboardingScreen(initialUser: user),
+            );
+          } else {
+            // Email/password flow - use email and displayName
+            final email = args?['email'] as String?;
+            final displayName = args?['displayName'] as String?;
+            return MaterialPageRoute(
+              builder: (context) => OnboardingScreen(
+                email: email,
+                displayName: displayName,
+              ),
+            );
+          }
         }
         if (settings.name == '/stakeholder/details') {
           final stakeholderId = settings.arguments as String;

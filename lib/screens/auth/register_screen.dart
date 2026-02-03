@@ -1,5 +1,8 @@
+import 'dart:io' show Platform;
+
 import 'package:flutter/material.dart';
 import 'package:flutter/gestures.dart';
+import '../../services/services.dart';
 
 class RegisterScreen extends StatefulWidget {
   const RegisterScreen({super.key});
@@ -11,6 +14,8 @@ class RegisterScreen extends StatefulWidget {
 class _RegisterScreenState extends State<RegisterScreen> {
   final _formKey = GlobalKey<FormState>();
   final _emailController = TextEditingController();
+  final _authService = AuthService();
+  final _userService = UserService();
 
   bool _isLoading = false;
   bool _isGoogleLoading = false;
@@ -55,11 +60,26 @@ class _RegisterScreenState extends State<RegisterScreen> {
     });
 
     try {
-      // TODO: Implement Google Sign-Up
-      await Future.delayed(const Duration(seconds: 1));
-      if (mounted) {
-        Navigator.of(context).pushReplacementNamed('/home');
+      // Sign in with Google (works for both new and existing users)
+      final user = await _authService.signInWithGoogle();
+      
+      if (user != null && mounted) {
+        // Check if user already has a complete profile
+        final existingUser = await _userService.getUser(user.id);
+        
+        if (existingUser != null && existingUser.id.isNotEmpty) {
+          // User already exists - just sign them in
+          Navigator.of(context).pushReplacementNamed('/home');
+        } else {
+          // New user - go to onboarding
+          Navigator.of(context).pushNamed(
+            '/onboarding',
+            arguments: {'user': user},
+          );
+        }
       }
+    } on AuthException catch (e) {
+      setState(() => _errorMessage = e.message);
     } catch (e) {
       setState(() => _errorMessage = 'Google sign-up failed. Please try again.');
     } finally {
@@ -76,11 +96,26 @@ class _RegisterScreenState extends State<RegisterScreen> {
     });
 
     try {
-      // TODO: Implement Apple Sign-Up
-      await Future.delayed(const Duration(seconds: 1));
-      if (mounted) {
-        Navigator.of(context).pushReplacementNamed('/home');
+      // Sign in with Apple (works for both new and existing users)
+      final user = await _authService.signInWithApple();
+      
+      if (user != null && mounted) {
+        // Check if user already has a complete profile
+        final existingUser = await _userService.getUser(user.id);
+        
+        if (existingUser != null && existingUser.id.isNotEmpty) {
+          // User already exists - just sign them in
+          Navigator.of(context).pushReplacementNamed('/home');
+        } else {
+          // New user - go to onboarding
+          Navigator.of(context).pushNamed(
+            '/onboarding',
+            arguments: {'user': user},
+          );
+        }
       }
+    } on AuthException catch (e) {
+      setState(() => _errorMessage = e.message);
     } catch (e) {
       setState(() => _errorMessage = 'Apple sign-up failed. Please try again.');
     } finally {
@@ -342,40 +377,41 @@ class _RegisterScreenState extends State<RegisterScreen> {
                   ),
                   const SizedBox(height: 12),
 
-                  // Apple Sign Up Button
-                  SizedBox(
-                    height: 52,
-                    child: OutlinedButton(
-                      onPressed: _isAppleLoading ? null : _handleAppleSignUp,
-                      style: OutlinedButton.styleFrom(
-                        side: BorderSide(color: Colors.grey[300]!),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12),
+                  // Apple Sign Up Button (iOS only)
+                  if (Platform.isIOS)
+                    SizedBox(
+                      height: 52,
+                      child: OutlinedButton(
+                        onPressed: _isAppleLoading ? null : _handleAppleSignUp,
+                        style: OutlinedButton.styleFrom(
+                          side: BorderSide(color: Colors.grey[300]!),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
                         ),
-                      ),
-                      child: _isAppleLoading
-                          ? const SizedBox(
-                              height: 20,
-                              width: 20,
-                              child: CircularProgressIndicator(strokeWidth: 2),
-                            )
-                          : const Row(
-                              mainAxisAlignment: MainAxisAlignment.center,
-                              children: [
-                                Icon(Icons.apple, size: 24, color: Colors.black),
-                                SizedBox(width: 12),
-                                Text(
-                                  'Sign Up with Apple',
-                                  style: TextStyle(
-                                    fontSize: 15,
-                                    fontWeight: FontWeight.w500,
-                                    color: Colors.black87,
+                        child: _isAppleLoading
+                            ? const SizedBox(
+                                height: 20,
+                                width: 20,
+                                child: CircularProgressIndicator(strokeWidth: 2),
+                              )
+                            : const Row(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  Icon(Icons.apple, size: 24, color: Colors.black),
+                                  SizedBox(width: 12),
+                                  Text(
+                                    'Sign Up with Apple',
+                                    style: TextStyle(
+                                      fontSize: 15,
+                                      fontWeight: FontWeight.w500,
+                                      color: Colors.black87,
+                                    ),
                                   ),
-                                ),
-                              ],
-                            ),
+                                ],
+                              ),
+                      ),
                     ),
-                  ),
                   const SizedBox(height: 32),
 
                   // Terms and Privacy Policy

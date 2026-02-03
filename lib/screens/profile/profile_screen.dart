@@ -202,7 +202,11 @@ class ProfileScreen extends StatelessWidget {
                   if (confirm == true && context.mounted) {
                     await authService.signOut();
                     if (context.mounted) {
-                      Navigator.of(context).pushReplacementNamed('/login');
+                      // Pop all routes and go back to root (AuthWrapper will handle showing login)
+                      Navigator.of(context).pushNamedAndRemoveUntil(
+                        '/login',
+                        (route) => false,
+                      );
                     }
                   }
                 },

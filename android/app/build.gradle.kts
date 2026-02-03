@@ -1,19 +1,7 @@
-// ==============================================================================
-// ANDROID BUILD CONFIGURATION WITH FLAVORS
-// ==============================================================================
-// Reference: https://docs.flutter.dev/deployment/flavors
-// Reference: https://developer.android.com/build/build-variants
-//
-// This configuration defines three product flavors:
-// - dev: Development builds with .dev suffix
-// - staging: Staging builds with .staging suffix  
-// - prod: Production builds with no suffix
-//
 // Run commands:
 //   flutter run --flavor dev -t lib/main_dev.dart
 //   flutter run --flavor staging -t lib/main_staging.dart
 //   flutter run --flavor prod -t lib/main_prod.dart
-// ==============================================================================
 
 plugins {
     id("com.android.application")
