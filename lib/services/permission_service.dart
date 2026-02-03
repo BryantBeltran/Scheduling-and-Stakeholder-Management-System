@@ -71,29 +71,107 @@ class PermissionService {
   /// Check if current user is a member or above
   bool get isMemberOrAbove => hasMinimumRole(UserRole.member);
 
-  // Event permissions
-  bool get canCreateEvent => hasPermission(Permission.createEvent);
-  bool get canEditEvent => hasPermission(Permission.editEvent);
-  bool get canDeleteEvent => hasPermission(Permission.deleteEvent);
-  bool get canViewEvent => hasPermission(Permission.viewEvent);
-
-  // Stakeholder permissions
-  bool get canCreateStakeholder => hasPermission(Permission.createStakeholder);
-  bool get canEditStakeholder => hasPermission(Permission.editStakeholder);
-  bool get canDeleteStakeholder => hasPermission(Permission.deleteStakeholder);
-  bool get canViewStakeholder => hasPermission(Permission.viewStakeholder);
-  bool get canAssignStakeholder => hasPermission(Permission.assignStakeholder);
+  // ============================================================
+  // EVENT PERMISSIONS
+  // Role-based: Manager+ has full access, Member/Viewer view only
+  // Permission override: Specific permissions grant access
+  // ============================================================
   
-  /// Check if user can invite stakeholders
+  /// Create events: Manager+ OR explicit createEvent permission
+  bool get canCreateEvent =>
+      isManagerOrAbove ||
+      hasPermission(Permission.createEvent) ||
+      hasPermission(Permission.admin) ||
+      hasPermission(Permission.root);
+
+  /// Edit events: Manager+ OR explicit editEvent permission
+  bool get canEditEvent =>
+      isManagerOrAbove ||
+      hasPermission(Permission.editEvent) ||
+      hasPermission(Permission.admin) ||
+      hasPermission(Permission.root);
+
+  /// Delete events: Manager+ OR explicit deleteEvent permission
+  bool get canDeleteEvent =>
+      isManagerOrAbove ||
+      hasPermission(Permission.deleteEvent) ||
+      hasPermission(Permission.admin) ||
+      hasPermission(Permission.root);
+
+  /// View events: All roles (Member+)
+  bool get canViewEvent =>
+      isMemberOrAbove ||
+      hasPermission(Permission.viewEvent) ||
+      hasPermission(Permission.admin) ||
+      hasPermission(Permission.root);
+
+  // ============================================================
+  // STAKEHOLDER PERMISSIONS
+  // Role-based: Manager+ has full access, Member/Viewer view only
+  // Permission override: Specific permissions grant access
+  // ============================================================
+
+  /// Create stakeholders: Manager+ OR explicit permission
+  bool get canCreateStakeholder =>
+      isManagerOrAbove ||
+      hasPermission(Permission.createStakeholder) ||
+      hasPermission(Permission.admin) ||
+      hasPermission(Permission.root);
+
+  /// Edit stakeholders: Manager+ OR explicit permission
+  bool get canEditStakeholder =>
+      isManagerOrAbove ||
+      hasPermission(Permission.editStakeholder) ||
+      hasPermission(Permission.admin) ||
+      hasPermission(Permission.root);
+
+  /// Delete stakeholders: Manager+ only (no Member override)
+  bool get canDeleteStakeholder =>
+      isManagerOrAbove ||
+      hasPermission(Permission.deleteStakeholder) ||
+      hasPermission(Permission.admin) ||
+      hasPermission(Permission.root);
+
+  /// View stakeholders: All roles (Member+)
+  bool get canViewStakeholder =>
+      isMemberOrAbove ||
+      hasPermission(Permission.viewStakeholder) ||
+      hasPermission(Permission.admin) ||
+      hasPermission(Permission.root);
+
+  /// Assign stakeholders: Manager+ OR explicit permission
+  bool get canAssignStakeholder =>
+      isManagerOrAbove ||
+      hasPermission(Permission.assignStakeholder) ||
+      hasPermission(Permission.admin) ||
+      hasPermission(Permission.root);
+  
+  /// Invite stakeholders: Manager+ OR explicit permission
   bool get canInviteStakeholder =>
+      isManagerOrAbove ||
       hasPermission(Permission.inviteStakeholder) ||
       hasPermission(Permission.admin) ||
       hasPermission(Permission.root);
 
-  // Admin permissions
-  bool get canManageUsers => hasPermission(Permission.manageUsers);
-  bool get canViewReports => hasPermission(Permission.viewReports);
-  bool get canEditSettings => hasPermission(Permission.editSettings);
+  // ============================================================
+  // ADMIN PERMISSIONS
+  // ============================================================
+  
+  bool get canManageUsers => 
+      hasPermission(Permission.manageUsers) ||
+      hasPermission(Permission.admin) ||
+      hasPermission(Permission.root);
+
+  bool get canViewReports => 
+      isManagerOrAbove ||
+      hasPermission(Permission.viewReports) ||
+      hasPermission(Permission.admin) ||
+      hasPermission(Permission.root);
+
+  bool get canEditSettings => 
+      hasPermission(Permission.editSettings) ||
+      hasPermission(Permission.admin) ||
+      hasPermission(Permission.root);
 
   /// Check if user has admin permission
   bool get hasAdminPermission => hasPermission(Permission.admin);

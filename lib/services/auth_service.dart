@@ -61,13 +61,22 @@ class AuthService {
     _firebaseAuthInitialized = true;
     
     // Listen to Firebase auth state changes
-    _firebaseAuthSub = _firebaseAuth.authStateChanges().listen((firebase_auth.User? firebaseUser) {
+    _firebaseAuthSub = _firebaseAuth.authStateChanges().listen((firebase_auth.User? firebaseUser) async {
       if (firebaseUser != null) {
+        // First set basic user data
         _currentUser = _convertFirebaseUser(firebaseUser);
+        _authStateController.add(_currentUser);
+        
+        // Then fetch full user data from Firestore (includes role/permissions)
+        final fullUser = await _userService.getUser(firebaseUser.uid);
+        if (fullUser != null) {
+          _currentUser = fullUser;
+          _authStateController.add(_currentUser);
+        }
       } else {
         _currentUser = null;
+        _authStateController.add(_currentUser);
       }
-      _authStateController.add(_currentUser);
     });
   }
 

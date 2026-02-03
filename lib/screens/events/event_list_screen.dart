@@ -291,7 +291,6 @@ class _EventListScreenState extends State<EventListScreen> {
                       padding: const EdgeInsets.only(bottom: 12),
                       child: _EventListItem(
                         event: event,
-                        onDelete: () => _deleteEvent(event.id),
                       ),
                     );
                   },
@@ -524,9 +523,8 @@ class _EventListScreenState extends State<EventListScreen> {
 
 class _EventListItem extends StatelessWidget {
   final EventModel event;
-  final VoidCallback? onDelete;
 
-  const _EventListItem({required this.event, this.onDelete});
+  const _EventListItem({required this.event});
 
   @override
   Widget build(BuildContext context) {
@@ -574,14 +572,6 @@ class _EventListItem extends StatelessWidget {
                             ),
                           ),
                         ),
-                        if (onDelete != null)
-                          IconButton(
-                            icon: const Icon(Icons.delete, color: Colors.red, size: 20),
-                            onPressed: onDelete,
-                            padding: EdgeInsets.zero,
-                            constraints: const BoxConstraints(),
-                          ),
-                        const SizedBox(width: 8),
                         const Icon(Icons.chevron_right, color: Colors.grey),
                       ],
                     ),

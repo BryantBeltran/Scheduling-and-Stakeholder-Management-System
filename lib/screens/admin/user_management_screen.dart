@@ -43,7 +43,7 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
   }
 
   void _checkPermissions() {
-    if (!_permissionService.canManageUsers && !_permissionService.isAdmin) {
+    if (!_permissionService.canManageUsers) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
         Navigator.of(context).pop();
         ScaffoldMessenger.of(context).showSnackBar(

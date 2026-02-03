@@ -60,11 +60,10 @@ class _HomeScreenState extends State<HomeScreen> {
     _stakeholderService.initializeSampleData();
   }
 
-  /// Check if user can access the Stakeholders tab (admin/manager/root only)
+  /// Check if user can access the Stakeholders tab
+  /// All authenticated users (Member+) can view stakeholders
   bool get _canAccessStakeholders {
-    return _permissionService.isAdmin ||
-        _permissionService.isManagerOrAbove ||
-        _permissionService.hasPermission(Permission.root);
+    return _permissionService.canViewStakeholder;
   }
 
   final List<Widget> _screens = const [
@@ -79,7 +78,7 @@ class _HomeScreenState extends State<HomeScreen> {
     if (index == 2 && !_canAccessStakeholders) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text('You need admin or manager access to view stakeholders'),
+          content: Text('You do not have permission to view stakeholders'),
           backgroundColor: Colors.red,
         ),
       );

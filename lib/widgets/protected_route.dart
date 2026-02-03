@@ -76,6 +76,7 @@ class ProtectedRoute extends StatelessWidget {
   }
 
   /// Creates a protected route requiring user management access
+  /// Allows: manageUsers permission, admin permission, or root permission
   factory ProtectedRoute.userManagement({
     Key? key,
     required Widget child,
@@ -83,7 +84,7 @@ class ProtectedRoute extends StatelessWidget {
   }) {
     return ProtectedRoute(
       key: key,
-      requiredPermission: Permission.manageUsers,
+      anyOfPermissions: [Permission.manageUsers, Permission.admin, Permission.root],
       accessDeniedWidget: accessDeniedWidget,
       child: child,
     );
@@ -109,9 +110,10 @@ class ProtectedRoute extends StatelessWidget {
     
     return StreamBuilder<UserModel?>(
       stream: authService.authStateChanges,
+      initialData: authService.currentUser,
       builder: (context, snapshot) {
-        // Still loading
-        if (snapshot.connectionState == ConnectionState.waiting) {
+        // Still loading - only if no initial data
+        if (snapshot.connectionState == ConnectionState.waiting && snapshot.data == null) {
           return loadingWidget ?? const _LoadingView();
         }
 
