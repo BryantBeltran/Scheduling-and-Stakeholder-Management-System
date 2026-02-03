@@ -479,7 +479,7 @@ class _UserListItem extends StatelessWidget {
               width: 50,
               height: 50,
               decoration: BoxDecoration(
-                color: _getRoleColor(user.role).withOpacity(0.2),
+                color: _getDisplayColor(user.role, user.permissions).withOpacity(0.2),
                 shape: BoxShape.circle,
                 image: user.photoUrl != null
                     ? DecorationImage(
@@ -497,7 +497,7 @@ class _UserListItem extends StatelessWidget {
                         style: TextStyle(
                           fontSize: 20,
                           fontWeight: FontWeight.bold,
-                          color: _getRoleColor(user.role),
+                          color: _getDisplayColor(user.role, user.permissions),
                         ),
                       ),
                     )
@@ -553,7 +553,7 @@ class _UserListItem extends StatelessWidget {
                   const SizedBox(height: 8),
                   Row(
                     children: [
-                      _buildRoleBadge(user.role),
+                      _buildRoleBadge(user.role, user.permissions),
                       if (user.stakeholderId != null) ...[
                         const SizedBox(width: 8),
                         Container(
@@ -633,22 +633,47 @@ class _UserListItem extends StatelessWidget {
     );
   }
 
-  Widget _buildRoleBadge(UserRole role) {
+  Widget _buildRoleBadge(UserRole role, List<Permission> permissions) {
+    // Check permissions first for display
+    String displayName;
+    Color badgeColor;
+    
+    if (permissions.contains(Permission.root)) {
+      displayName = 'Root';
+      badgeColor = const Color(0xFFFFD700); // Gold
+    } else if (permissions.contains(Permission.admin)) {
+      displayName = 'Admin';
+      badgeColor = Colors.purple;
+    } else {
+      displayName = PermissionService.getRoleName(role);
+      badgeColor = _getRoleColor(role);
+    }
+    
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
       decoration: BoxDecoration(
-        color: _getRoleColor(role).withOpacity(0.1),
+        color: badgeColor.withOpacity(0.1),
         borderRadius: BorderRadius.circular(12),
       ),
       child: Text(
-        PermissionService.getRoleName(role),
+        displayName,
         style: TextStyle(
           fontSize: 11,
           fontWeight: FontWeight.bold,
-          color: _getRoleColor(role),
+          color: badgeColor,
         ),
       ),
     );
+  }
+
+  /// Get display color based on permissions first, then role
+  Color _getDisplayColor(UserRole role, List<Permission> permissions) {
+    if (permissions.contains(Permission.root)) {
+      return const Color(0xFFFFD700); // Gold for root
+    } else if (permissions.contains(Permission.admin)) {
+      return Colors.purple; // Purple for admin
+    }
+    return _getRoleColor(role);
   }
 
   Color _getRoleColor(UserRole role) {
