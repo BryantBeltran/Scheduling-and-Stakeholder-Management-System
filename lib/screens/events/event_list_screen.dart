@@ -101,6 +101,8 @@ class _EventListScreenState extends State<EventListScreen> {
     return sorted;
   }
 
+  // TODO: Implement delete event functionality in UI
+  // ignore: unused_element
   Future<void> _deleteEvent(String eventId) async {
     final confirm = await showDialog<bool>(
       context: context,
