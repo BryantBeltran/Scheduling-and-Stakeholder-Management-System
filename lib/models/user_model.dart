@@ -131,7 +131,8 @@ class UserModel {
   static List<Permission> getDefaultPermissions(UserRole role) {
     switch (role) {
       case UserRole.admin:
-        return Permission.values.toList();
+        // Admin gets all permissions except root
+        return Permission.values.where((p) => p != Permission.root).toList();
       case UserRole.manager:
         return [
           Permission.createEvent,

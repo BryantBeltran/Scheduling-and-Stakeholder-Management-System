@@ -24,6 +24,95 @@ class UserService {
   // Lazy Firestore instance
   FirebaseFirestore get _firestore => FirebaseFirestore.instance;
 
+  /// Get all users from Firestore (for admin management)
+  Future<List<UserModel>> getAllUsers() async {
+    if (!AppConfig.instance.useFirebase) {
+      debugPrint('[Dev] Mock get all users');
+      // Return mock users for development
+      return _getMockUsers();
+    }
+
+    try {
+      final querySnapshot = await _firestore.collection('users').get();
+      
+      return querySnapshot.docs.map((doc) {
+        final data = doc.data();
+        return UserModel(
+          id: data['id'] as String? ?? doc.id,
+          email: data['email'] as String,
+          displayName: data['displayName'] as String? ?? 'User',
+          photoUrl: data['photoUrl'] as String?,
+          role: _parseUserRole(data['role'] as String?),
+          permissions: _parsePermissions(data['permissions'] as List?),
+          createdAt: (data['createdAt'] as Timestamp?)?.toDate() ?? DateTime.now(),
+          lastLoginAt: (data['lastLoginAt'] as Timestamp?)?.toDate() ?? DateTime.now(),
+          stakeholderId: data['stakeholderId'] as String?,
+          isActive: data['isActive'] as bool? ?? true,
+        );
+      }).toList();
+    } catch (e) {
+      debugPrint('Error getting all users from Firestore: $e');
+      return [];
+    }
+  }
+
+  /// Mock users for development mode
+  List<UserModel> _getMockUsers() {
+    final now = DateTime.now();
+    return [
+      UserModel(
+        id: 'mock-admin-1',
+        email: 'admin@example.com',
+        displayName: 'Admin User',
+        role: UserRole.admin,
+        permissions: UserModel.getDefaultPermissions(UserRole.admin),
+        createdAt: now.subtract(const Duration(days: 30)),
+        lastLoginAt: now.subtract(const Duration(hours: 2)),
+        isActive: true,
+      ),
+      UserModel(
+        id: 'mock-manager-1',
+        email: 'manager@example.com',
+        displayName: 'Manager User',
+        role: UserRole.manager,
+        permissions: UserModel.getDefaultPermissions(UserRole.manager),
+        createdAt: now.subtract(const Duration(days: 25)),
+        lastLoginAt: now.subtract(const Duration(days: 1)),
+        isActive: true,
+      ),
+      UserModel(
+        id: 'mock-member-1',
+        email: 'member@example.com',
+        displayName: 'Member User',
+        role: UserRole.member,
+        permissions: UserModel.getDefaultPermissions(UserRole.member),
+        createdAt: now.subtract(const Duration(days: 20)),
+        lastLoginAt: now.subtract(const Duration(days: 3)),
+        isActive: true,
+      ),
+      UserModel(
+        id: 'mock-viewer-1',
+        email: 'viewer@example.com',
+        displayName: 'Viewer User',
+        role: UserRole.viewer,
+        permissions: UserModel.getDefaultPermissions(UserRole.viewer),
+        createdAt: now.subtract(const Duration(days: 15)),
+        lastLoginAt: now.subtract(const Duration(days: 7)),
+        isActive: true,
+      ),
+      UserModel(
+        id: 'mock-inactive-1',
+        email: 'inactive@example.com',
+        displayName: 'Inactive User',
+        role: UserRole.member,
+        permissions: UserModel.getDefaultPermissions(UserRole.member),
+        createdAt: now.subtract(const Duration(days: 60)),
+        lastLoginAt: now.subtract(const Duration(days: 45)),
+        isActive: false,
+      ),
+    ];
+  }
+
   /// Save or update user data in Firestore
   /// Called after successful authentication
   Future<void> saveUser(UserModel user) async {

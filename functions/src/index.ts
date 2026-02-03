@@ -160,27 +160,248 @@ export const getUser = onCall(async (request) => {
   }
 });
 
+/**
+ * Get all users (Admin only)
+ * Used by the User Management screen to list all users
+ */
+export const getAllUsers = onCall(async (request) => {
+  const callerUid = request.auth?.uid;
+
+  if (!callerUid) {
+    throw new HttpsError("unauthenticated", "Authentication required.");
+  }
+
+  try {
+    // Verify caller has manageUsers permission
+    const callerDoc = await admin
+      .firestore().collection("users").doc(callerUid).get();
+    const callerData = callerDoc.data();
+    const callerPermissions = callerData?.permissions || [];
+
+    if (!callerPermissions.includes("manageUsers") &&
+        !callerPermissions.includes("admin") &&
+        callerData?.role !== "admin") {
+      throw new HttpsError(
+        "permission-denied",
+        "You do not have permission to view all users."
+      );
+    }
+
+    const usersSnapshot = await admin.firestore().collection("users").get();
+    const users = usersSnapshot.docs.map((doc) => ({
+      id: doc.id,
+      ...doc.data(),
+    }));
+
+    logger.info(
+      `Users retrieved by admin: ${callerUid}`, {count: users.length}
+    );
+    return users;
+  } catch (error) {
+    if (error instanceof HttpsError) throw error;
+    logger.error("Error getting all users:", error);
+    throw new HttpsError("internal", "Error getting all users.", error);
+  }
+});
+
+/**
+ * Update user role (Admin only)
+ * Secure endpoint for changing user roles and permissions
+ */
+export const updateUserRole = onCall(async (request) => {
+  const {uid, role, permissions} = request.data;
+  const callerUid = request.auth?.uid;
+
+  if (!uid || !role) {
+    throw new HttpsError("invalid-argument", "User ID and role are required.");
+  }
+
+  if (!callerUid) {
+    throw new HttpsError("unauthenticated", "Authentication required.");
+  }
+
+  try {
+    // Verify caller has manageUsers permission
+    const callerDoc = await admin
+      .firestore().collection("users").doc(callerUid).get();
+    const callerData = callerDoc.data();
+    const callerPermissions = callerData?.permissions || [];
+
+    if (!callerPermissions.includes("manageUsers") &&
+        !callerPermissions.includes("admin") &&
+        callerData?.role !== "admin") {
+      throw new HttpsError(
+        "permission-denied",
+        "You do not have permission to change user roles."
+      );
+    }
+
+    // Prevent self role change
+    if (callerUid === uid) {
+      throw new HttpsError(
+        "permission-denied",
+        "You cannot change your own role."
+      );
+    }
+
+    // Validate role
+    if (!isValidRole(role)) {
+      throw new HttpsError("invalid-argument", `Invalid role: ${role}`);
+    }
+
+    // Use provided permissions or default for role
+    const finalPermissions = permissions || getDefaultPermissions(role);
+
+    await admin.firestore().collection("users").doc(uid).update({
+      role: role,
+      permissions: finalPermissions,
+      updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+    });
+
+    logger.info(`User role updated: ${uid} to ${role} by ${callerUid}`);
+    return {success: true, role, permissions: finalPermissions};
+  } catch (error) {
+    if (error instanceof HttpsError) throw error;
+    logger.error("Error updating user role:", error);
+    throw new HttpsError("internal", "Error updating user role.", error);
+  }
+});
+
+/**
+ * Activate or deactivate a user (Admin only)
+ */
+export const setUserActiveStatus = onCall(async (request) => {
+  const {uid, isActive} = request.data;
+  const callerUid = request.auth?.uid;
+
+  if (!uid || typeof isActive !== "boolean") {
+    throw new HttpsError(
+      "invalid-argument",
+      "User ID and isActive status are required."
+    );
+  }
+
+  if (!callerUid) {
+    throw new HttpsError("unauthenticated", "Authentication required.");
+  }
+
+  try {
+    // Verify caller has manageUsers permission
+    const callerDoc = await admin
+      .firestore().collection("users").doc(callerUid).get();
+    const callerData = callerDoc.data();
+    const callerPermissions = callerData?.permissions || [];
+
+    if (!callerPermissions.includes("manageUsers") &&
+        !callerPermissions.includes("admin") &&
+        callerData?.role !== "admin") {
+      throw new HttpsError(
+        "permission-denied",
+        "You do not have permission to activate/deactivate users."
+      );
+    }
+
+    // Prevent self deactivation
+    if (callerUid === uid) {
+      throw new HttpsError(
+        "permission-denied",
+        "You cannot deactivate your own account."
+      );
+    }
+
+    await admin.firestore().collection("users").doc(uid).update({
+      isActive: isActive,
+      updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+    });
+
+    // If deactivating, also disable in Firebase Auth
+    if (!isActive) {
+      await admin.auth().updateUser(uid, {disabled: true});
+    } else {
+      await admin.auth().updateUser(uid, {disabled: false});
+    }
+
+    logger.info(
+      `User ${isActive ? "activated" : "deactivated"}: ${uid} by ${callerUid}`
+    );
+    return {success: true, isActive};
+  } catch (error) {
+    if (error instanceof HttpsError) throw error;
+    logger.error("Error setting user active status:", error);
+    throw new HttpsError(
+      "internal", "Error setting user active status.", error
+    );
+  }
+});
+
 export const updateUser = onCall(async (request) => {
-  const {uid, displayName, role, permissions} = request.data;
+  const {uid, displayName, role, permissions, isActive} = request.data;
+  const callerUid = request.auth?.uid;
 
   if (!uid) {
     throw new HttpsError("invalid-argument", "User ID is required.");
   }
 
+  // Check if caller is authenticated
+  if (!callerUid) {
+    throw new HttpsError("unauthenticated", "Authentication required.");
+  }
+
   try {
+    // Check if caller has permission to update other users
+    const isSelfUpdate = callerUid === uid;
+
+    if (!isSelfUpdate) {
+      // Verify caller has manageUsers permission
+      const callerDoc = await admin
+        .firestore().collection("users").doc(callerUid).get();
+      const callerData = callerDoc.data();
+      const callerPermissions = callerData?.permissions || [];
+
+      if (!callerPermissions.includes("manageUsers") &&
+          !callerPermissions.includes("admin") &&
+          callerData?.role !== "admin") {
+        throw new HttpsError(
+          "permission-denied",
+          "You do not have permission to update other users."
+        );
+      }
+    }
+
     const updateData: Record<string, unknown> = {
       updatedAt: admin.firestore.FieldValue.serverTimestamp(),
     };
 
-    if (displayName) updateData.displayName = displayName;
-    if (role) updateData.role = role;
-    if (permissions) updateData.permissions = permissions;
+    // Self-update restrictions
+    if (isSelfUpdate) {
+      // Users can only update their own displayName
+      if (displayName) updateData.displayName = displayName;
+      // Cannot change own role or permissions
+      if (role || permissions) {
+        throw new HttpsError(
+          "permission-denied",
+          "You cannot change your own role or permissions."
+        );
+      }
+    } else {
+      // Admin updates
+      if (displayName) updateData.displayName = displayName;
+      if (role) {
+        if (!isValidRole(role)) {
+          throw new HttpsError("invalid-argument", `Invalid role: ${role}`);
+        }
+        updateData.role = role;
+      }
+      if (permissions) updateData.permissions = permissions;
+      if (typeof isActive === "boolean") updateData.isActive = isActive;
+    }
 
     await admin.firestore().collection("users").doc(uid).update(updateData);
 
-    logger.info(`User updated: ${uid}`);
+    logger.info(`User updated: ${uid} by ${callerUid}`);
     return {success: true};
   } catch (error) {
+    if (error instanceof HttpsError) throw error;
     logger.error("Error updating user:", error);
     throw new HttpsError("internal", "Error updating user.", error);
   }
@@ -861,7 +1082,7 @@ export const markNotificationAsRead = onCall(async (request) => {
 const VALID_ROLES = ["admin", "manager", "member", "viewer"] as const;
 type UserRole = typeof VALID_ROLES[number];
 
-// Permission definitions
+// Permission definitions - must match Flutter Permission enum
 const PERMISSIONS = {
   createEvent: "createEvent",
   editEvent: "editEvent",
@@ -872,20 +1093,39 @@ const PERMISSIONS = {
   deleteStakeholder: "deleteStakeholder",
   viewStakeholder: "viewStakeholder",
   assignStakeholder: "assignStakeholder",
+  inviteStakeholder: "inviteStakeholder",
   manageUsers: "manageUsers",
   viewReports: "viewReports",
   editSettings: "editSettings",
+  admin: "admin",
+  root: "root",
 } as const;
 
 /**
  * Get default permissions for a given user role
+ * Must match Flutter UserModel.getDefaultPermissions()
  * @param {string} role - The user role to get permissions for
  * @return {string[]} Array of permission strings for the role
  */
 function getDefaultPermissions(role: string): string[] {
   switch (role) {
   case "admin":
-    return Object.values(PERMISSIONS);
+    return [
+      PERMISSIONS.createEvent,
+      PERMISSIONS.editEvent,
+      PERMISSIONS.deleteEvent,
+      PERMISSIONS.viewEvent,
+      PERMISSIONS.createStakeholder,
+      PERMISSIONS.editStakeholder,
+      PERMISSIONS.deleteStakeholder,
+      PERMISSIONS.viewStakeholder,
+      PERMISSIONS.assignStakeholder,
+      PERMISSIONS.inviteStakeholder,
+      PERMISSIONS.manageUsers,
+      PERMISSIONS.viewReports,
+      PERMISSIONS.editSettings,
+      PERMISSIONS.admin,
+    ];
   case "manager":
     return [
       PERMISSIONS.createEvent,
@@ -897,6 +1137,7 @@ function getDefaultPermissions(role: string): string[] {
       PERMISSIONS.deleteStakeholder,
       PERMISSIONS.viewStakeholder,
       PERMISSIONS.assignStakeholder,
+      PERMISSIONS.inviteStakeholder,
       PERMISSIONS.viewReports,
     ];
   case "member":
@@ -913,7 +1154,10 @@ function getDefaultPermissions(role: string): string[] {
       PERMISSIONS.viewStakeholder,
     ];
   default:
-    return [];
+    return [
+      PERMISSIONS.viewEvent,
+      PERMISSIONS.viewStakeholder,
+    ];
   }
 }
 

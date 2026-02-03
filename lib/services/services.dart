@@ -1,6 +1,8 @@
 // Export all services
 export 'auth_service.dart';
+export 'auth_validators.dart';
 export 'event_service.dart';
+export 'event_validators.dart';
 export 'stakeholder_service.dart';
 export 'firebase_service.dart';
 export 'user_service.dart';

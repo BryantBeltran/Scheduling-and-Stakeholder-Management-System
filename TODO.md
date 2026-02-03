@@ -90,3 +90,14 @@
 - [x] Sign up screen UI
 - [x] Register password screen
 - [x] Basic navigation/routing
+- [x] **Event Management Core (Week 4)**
+  - [x] Event Details Screen with comprehensive view
+  - [x] Event Edit Screen with full field editing
+  - [x] Event CRUD operations (Create, Read, Update, Delete)
+  - [x] Event validation utilities (title, description, dates, times, location)
+  - [x] Enhanced dashboard with event statistics
+  - [x] Event list with sorting (date, title, priority, status)
+  - [x] Event list with filtering (by status)
+  - [x] Event list with search functionality
+  - [x] Status update workflow on event details
+  - [x] Stakeholder assignment to events

@@ -143,6 +143,22 @@ class ProfileScreen extends StatelessWidget {
                   );
                 },
               ),
+              
+              // User Management - Only visible to admins
+              if (user != null && _canManageUsers(user))
+                Column(
+                  children: [
+                    Divider(height: 1, color: Colors.grey[300]),
+                    _ProfileMenuItem(
+                      icon: Icons.admin_panel_settings_outlined,
+                      title: 'User Management',
+                      onTap: () {
+                        Navigator.of(context).pushNamed('/admin/users');
+                      },
+                    ),
+                  ],
+                ),
+              
               Divider(height: 1, color: Colors.grey[300]),
               _ProfileMenuItem(
                 icon: Icons.info_outline,
@@ -248,6 +264,12 @@ class ProfileScreen extends StatelessWidget {
       default:
         return 'Member';
     }
+  }
+
+  bool _canManageUsers(UserModel user) {
+    return user.role == UserRole.admin ||
+           user.permissions.contains(Permission.admin) ||
+           user.permissions.contains(Permission.manageUsers);
   }
 }
 

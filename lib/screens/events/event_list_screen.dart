@@ -16,6 +16,8 @@ class _EventListScreenState extends State<EventListScreen> {
   final _searchController = TextEditingController();
   EventStatus? _filterStatus;
   List<EventModel> _filteredEvents = [];
+  String _sortBy = 'date'; // 'date', 'title', 'priority', 'status'
+  bool _sortAscending = true;
 
   @override
   void initState() {
@@ -42,11 +44,61 @@ class _EventListScreenState extends State<EventListScreen> {
       final query = _searchController.text.toLowerCase();
       filteredEvents = filteredEvents.where((e) {
         return e.title.toLowerCase().contains(query) ||
-            (e.description?.toLowerCase().contains(query) ?? false);
+            (e.description?.toLowerCase().contains(query) ?? false) ||
+            e.location.name.toLowerCase().contains(query);
       }).toList();
     }
 
+    // Apply sorting
+    filteredEvents = _sortEvents(filteredEvents);
+
     return filteredEvents;
+  }
+
+  List<EventModel> _sortEvents(List<EventModel> events) {
+    final sorted = List<EventModel>.from(events);
+    
+    switch (_sortBy) {
+      case 'date':
+        sorted.sort((a, b) => _sortAscending
+            ? a.startTime.compareTo(b.startTime)
+            : b.startTime.compareTo(a.startTime));
+        break;
+      case 'title':
+        sorted.sort((a, b) => _sortAscending
+            ? a.title.toLowerCase().compareTo(b.title.toLowerCase())
+            : b.title.toLowerCase().compareTo(a.title.toLowerCase()));
+        break;
+      case 'priority':
+        sorted.sort((a, b) {
+          final priorityOrder = {
+            EventPriority.urgent: 0,
+            EventPriority.high: 1,
+            EventPriority.medium: 2,
+            EventPriority.low: 3,
+          };
+          final aOrder = priorityOrder[a.priority]!;
+          final bOrder = priorityOrder[b.priority]!;
+          return _sortAscending ? aOrder.compareTo(bOrder) : bOrder.compareTo(aOrder);
+        });
+        break;
+      case 'status':
+        sorted.sort((a, b) {
+          final statusOrder = {
+            EventStatus.inProgress: 0,
+            EventStatus.scheduled: 1,
+            EventStatus.draft: 2,
+            EventStatus.completed: 3,
+            EventStatus.cancelled: 4,
+          };
+          final aOrder = statusOrder[a.status]!;
+          final bOrder = statusOrder[b.status]!;
+          return _sortAscending ? aOrder.compareTo(bOrder) : bOrder.compareTo(aOrder);
+        });
+        break;
+    }
+    
+    return sorted;
   }
 
   Future<void> _deleteEvent(String eventId) async {
@@ -156,12 +208,7 @@ class _EventListScreenState extends State<EventListScreen> {
                 ),
                 const SizedBox(width: 12),
                 OutlinedButton(
-                  onPressed: () {
-                    // TODO: Implement sort
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(content: Text('Sort coming soon!')),
-                    );
-                  },
+                  onPressed: _showSortDialog,
                   style: OutlinedButton.styleFrom(
                     padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                     shape: RoundedRectangleBorder(
@@ -170,10 +217,13 @@ class _EventListScreenState extends State<EventListScreen> {
                   ),
                   child: Row(
                     mainAxisSize: MainAxisSize.min,
-                    children: const [
-                      Text('Sort'),
-                      SizedBox(width: 4),
-                      Icon(Icons.keyboard_arrow_down, size: 18),
+                    children: [
+                      Text(_getSortLabel()),
+                      const SizedBox(width: 4),
+                      Icon(
+                        _sortAscending ? Icons.arrow_upward : Icons.arrow_downward,
+                        size: 16,
+                      ),
                     ],
                   ),
                 ),
@@ -302,6 +352,173 @@ class _EventListScreenState extends State<EventListScreen> {
         );
       },
     );
+  }
+
+  void _showSortDialog() {
+    showModalBottomSheet(
+      context: context,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (context) {
+        return StatefulBuilder(
+          builder: (context, setModalState) {
+            return Padding(
+              padding: const EdgeInsets.all(20),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      const Text(
+                        'Sort Events',
+                        style: TextStyle(
+                          fontSize: 18,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                      IconButton(
+                        icon: const Icon(Icons.close),
+                        onPressed: () => Navigator.pop(context),
+                      ),
+                    ],
+                  ),
+                  const Divider(),
+                  const SizedBox(height: 8),
+                  const Text(
+                    'Sort by',
+                    style: TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w500,
+                      color: Colors.grey,
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  _buildSortOption('date', 'Date', Icons.calendar_today, setModalState),
+                  _buildSortOption('title', 'Title', Icons.sort_by_alpha, setModalState),
+                  _buildSortOption('priority', 'Priority', Icons.flag, setModalState),
+                  _buildSortOption('status', 'Status', Icons.info_outline, setModalState),
+                  const SizedBox(height: 16),
+                  const Text(
+                    'Order',
+                    style: TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w500,
+                      color: Colors.grey,
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: _buildOrderButton(true, setModalState),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: _buildOrderButton(false, setModalState),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 20),
+                ],
+              ),
+            );
+          },
+        );
+      },
+    );
+  }
+
+  Widget _buildSortOption(String value, String label, IconData icon, StateSetter setModalState) {
+    final isSelected = _sortBy == value;
+    return InkWell(
+      onTap: () {
+        setModalState(() {});
+        setState(() => _sortBy = value);
+      },
+      child: Container(
+        padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
+        margin: const EdgeInsets.only(bottom: 8),
+        decoration: BoxDecoration(
+          color: isSelected ? Colors.blue.withOpacity(0.1) : Colors.transparent,
+          borderRadius: BorderRadius.circular(8),
+          border: Border.all(
+            color: isSelected ? Colors.blue : Colors.grey[300]!,
+          ),
+        ),
+        child: Row(
+          children: [
+            Icon(icon, size: 20, color: isSelected ? Colors.blue : Colors.grey[600]),
+            const SizedBox(width: 12),
+            Text(
+              label,
+              style: TextStyle(
+                fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+                color: isSelected ? Colors.blue : Colors.black87,
+              ),
+            ),
+            const Spacer(),
+            if (isSelected)
+              const Icon(Icons.check, size: 20, color: Colors.blue),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildOrderButton(bool ascending, StateSetter setModalState) {
+    final isSelected = _sortAscending == ascending;
+    return InkWell(
+      onTap: () {
+        setModalState(() {});
+        setState(() => _sortAscending = ascending);
+      },
+      child: Container(
+        padding: const EdgeInsets.symmetric(vertical: 12),
+        decoration: BoxDecoration(
+          color: isSelected ? Colors.blue.withOpacity(0.1) : Colors.transparent,
+          borderRadius: BorderRadius.circular(8),
+          border: Border.all(
+            color: isSelected ? Colors.blue : Colors.grey[300]!,
+          ),
+        ),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(
+              ascending ? Icons.arrow_upward : Icons.arrow_downward,
+              size: 18,
+              color: isSelected ? Colors.blue : Colors.grey[600],
+            ),
+            const SizedBox(width: 8),
+            Text(
+              ascending ? 'Ascending' : 'Descending',
+              style: TextStyle(
+                fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+                color: isSelected ? Colors.blue : Colors.black87,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  String _getSortLabel() {
+    switch (_sortBy) {
+      case 'date':
+        return 'Date';
+      case 'title':
+        return 'Title';
+      case 'priority':
+        return 'Priority';
+      case 'status':
+        return 'Status';
+      default:
+        return 'Sort';
+    }
   }
 }
 

@@ -553,73 +553,208 @@ class _EventCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 16),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Container(
-            width: 48,
-            height: 48,
-            decoration: BoxDecoration(
-              color: Colors.grey[200],
-              borderRadius: BorderRadius.circular(8),
-            ),
-            child: Icon(
-              Icons.calendar_today,
-              color: Colors.grey[600],
-              size: 24,
-            ),
-          ),
-          const SizedBox(width: 16),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  event.title,
-                  style: const TextStyle(
-                    fontWeight: FontWeight.bold,
-                    fontSize: 16,
-                  ),
-                ),
-                const SizedBox(height: 6),
-                Text(
-                  event.location.name,
-                  style: TextStyle(
-                    fontSize: 14,
-                    color: Colors.grey[600],
-                  ),
-                ),
-                const SizedBox(height: 6),
-                Row(
-                  children: [
-                    Icon(Icons.access_time, size: 14, color: Colors.grey[600]),
-                    const SizedBox(width: 4),
-                    Text(
-                      'Time',
-                      style: TextStyle(
-                        fontSize: 12,
-                        color: Colors.grey[600],
-                      ),
+    return InkWell(
+      onTap: () {
+        Navigator.of(context).pushNamed('/event/details', arguments: event.id);
+      },
+      borderRadius: BorderRadius.circular(12),
+      child: Container(
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: Colors.grey[200]!),
+        ),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // Date Column
+            Container(
+              width: 56,
+              padding: const EdgeInsets.symmetric(vertical: 8),
+              decoration: BoxDecoration(
+                color: _getPriorityColor(event.priority).withOpacity(0.1),
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    _getMonthAbbr(event.startTime.month),
+                    style: TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w500,
+                      color: _getPriorityColor(event.priority),
                     ),
-                    const SizedBox(width: 16),
-                    Icon(Icons.location_on, size: 14, color: Colors.grey[600]),
-                    const SizedBox(width: 4),
-                    Text(
-                      'Location',
-                      style: TextStyle(
-                        fontSize: 12,
+                  ),
+                  Text(
+                    '${event.startTime.day}',
+                    style: TextStyle(
+                      fontSize: 22,
+                      fontWeight: FontWeight.bold,
+                      color: _getPriorityColor(event.priority),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(width: 16),
+            // Event Details
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Expanded(
+                        child: Text(
+                          event.title,
+                          style: const TextStyle(
+                            fontWeight: FontWeight.bold,
+                            fontSize: 16,
+                          ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                      _buildStatusBadge(event.status),
+                    ],
+                  ),
+                  const SizedBox(height: 8),
+                  Row(
+                    children: [
+                      Icon(Icons.access_time, size: 14, color: Colors.grey[600]),
+                      const SizedBox(width: 4),
+                      Text(
+                        _formatTimeRange(event.startTime, event.endTime),
+                        style: TextStyle(
+                          fontSize: 13,
+                          color: Colors.grey[700],
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 4),
+                  Row(
+                    children: [
+                      Icon(
+                        event.location.isVirtual ? Icons.videocam : Icons.location_on,
+                        size: 14,
                         color: Colors.grey[600],
                       ),
+                      const SizedBox(width: 4),
+                      Expanded(
+                        child: Text(
+                          event.location.name,
+                          style: TextStyle(
+                            fontSize: 13,
+                            color: Colors.grey[700],
+                          ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                    ],
+                  ),
+                  if (event.stakeholderIds.isNotEmpty) ...[
+                    const SizedBox(height: 8),
+                    Row(
+                      children: [
+                        Icon(Icons.people, size: 14, color: Colors.grey[600]),
+                        const SizedBox(width: 4),
+                        Text(
+                          '${event.stakeholderIds.length} stakeholder${event.stakeholderIds.length > 1 ? 's' : ''}',
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: Colors.grey[600],
+                          ),
+                        ),
+                      ],
                     ),
                   ],
-                ),
-              ],
+                ],
+              ),
             ),
-          ),
-        ],
+            const SizedBox(width: 8),
+            Icon(Icons.chevron_right, color: Colors.grey[400]),
+          ],
+        ),
       ),
     );
+  }
+
+  Widget _buildStatusBadge(EventStatus status) {
+    Color color;
+    String label;
+    
+    switch (status) {
+      case EventStatus.draft:
+        color = Colors.grey;
+        label = 'Draft';
+        break;
+      case EventStatus.scheduled:
+        color = Colors.blue;
+        label = 'Scheduled';
+        break;
+      case EventStatus.inProgress:
+        color = Colors.orange;
+        label = 'Active';
+        break;
+      case EventStatus.completed:
+        color = Colors.green;
+        label = 'Done';
+        break;
+      case EventStatus.cancelled:
+        color = Colors.red;
+        label = 'Cancelled';
+        break;
+    }
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+      decoration: BoxDecoration(
+        color: color.withOpacity(0.1),
+        borderRadius: BorderRadius.circular(10),
+      ),
+      child: Text(
+        label,
+        style: TextStyle(
+          fontSize: 10,
+          fontWeight: FontWeight.bold,
+          color: color,
+        ),
+      ),
+    );
+  }
+
+  Color _getPriorityColor(EventPriority priority) {
+    switch (priority) {
+      case EventPriority.low:
+        return Colors.green;
+      case EventPriority.medium:
+        return Colors.orange;
+      case EventPriority.high:
+        return Colors.red;
+      case EventPriority.urgent:
+        return Colors.purple;
+    }
+  }
+
+  String _getMonthAbbr(int month) {
+    const months = ['JAN', 'FEB', 'MAR', 'APR', 'MAY', 'JUN',
+                    'JUL', 'AUG', 'SEP', 'OCT', 'NOV', 'DEC'];
+    return months[month - 1];
+  }
+
+  String _formatTimeRange(DateTime start, DateTime end) {
+    final startHour = start.hour > 12 ? start.hour - 12 : (start.hour == 0 ? 12 : start.hour);
+    final startMin = start.minute.toString().padLeft(2, '0');
+    final startPeriod = start.hour >= 12 ? 'PM' : 'AM';
+    
+    final endHour = end.hour > 12 ? end.hour - 12 : (end.hour == 0 ? 12 : end.hour);
+    final endMin = end.minute.toString().padLeft(2, '0');
+    final endPeriod = end.hour >= 12 ? 'PM' : 'AM';
+    
+    return '$startHour:$startMin $startPeriod - $endHour:$endMin $endPeriod';
   }
 }
