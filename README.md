@@ -230,6 +230,3 @@ flutter build apk --flavor prod -t lib/main_prod.dart --release
 flutter build appbundle --flavor prod -t lib/main_prod.dart
 ```
 
-## License
-
-MIT License

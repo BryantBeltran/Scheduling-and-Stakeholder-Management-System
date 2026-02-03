@@ -6,7 +6,6 @@
 // ==============================================================================
 
 import 'package:flutter/material.dart';
-import '../../config/app_config.dart';
 import '../../models/models.dart';
 import '../../services/services.dart';
 import 'event_edit_screen.dart';
