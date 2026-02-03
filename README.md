@@ -1,15 +1,17 @@
 # Scheduling and Stakeholder Management System
 
-A Flutter-based event and stakeholder management application with multi-environment support.
+A Flutter-based event and stakeholder management application with multi-environment support, Firebase backend, and Google Maps integration.
 
 ## Features
 
-- User Authentication - Role-based access control with admin, manager, and viewer roles
+- User Authentication - Permission-based access control with root, admin, and member roles
 - Event Management - Create, edit, and track events with status and priority
 - Stakeholder Management - Track stakeholders and their participation in events
+- Location Autocomplete - Google Places API integration for event locations
 - Dashboard - Overview with statistics and upcoming events
 - Multi-Environment - Dev, staging, and production flavors
 - Cloud Functions Backend - Serverless API using Firebase Cloud Functions
+- Secure Secrets Management - Google Cloud Secret Manager for API keys
 
 ## Getting Started
 
@@ -18,6 +20,8 @@ A Flutter-based event and stakeholder management application with multi-environm
 - Flutter SDK 3.9.2+
 - Android Studio / VS Code
 - Android SDK (for Android builds)
+- Firebase CLI (for deploying functions)
+- Google Maps API Key with Places API enabled
 
 ### Installation
 
@@ -42,17 +46,25 @@ This project uses Flutter Flavors for environment management. Three environments
 
 ### Running with Flavors
 
+**Development Mode:**
 ```bash
-# Development
-flutter run --flavor dev -t lib/main_dev.dart
+# Run with Google Maps API key
+flutter run --flavor dev -t lib/main_dev.dart --dart-define=GOOGLE_MAPS_API_KEY=your_key_here
+```
 
-# Staging
-flutter run --flavor staging -t lib/main_staging.dart
+**Staging Mode:**
+```bash
+flutter run --flavor staging -t lib/main_staging.dart --dart-define=GOOGLE_MAPS_API_KEY=your_key_here
+```
 
-# Production
+**Production Mode:**
+```bash
+# Uses Firebase Secrets (no API key needed in command)
 flutter run --flavor prod -t lib/main_prod.dart
+```
 
-# Default (runs prod)
+**Default (runs prod):**
+```bash
 flutter run
 ```
 

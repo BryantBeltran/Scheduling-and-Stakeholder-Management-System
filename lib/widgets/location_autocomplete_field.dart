@@ -93,6 +93,18 @@ class _LocationAutocompleteFieldState extends State<LocationAutocompleteField> {
     final overlay = Overlay.of(context);
     final renderBox = context.findRenderObject() as RenderBox;
     final size = renderBox.size;
+    final offset = renderBox.localToGlobal(Offset.zero);
+    
+    // Calculate available space below and above the text field
+    final screenHeight = MediaQuery.of(context).size.height;
+    final spaceBelow = screenHeight - offset.dy - size.height;
+    final spaceAbove = offset.dy;
+    
+    // Determine if dropdown should appear above or below
+    final showAbove = spaceBelow < 250 && spaceAbove > spaceBelow;
+    final maxHeight = showAbove 
+        ? (spaceAbove - 8).clamp(100.0, 250.0)
+        : (spaceBelow - 8).clamp(100.0, 250.0);
 
     _overlayEntry = OverlayEntry(
       builder: (context) => Positioned(
@@ -100,12 +112,14 @@ class _LocationAutocompleteFieldState extends State<LocationAutocompleteField> {
         child: CompositedTransformFollower(
           link: _layerLink,
           showWhenUnlinked: false,
-          offset: Offset(0, size.height + 4),
+          offset: showAbove 
+              ? Offset(0, -(maxHeight + 4))
+              : Offset(0, size.height + 4),
           child: Material(
             elevation: 4,
             borderRadius: BorderRadius.circular(8),
             child: Container(
-              constraints: const BoxConstraints(maxHeight: 250),
+              constraints: BoxConstraints(maxHeight: maxHeight),
               decoration: BoxDecoration(
                 color: Theme.of(context).colorScheme.surface,
                 borderRadius: BorderRadius.circular(8),
