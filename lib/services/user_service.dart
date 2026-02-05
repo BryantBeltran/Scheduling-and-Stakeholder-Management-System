@@ -197,7 +197,26 @@ class UserService {
       if (!doc.exists) return true;
       
       final data = doc.data();
-      return data?['onboardingComplete'] != true;
+      
+      // Check if onboarding is explicitly marked as complete
+      if (data?['onboardingComplete'] == true) {
+        return false;
+      }
+      
+      // For legacy users without the flag, check if they have essential fields
+      // (role, permissions) which indicate they've been through setup
+      final hasRole = data?['role'] != null;
+      final hasPermissions = data?['permissions'] != null && (data!['permissions'] as List).isNotEmpty;
+      
+      if (hasRole && hasPermissions) {
+        // Legacy user with complete profile - mark as onboarded
+        await _firestore.collection('users').doc(userId).update({
+          'onboardingComplete': true,
+        });
+        return false;
+      }
+      
+      return true;
     } catch (e) {
       debugPrint('Error checking onboarding status: $e');
       return false;

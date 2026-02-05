@@ -25,11 +25,25 @@ class _EventCreateScreenState extends State<EventCreateScreen> {
   final EventStatus _selectedStatus = EventStatus.draft;
   final EventPriority _selectedPriority = EventPriority.medium;
   List<String> _selectedStakeholderIds = [];
+  Map<String, StakeholderModel> _stakeholderCache = {};
   
   bool _isLoading = false;
   final _eventService = EventService();
   final _authService = AuthService();
   final _stakeholderService = StakeholderService();
+
+  @override
+  void initState() {
+    super.initState();
+    _loadStakeholders();
+  }
+
+  Future<void> _loadStakeholders() async {
+    final stakeholders = await _stakeholderService.getAllStakeholders();
+    setState(() {
+      _stakeholderCache = {for (var s in stakeholders) s.id: s};
+    });
+  }
 
   @override
   void dispose() {
@@ -498,7 +512,7 @@ class _EventCreateScreenState extends State<EventCreateScreen> {
                         spacing: 8,
                         runSpacing: 8,
                         children: _selectedStakeholderIds.map((id) {
-                          final stakeholder = _stakeholderService.getStakeholderById(id);
+                          final stakeholder = _stakeholderCache[id];
                           return Chip(
                             label: Text(stakeholder?.name ?? 'Unknown'),
                             deleteIcon: const Icon(Icons.close, size: 18),

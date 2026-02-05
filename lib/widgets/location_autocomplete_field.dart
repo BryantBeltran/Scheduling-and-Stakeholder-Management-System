@@ -51,6 +51,7 @@ class _LocationAutocompleteFieldState extends State<LocationAutocompleteField> {
   OverlayEntry? _overlayEntry;
   List<PlacePrediction> _predictions = [];
   bool _isLoading = false;
+  String? _errorMessage;
   Timer? _debounce;
   
   final PlacesService _placesService = PlacesService();
@@ -151,6 +152,32 @@ class _LocationAutocompleteFieldState extends State<LocationAutocompleteField> {
       );
     }
 
+    if (_errorMessage != null) {
+      return Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(Icons.error_outline, color: Colors.orange[700], size: 32),
+            const SizedBox(height: 8),
+            Text(
+              _errorMessage!,
+              style: TextStyle(color: Colors.grey[700]),
+              textAlign: TextAlign.center,
+            ),
+            if (_errorMessage == 'Google Maps API key not configured') ...[
+              const SizedBox(height: 8),
+              Text(
+                'See console for setup instructions',
+                style: TextStyle(color: Colors.grey[600], fontSize: 12),
+                textAlign: TextAlign.center,
+              ),
+            ],
+          ],
+        ),
+      );
+    }
+
     if (_predictions.isEmpty) {
       return const Padding(
         padding: EdgeInsets.all(16),
@@ -193,8 +220,20 @@ class _LocationAutocompleteFieldState extends State<LocationAutocompleteField> {
       setState(() {
         _predictions = [];
         _isLoading = false;
+        _errorMessage = null;
       });
       _removeOverlay();
+      return;
+    }
+
+    // Check if Places API is configured
+    if (!_placesService.isConfigured) {
+      setState(() {
+        _predictions = [];
+        _isLoading = false;
+        _errorMessage = 'Google Maps API key not configured';
+      });
+      _showOverlay();
       return;
     }
 
@@ -204,6 +243,7 @@ class _LocationAutocompleteFieldState extends State<LocationAutocompleteField> {
       
       setState(() {
         _isLoading = true;
+        _errorMessage = null;
       });
       _showOverlay();
 
@@ -222,8 +262,9 @@ class _LocationAutocompleteFieldState extends State<LocationAutocompleteField> {
         setState(() {
           _predictions = [];
           _isLoading = false;
+          _errorMessage = 'Failed to search locations';
         });
-        _removeOverlay();
+        _showOverlay();
       }
     });
   }

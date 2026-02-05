@@ -64,18 +64,18 @@ class _RegisterScreenState extends State<RegisterScreen> {
       final user = await _authService.signInWithGoogle();
       
       if (mounted) {
-        // Check if user already has a complete profile
-        final existingUser = await _userService.getUser(user.id);
+        // Check if user needs onboarding
+        final needsOnboarding = await _userService.needsOnboarding(user.id);
         
-        if (existingUser != null && existingUser.id.isNotEmpty) {
-          // User already exists - just sign them in
-          Navigator.of(context).pushReplacementNamed('/home');
-        } else {
+        if (needsOnboarding) {
           // New user - go to onboarding
           Navigator.of(context).pushNamed(
             '/onboarding',
             arguments: {'user': user},
           );
+        } else {
+          // User already completed onboarding - go to home
+          Navigator.of(context).pushReplacementNamed('/home');
         }
       }
     } on AuthException catch (e) {

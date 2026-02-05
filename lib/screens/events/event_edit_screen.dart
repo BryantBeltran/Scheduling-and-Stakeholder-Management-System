@@ -40,6 +40,7 @@ class _EventEditScreenState extends State<EventEditScreen> {
 
   bool _isLoading = false;
   bool _hasChanges = false;
+  Map<String, StakeholderModel> _stakeholderCache = {};
   final _eventService = EventService();
   final _stakeholderService = StakeholderService();
 
@@ -49,6 +50,16 @@ class _EventEditScreenState extends State<EventEditScreen> {
   void initState() {
     super.initState();
     _initializeFields();
+    _loadStakeholders();
+  }
+
+  Future<void> _loadStakeholders() async {
+    final stakeholders = await _stakeholderService.getAllStakeholders();
+    if (mounted) {
+      setState(() {
+        _stakeholderCache = {for (var s in stakeholders) s.id: s};
+      });
+    }
   }
 
   void _initializeFields() {
@@ -773,7 +784,7 @@ class _EventEditScreenState extends State<EventEditScreen> {
             spacing: 8,
             runSpacing: 8,
             children: _selectedStakeholderIds.map((id) {
-              final stakeholder = _stakeholderService.getStakeholderById(id);
+              final stakeholder = _stakeholderCache[id];
               return Chip(
                 label: Text(stakeholder?.name ?? 'Unknown'),
                 deleteIcon: const Icon(Icons.close, size: 18),
