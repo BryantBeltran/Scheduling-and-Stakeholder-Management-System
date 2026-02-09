@@ -58,6 +58,14 @@
       },
       "oauth_client": [
         {
+          "client_id": "144390773762-5o5rtbhg5klor32scuo4apfe62u3a002.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.example.scheduling_and_stakeholder_management_system.dev",
+            "certificate_hash": "06c412cf411a9c2279688a8838400ec78961a243"
+          }
+        },
+        {
           "client_id": "144390773762-6rv0ubtp9daq7buuko9plcpihifqrc96.apps.googleusercontent.com",
           "client_type": 3
         }
@@ -93,6 +101,14 @@
         }
       },
       "oauth_client": [
+        {
+          "client_id": "144390773762-sdqcporfe6f4ksqhfet337lh73nm75g4.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.example.scheduling_and_stakeholder_management_system.staging",
+            "certificate_hash": "06c412cf411a9c2279688a8838400ec78961a243"
+          }
+        },
         {
           "client_id": "144390773762-6rv0ubtp9daq7buuko9plcpihifqrc96.apps.googleusercontent.com",
           "client_type": 3
