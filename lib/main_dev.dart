@@ -15,15 +15,15 @@ import 'package:flutter/material.dart';
 import 'config/config.dart';
 import 'app.dart';
 
-void main() {
+void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   
   // Initialize development configuration
   AppConfig.initialize(AppFlavor.dev);
   
-  // Initialize environment config (loads from environment variables)
-  // For local dev, set GOOGLE_MAPS_API_KEY environment variable or use --dart-define
-  EnvConfig.initialize();
+  // Initialize environment config (loads from .env file or environment variables)
+  // Create a .env file in project root with: GOOGLE_MAPS_API_KEY=your_key_here
+  await EnvConfig.initialize();
   
   // Log startup info in dev mode
   debugPrint('Starting app in DEVELOPMENT mode');

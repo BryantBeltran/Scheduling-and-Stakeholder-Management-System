@@ -24,6 +24,7 @@ class _EventDetailsScreenState extends State<EventDetailsScreen> {
   final _eventService = EventService();
   final _stakeholderService = StakeholderService();
   EventModel? _event;
+  Map<String, StakeholderModel> _stakeholderCache = {};
   bool _isLoading = true;
   String? _errorMessage;
 
@@ -31,6 +32,16 @@ class _EventDetailsScreenState extends State<EventDetailsScreen> {
   void initState() {
     super.initState();
     _loadEvent();
+    _loadStakeholders();
+  }
+
+  Future<void> _loadStakeholders() async {
+    final stakeholders = await _stakeholderService.getAllStakeholders();
+    if (mounted) {
+      setState(() {
+        _stakeholderCache = {for (var s in stakeholders) s.id: s};
+      });
+    }
   }
 
   Future<void> _loadEvent() async {
@@ -587,7 +598,7 @@ class _EventDetailsScreenState extends State<EventDetailsScreen> {
                 spacing: 8,
                 runSpacing: 8,
                 children: _event!.stakeholderIds.map((id) {
-                  final stakeholder = _stakeholderService.getStakeholderById(id);
+                  final stakeholder = _stakeholderCache[id];
                   return InkWell(
                     onTap: () {
                       Navigator.of(context).pushNamed(

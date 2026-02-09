@@ -23,12 +23,20 @@ void main() async {
   // Initialize staging configuration
   AppConfig.initialize(AppFlavor.staging);
   
-  // Initialize environment config (loads from environment variables)
-  EnvConfig.initialize();
+  // Initialize environment config (loads from .env file or environment variables)
+  await EnvConfig.initialize();
   
   // Log startup info
   debugPrint('Starting app in STAGING mode');
   debugPrint('API: ${AppConfig.instance.apiBaseUrl}');
+  
+  // Debug: Check if API key is loaded
+  debugPrint('Google Maps API Key configured: ${EnvConfig.instance.hasGoogleMapsApiKey}');
+  if (EnvConfig.instance.hasGoogleMapsApiKey) {
+    debugPrint('API Key (first 10 chars): ${EnvConfig.instance.googleMapsApiKey.substring(0, 10)}...');
+  } else {
+    debugPrint('WARNING: Google Maps API Key NOT loaded! Location search will not work.');
+  }
   
   // Initialize Firebase for staging
   await FirebaseService.instance.initialize();

@@ -88,7 +88,16 @@ class PlacesService {
 
   /// Search for place predictions based on input text
   Future<List<PlacePrediction>> getAutocompletePredictions(String input) async {
-    if (input.isEmpty || !isConfigured) {
+    debugPrint('[Places API] Searching for "$input"');
+    debugPrint('[Places API] API Key configured: $isConfigured (length: ${_apiKey.length})');
+    
+    if (input.isEmpty) {
+      debugPrint('[Places API] Empty input');
+      return [];
+    }
+    
+    if (!isConfigured) {
+      debugPrint('[Places API] ERROR: API key not configured!');
       return [];
     }
 
@@ -96,22 +105,34 @@ class PlacesService {
       final url = Uri.parse(
         '$_baseUrl/autocomplete/json?input=${Uri.encodeComponent(input)}&key=$_apiKey&types=establishment|geocode',
       );
-
+      
+      debugPrint('[Places API] Making request to Google...');
       final response = await http.get(url);
+      debugPrint('[Places API] Response status ${response.statusCode}');
 
       if (response.statusCode == 200) {
         final data = json.decode(response.body) as Map<String, dynamic>;
+        final status = data['status'] as String?;
+        debugPrint('[Places API] Status = $status');
+        
+        if (status == 'REQUEST_DENIED') {
+          debugPrint('[Places API] ERROR: REQUEST_DENIED - ${data['error_message']}');
+          return [];
+        }
+        
         final predictions = data['predictions'] as List<dynamic>? ?? [];
+        debugPrint('[Places API] Found ${predictions.length} predictions');
         
         return predictions
             .map((p) => PlacePrediction.fromJson(p as Map<String, dynamic>))
             .toList();
       } else {
-        debugPrint('Places API error: ${response.statusCode}');
+        debugPrint('[Places API] ERROR: HTTP ${response.statusCode}');
+        debugPrint('[Places API] Response body: ${response.body}');
         return [];
       }
     } catch (e) {
-      debugPrint('Places API exception: $e');
+      debugPrint('[Places API] ERROR: Exception - $e');
       return [];
     }
   }

@@ -17,12 +17,18 @@ class OnboardingScreen extends StatefulWidget {
   final UserModel? initialUser;
   final String? email;
   final String? displayName;
+  final String? inviteToken;
+  final String? stakeholderId;
+  final String? defaultRole;
 
   const OnboardingScreen({
     super.key,
     this.initialUser,
     this.email,
     this.displayName,
+    this.inviteToken,
+    this.stakeholderId,
+    this.defaultRole,
   });
 
   @override
@@ -32,6 +38,7 @@ class OnboardingScreen extends StatefulWidget {
 class _OnboardingScreenState extends State<OnboardingScreen> {
   final _formKey = GlobalKey<FormState>();
   final _userService = UserService();
+  final _inviteService = InviteService();
   
   late TextEditingController _displayNameController;
   late TextEditingController _organizationController;
@@ -69,8 +76,11 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
     });
 
     try {
+      String? userId;
+      
       // For OAuth users, update existing user
       if (widget.initialUser != null) {
+        userId = widget.initialUser!.id;
         final updatedUser = widget.initialUser!.copyWith(
           displayName: _displayNameController.text.trim(),
         );
@@ -84,12 +94,21 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
         // For email/password users, create complete user profile
         final currentUser = AuthService().currentUser;
         if (currentUser != null) {
+          userId = currentUser.id;
           await _userService.completeOnboarding(
             currentUser,
             organization: _organizationController.text.trim(),
             phone: _phoneController.text.trim(),
           );
         }
+      }
+
+      // If user came from an invite, link them to their stakeholder
+      if (userId != null && widget.inviteToken != null) {
+        await _inviteService.linkUserToStakeholder(
+          userId: userId,
+          token: widget.inviteToken!,
+        );
       }
 
       if (mounted) {

@@ -62,6 +62,9 @@ class EventService {
   void initializeEventStream() {
     final currentUser = _authService.currentUser;
     if (currentUser == null) {
+      // Cancel any existing subscription when user is not authenticated
+      _eventsSubscription?.cancel();
+      _eventsSubscription = null;
       _eventsController.add([]);
       return;
     }
@@ -78,22 +81,33 @@ class EventService {
     _eventsSubscription = _eventsCollection
         .where('ownerId', isEqualTo: currentUser.id)
         .snapshots()
-        .listen((snapshot) {
-      final events = snapshot.docs
-          .map((doc) {
-            try {
-              final data = doc.data() as Map<String, dynamic>;
-              data['id'] = doc.id;
-              return EventModel.fromJson(data);
-            } catch (e) {
-              debugPrint('Error parsing event ${doc.id}: $e');
-              return null;
-            }
-          })
-          .whereType<EventModel>()
-          .toList();
-      _eventsController.add(events);
-    });
+        .listen(
+      (snapshot) {
+        final events = snapshot.docs
+            .map((doc) {
+              try {
+                final data = doc.data() as Map<String, dynamic>;
+                data['id'] = doc.id;
+                return EventModel.fromJson(data);
+              } catch (e) {
+                debugPrint('Error parsing event ${doc.id}: $e');
+                return null;
+              }
+            })
+            .whereType<EventModel>()
+            .toList();
+        _eventsController.add(events);
+      },
+      onError: (error) {
+        debugPrint('[EventService] Stream error: $error');
+        // If we get a permission error, the user likely signed out
+        if (error.toString().contains('PERMISSION_DENIED')) {
+          _eventsSubscription?.cancel();
+          _eventsSubscription = null;
+          _eventsController.add([]);
+        }
+      },
+    );
   }
 
   /// Get all events for the current user

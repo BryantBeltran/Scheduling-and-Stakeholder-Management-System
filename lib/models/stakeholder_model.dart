@@ -264,17 +264,35 @@ class StakeholderModel {
       participationStatus: ParticipationStatus.values.firstWhere((p) => p.name == json['participationStatus']),
       notes: json['notes'] as String?,
       eventIds: List<String>.from(json['eventIds'] as List<dynamic>),
-      createdAt: DateTime.parse(json['createdAt'] as String),
-      updatedAt: DateTime.parse(json['updatedAt'] as String),
+      createdAt: _parseDateTime(json['createdAt']),
+      updatedAt: _parseDateTime(json['updatedAt']),
       isActive: json['isActive'] as bool? ?? true,
       linkedUserId: json['linkedUserId'] as String?,
       inviteStatus: json['inviteStatus'] != null 
           ? InviteStatus.values.firstWhere((s) => s.name == json['inviteStatus'])
           : InviteStatus.notInvited,
-      invitedAt: json['invitedAt'] != null ? DateTime.parse(json['invitedAt'] as String) : null,
+      invitedAt: json['invitedAt'] != null ? _parseDateTime(json['invitedAt']) : null,
       inviteToken: json['inviteToken'] as String?,
       metadata: json['metadata'] as Map<String, dynamic>?,
     );
+  }
+
+  /// Helper method to parse DateTime from either String or Firestore Timestamp
+  static DateTime _parseDateTime(dynamic value) {
+    if (value == null) {
+      return DateTime.now();
+    } else if (value is DateTime) {
+      return value;
+    } else if (value is String) {
+      return DateTime.parse(value);
+    } else {
+      // Handle Firestore Timestamp
+      try {
+        return (value as dynamic).toDate();
+      } catch (e) {
+        return DateTime.now();
+      }
+    }
   }
 
   @override

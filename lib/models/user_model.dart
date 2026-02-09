@@ -152,6 +152,8 @@ class UserModel {
           Permission.createEvent,
           Permission.editEvent,
           Permission.viewEvent,
+          Permission.createStakeholder,
+          Permission.editStakeholder,
           Permission.viewStakeholder,
           Permission.assignStakeholder,
         ];

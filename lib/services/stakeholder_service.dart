@@ -26,12 +26,13 @@
 // ==============================================================================
 
 import 'dart:async';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:flutter/foundation.dart';
 import '../config/app_config.dart';
 import '../models/models.dart';
 import 'mock_data_service.dart';
 
-/// Mock stakeholder service for development
-/// Replace with actual backend/Firebase in production
+/// Stakeholder service with Firebase and mock data support
 class StakeholderService {
   static final StakeholderService _instance = StakeholderService._internal();
   factory StakeholderService() => _instance;
@@ -39,6 +40,10 @@ class StakeholderService {
 
   final List<StakeholderModel> _stakeholders = [];
   final _stakeholdersController = StreamController<List<StakeholderModel>>.broadcast();
+
+  // Lazy Firestore instance
+  FirebaseFirestore get _firestore => FirebaseFirestore.instance;
+  CollectionReference get _stakeholdersCollection => _firestore.collection('stakeholders');
 
   /// Stream of stakeholders
   Stream<List<StakeholderModel>> get stakeholdersStream => _stakeholdersController.stream;
@@ -48,13 +53,32 @@ class StakeholderService {
 
   /// Get all stakeholders (async version for consistency with Firebase)
   Future<List<StakeholderModel>> getAllStakeholders() async {
-    // Use mock data in development
-    if (AppConfig.isInitialized && AppConfig.instance.useMockData) {
-      return MockDataService.getMockStakeholders();
+    if (AppConfig.instance.useFirebase) {
+      // Production: Fetch from Firestore
+      try {
+        final snapshot = await _stakeholdersCollection.get();
+        
+        return snapshot.docs.map((doc) {
+          try {
+            final data = doc.data() as Map<String, dynamic>;
+            data['id'] = doc.id;
+            return StakeholderModel.fromJson(data);
+          } catch (e) {
+            debugPrint('[StakeholderService] Error parsing stakeholder ${doc.id}: $e');
+            return null;
+          }
+        }).whereType<StakeholderModel>().toList();
+      } catch (e) {
+        debugPrint('[StakeholderService] Error fetching stakeholders: $e');
+        return [];
+      }
+    } else {
+      // Development: Use mock data
+      if (AppConfig.isInitialized && AppConfig.instance.useMockData) {
+        return MockDataService.getMockStakeholders();
+      }
+      return List.unmodifiable(_stakeholders);
     }
-    // In a real Firebase implementation, this would fetch from Firestore
-    // For now, return the in-memory list
-    return List.unmodifiable(_stakeholders);
   }
 
   /// Initialize with sample data (only in dev mode)
@@ -69,12 +93,28 @@ class StakeholderService {
     // Production mode: Data comes from Firestore, no sample data added
   }
 
-  /// Get stakeholder by ID
-  StakeholderModel? getStakeholderById(String id) {
-    try {
-      return _stakeholders.firstWhere((s) => s.id == id);
-    } catch (_) {
-      return null;
+  /// Get stakeholder by ID (async version for Firestore)
+  Future<StakeholderModel?> getStakeholderById(String id) async {
+    if (AppConfig.instance.useFirebase) {
+      // Production: Fetch from Firestore
+      try {
+        final doc = await _stakeholdersCollection.doc(id).get();
+        if (!doc.exists) return null;
+        
+        final data = doc.data() as Map<String, dynamic>;
+        data['id'] = doc.id;
+        return StakeholderModel.fromJson(data);
+      } catch (e) {
+        debugPrint('[StakeholderService] Error fetching stakeholder $id: $e');
+        return null;
+      }
+    } else {
+      // Development: Use in-memory list
+      try {
+        return _stakeholders.firstWhere((s) => s.id == id);
+      } catch (_) {
+        return null;
+      }
     }
   }
 
@@ -103,40 +143,97 @@ class StakeholderService {
 
   /// Create a new stakeholder
   Future<StakeholderModel> createStakeholder(StakeholderModel stakeholder) async {
-    await Future.delayed(const Duration(milliseconds: 500));
+    if (AppConfig.instance.useFirebase) {
+      // Production: Save to Firestore
+      try {
+        final now = DateTime.now();
+        final stakeholderData = stakeholder.toJson();
+        stakeholderData.remove('id'); // Let Firestore generate the ID
+        stakeholderData['createdAt'] = FieldValue.serverTimestamp();
+        stakeholderData['updatedAt'] = FieldValue.serverTimestamp();
 
-    final newStakeholder = stakeholder.copyWith(
-      id: 'stakeholder_${DateTime.now().millisecondsSinceEpoch}',
-      createdAt: DateTime.now(),
-      updatedAt: DateTime.now(),
-    );
+        final docRef = await _stakeholdersCollection.add(stakeholderData);
+        
+        debugPrint('[StakeholderService] Created stakeholder: ${docRef.id}');
+        
+        final newStakeholder = stakeholder.copyWith(
+          id: docRef.id,
+          createdAt: now,
+          updatedAt: now,
+        );
+        
+        return newStakeholder;
+      } catch (e) {
+        debugPrint('[StakeholderService] Error creating stakeholder: $e');
+        rethrow;
+      }
+    } else {
+      // Development: Mock data
+      await Future.delayed(const Duration(milliseconds: 500));
 
-    _stakeholders.add(newStakeholder);
-    _stakeholdersController.add(_stakeholders);
-    return newStakeholder;
+      final newStakeholder = stakeholder.copyWith(
+        id: 'stakeholder_${DateTime.now().millisecondsSinceEpoch}',
+        createdAt: DateTime.now(),
+        updatedAt: DateTime.now(),
+      );
+
+      _stakeholders.add(newStakeholder);
+      _stakeholdersController.add(_stakeholders);
+      return newStakeholder;
+    }
   }
 
   /// Update an existing stakeholder
   Future<StakeholderModel> updateStakeholder(StakeholderModel stakeholder) async {
-    await Future.delayed(const Duration(milliseconds: 500));
+    if (AppConfig.instance.useFirebase) {
+      // Production: Update in Firestore
+      try {
+        final stakeholderData = stakeholder.toJson();
+        stakeholderData['updatedAt'] = FieldValue.serverTimestamp();
 
-    final index = _stakeholders.indexWhere((s) => s.id == stakeholder.id);
-    if (index == -1) {
-      throw Exception('Stakeholder not found');
+        await _stakeholdersCollection.doc(stakeholder.id).update(stakeholderData);
+        
+        debugPrint('[StakeholderService] Updated stakeholder: ${stakeholder.id}');
+        
+        return stakeholder.copyWith(updatedAt: DateTime.now());
+      } catch (e) {
+        debugPrint('[StakeholderService] Error updating stakeholder: $e');
+        rethrow;
+      }
+    } else {
+      // Development: Mock data
+      await Future.delayed(const Duration(milliseconds: 500));
+
+      final index = _stakeholders.indexWhere((s) => s.id == stakeholder.id);
+      if (index == -1) {
+        throw Exception('Stakeholder not found');
+      }
+
+      final updatedStakeholder = stakeholder.copyWith(updatedAt: DateTime.now());
+      _stakeholders[index] = updatedStakeholder;
+      _stakeholdersController.add(_stakeholders);
+      return updatedStakeholder;
     }
-
-    final updatedStakeholder = stakeholder.copyWith(updatedAt: DateTime.now());
-    _stakeholders[index] = updatedStakeholder;
-    _stakeholdersController.add(_stakeholders);
-    return updatedStakeholder;
   }
 
   /// Delete a stakeholder
   Future<void> deleteStakeholder(String stakeholderId) async {
-    await Future.delayed(const Duration(milliseconds: 500));
+    if (AppConfig.instance.useFirebase) {
+      // Production: Delete from Firestore
+      try {
+        await _stakeholdersCollection.doc(stakeholderId).delete();
+        debugPrint('[StakeholderService] Deleted stakeholder: $stakeholderId');
+      } catch (e) {
+        debugPrint('[StakeholderService] Error deleting stakeholder: $e');
+        rethrow;
+      }
+    } else {
+      // Development: Mock data
+      await Future.delayed(const Duration(milliseconds: 500));
 
-    _stakeholders.removeWhere((s) => s.id == stakeholderId);
-    _stakeholdersController.add(_stakeholders);
+      _stakeholders.removeWhere((s) => s.id == stakeholderId);
+      _stakeholdersController.add(_stakeholders);
+    }
   }
 
   /// Update participation status
@@ -144,7 +241,7 @@ class StakeholderService {
     String stakeholderId,
     ParticipationStatus status,
   ) async {
-    final stakeholder = getStakeholderById(stakeholderId);
+    final stakeholder = await getStakeholderById(stakeholderId);
     if (stakeholder == null) throw Exception('Stakeholder not found');
 
     return updateStakeholder(stakeholder.copyWith(participationStatus: status));
@@ -163,7 +260,7 @@ class StakeholderService {
   /// print('Stakeholder assigned to event');
   /// ```
   Future<StakeholderModel> assignToEvent(String stakeholderId, String eventId) async {
-    final stakeholder = getStakeholderById(stakeholderId);
+    final stakeholder = await getStakeholderById(stakeholderId);
     if (stakeholder == null) throw Exception('Stakeholder not found');
 
     if (stakeholder.eventIds.contains(eventId)) {
@@ -177,7 +274,7 @@ class StakeholderService {
 
   /// Remove stakeholder from event
   Future<StakeholderModel> removeFromEvent(String stakeholderId, String eventId) async {
-    final stakeholder = getStakeholderById(stakeholderId);
+    final stakeholder = await getStakeholderById(stakeholderId);
     if (stakeholder == null) throw Exception('Stakeholder not found');
 
     return updateStakeholder(stakeholder.copyWith(

@@ -1,4 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart' as firebase_auth;
+import '../../config/app_config.dart';
+import '../../services/services.dart';
 
 class SettingsScreen extends StatefulWidget {
   const SettingsScreen({super.key});
@@ -22,8 +26,102 @@ class _SettingsScreenState extends State<SettingsScreen> {
   String _theme = 'System';
   String _language = 'English';
 
+  bool _isLoading = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadSettings();
+  }
+
+  Future<void> _loadSettings() async {
+    final user = AuthService().currentUser;
+    if (user == null || !AppConfig.instance.useFirebase) {
+      setState(() => _isLoading = false);
+      return;
+    }
+
+    try {
+      final doc = await FirebaseFirestore.instance
+          .collection('users')
+          .doc(user.id)
+          .get();
+      final settings = doc.data()?['settings'] as Map<String, dynamic>? ?? {};
+
+      setState(() {
+        _emailNotifications = settings['emailNotifications'] as bool? ?? true;
+        _pushNotifications = settings['pushNotifications'] as bool? ?? true;
+        _eventReminders = settings['eventReminders'] as bool? ?? true;
+        _stakeholderUpdates = settings['stakeholderUpdates'] as bool? ?? true;
+        _profileVisibility = settings['profileVisibility'] as bool? ?? true;
+        _showOnlineStatus = settings['showOnlineStatus'] as bool? ?? true;
+        _theme = settings['theme'] as String? ?? 'System';
+        _language = settings['language'] as String? ?? 'English';
+        _isLoading = false;
+      });
+    } catch (e) {
+      debugPrint('Error loading settings: $e');
+      setState(() => _isLoading = false);
+    }
+  }
+
+  Future<void> _saveSettings() async {
+    final user = AuthService().currentUser;
+    if (user == null || !AppConfig.instance.useFirebase) return;
+
+    try {
+      await FirebaseFirestore.instance
+          .collection('users')
+          .doc(user.id)
+          .update({
+        'settings': {
+          'emailNotifications': _emailNotifications,
+          'pushNotifications': _pushNotifications,
+          'eventReminders': _eventReminders,
+          'stakeholderUpdates': _stakeholderUpdates,
+          'profileVisibility': _profileVisibility,
+          'showOnlineStatus': _showOnlineStatus,
+          'theme': _theme,
+          'language': _language,
+        },
+        'updatedAt': FieldValue.serverTimestamp(),
+      });
+    } catch (e) {
+      debugPrint('Error saving settings: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Failed to save settings'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
+  }
+
+  void _updateSetting(VoidCallback update) {
+    setState(update);
+    _saveSettings();
+  }
+
   @override
   Widget build(BuildContext context) {
+    if (_isLoading) {
+      return Scaffold(
+        appBar: AppBar(
+          title: const Text(
+            'Settings',
+            style: TextStyle(fontWeight: FontWeight.bold, fontSize: 20),
+          ),
+          centerTitle: true,
+          elevation: 0,
+          backgroundColor: Colors.white,
+          foregroundColor: Colors.black,
+        ),
+        body: const Center(child: CircularProgressIndicator()),
+      );
+    }
+
     return Scaffold(
       appBar: AppBar(
         title: const Text(
@@ -44,7 +142,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
             subtitle: 'Receive notifications via email',
             value: _emailNotifications,
             onChanged: (value) {
-              setState(() => _emailNotifications = value);
+              _updateSetting(() => _emailNotifications = value);
             },
           ),
           _SwitchTile(
@@ -52,7 +150,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
             subtitle: 'Receive push notifications on your device',
             value: _pushNotifications,
             onChanged: (value) {
-              setState(() => _pushNotifications = value);
+              _updateSetting(() => _pushNotifications = value);
             },
           ),
           _SwitchTile(
@@ -60,7 +158,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
             subtitle: 'Get reminded about upcoming events',
             value: _eventReminders,
             onChanged: (value) {
-              setState(() => _eventReminders = value);
+              _updateSetting(() => _eventReminders = value);
             },
           ),
           _SwitchTile(
@@ -68,7 +166,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
             subtitle: 'Notifications when stakeholders are added',
             value: _stakeholderUpdates,
             onChanged: (value) {
-              setState(() => _stakeholderUpdates = value);
+              _updateSetting(() => _stakeholderUpdates = value);
             },
           ),
           const Divider(height: 1, thickness: 1),
@@ -80,7 +178,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
             subtitle: 'Allow others to see your profile',
             value: _profileVisibility,
             onChanged: (value) {
-              setState(() => _profileVisibility = value);
+              _updateSetting(() => _profileVisibility = value);
             },
           ),
           _SwitchTile(
@@ -88,7 +186,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
             subtitle: 'Let others know when you\'re online',
             value: _showOnlineStatus,
             onChanged: (value) {
-              setState(() => _showOnlineStatus = value);
+              _updateSetting(() => _showOnlineStatus = value);
             },
           ),
           _SettingsTile(
@@ -134,7 +232,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
             value: _theme,
             options: ['Light', 'Dark', 'System'],
             onChanged: (value) {
-              setState(() => _theme = value);
+              _updateSetting(() => _theme = value);
             },
           ),
           _SelectionTile(
@@ -143,7 +241,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
             value: _language,
             options: ['English', 'Spanish', 'French', 'German', 'Chinese'],
             onChanged: (value) {
-              setState(() => _language = value);
+              _updateSetting(() => _language = value);
             },
           ),
           const Divider(height: 1, thickness: 1),
@@ -200,60 +298,125 @@ class _SettingsScreenState extends State<SettingsScreen> {
     final currentPasswordController = TextEditingController();
     final newPasswordController = TextEditingController();
     final confirmPasswordController = TextEditingController();
+    String? errorMessage;
 
     showDialog(
       context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Change Password'),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            TextField(
-              controller: currentPasswordController,
-              decoration: const InputDecoration(
-                labelText: 'Current Password',
-                border: OutlineInputBorder(),
+      builder: (context) => StatefulBuilder(
+        builder: (context, setDialogState) => AlertDialog(
+          title: const Text('Change Password'),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              if (errorMessage != null) ...[
+                Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: Colors.red[50],
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Text(
+                    errorMessage!,
+                    style: TextStyle(color: Colors.red[700], fontSize: 13),
+                  ),
+                ),
+                const SizedBox(height: 12),
+              ],
+              TextField(
+                controller: currentPasswordController,
+                decoration: const InputDecoration(
+                  labelText: 'Current Password',
+                  border: OutlineInputBorder(),
+                ),
+                obscureText: true,
               ),
-              obscureText: true,
+              const SizedBox(height: 16),
+              TextField(
+                controller: newPasswordController,
+                decoration: const InputDecoration(
+                  labelText: 'New Password',
+                  border: OutlineInputBorder(),
+                ),
+                obscureText: true,
+              ),
+              const SizedBox(height: 16),
+              TextField(
+                controller: confirmPasswordController,
+                decoration: const InputDecoration(
+                  labelText: 'Confirm Password',
+                  border: OutlineInputBorder(),
+                ),
+                obscureText: true,
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('Cancel'),
             ),
-            const SizedBox(height: 16),
-            TextField(
-              controller: newPasswordController,
-              decoration: const InputDecoration(
-                labelText: 'New Password',
-                border: OutlineInputBorder(),
-              ),
-              obscureText: true,
-            ),
-            const SizedBox(height: 16),
-            TextField(
-              controller: confirmPasswordController,
-              decoration: const InputDecoration(
-                labelText: 'Confirm Password',
-                border: OutlineInputBorder(),
-              ),
-              obscureText: true,
+            ElevatedButton(
+              onPressed: () async {
+                final currentPw = currentPasswordController.text;
+                final newPw = newPasswordController.text;
+                final confirmPw = confirmPasswordController.text;
+
+                if (currentPw.isEmpty || newPw.isEmpty || confirmPw.isEmpty) {
+                  setDialogState(() => errorMessage = 'All fields are required');
+                  return;
+                }
+                if (newPw.length < 6) {
+                  setDialogState(() => errorMessage = 'New password must be at least 6 characters');
+                  return;
+                }
+                if (newPw != confirmPw) {
+                  setDialogState(() => errorMessage = 'Passwords do not match');
+                  return;
+                }
+
+                try {
+                  if (AppConfig.instance.useFirebase) {
+                    final user = firebase_auth.FirebaseAuth.instance.currentUser;
+                    if (user == null || user.email == null) {
+                      setDialogState(() => errorMessage = 'Not authenticated');
+                      return;
+                    }
+
+                    // Re-authenticate with current password
+                    final credential = firebase_auth.EmailAuthProvider.credential(
+                      email: user.email!,
+                      password: currentPw,
+                    );
+                    await user.reauthenticateWithCredential(credential);
+
+                    // Update to new password
+                    await user.updatePassword(newPw);
+                  }
+
+                  if (context.mounted) {
+                    Navigator.pop(context);
+                    ScaffoldMessenger.of(this.context).showSnackBar(
+                      const SnackBar(
+                        content: Text('Password changed successfully'),
+                        backgroundColor: Colors.green,
+                      ),
+                    );
+                  }
+                } catch (e) {
+                  final msg = e.toString();
+                  if (msg.contains('wrong-password') || msg.contains('invalid-credential')) {
+                    setDialogState(() => errorMessage = 'Current password is incorrect');
+                  } else if (msg.contains('requires-recent-login')) {
+                    setDialogState(() => errorMessage = 'Please sign out and sign back in first');
+                  } else {
+                    setDialogState(() => errorMessage = 'Failed to change password');
+                  }
+                }
+              },
+              child: const Text('Change'),
             ),
           ],
         ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Cancel'),
-          ),
-          ElevatedButton(
-            onPressed: () {
-              // TODO: Implement password change
-              Navigator.pop(context);
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(
-                  content: Text('Password change coming soon!'),
-                ),
-              );
-            },
-            child: const Text('Change'),
-          ),
-        ],
       ),
     );
   }

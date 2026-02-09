@@ -16,8 +16,10 @@ class _StakeholderListScreenState extends State<StakeholderListScreen> {
   final _stakeholderService = StakeholderService();
   final _permissionService = PermissionService();
   final _searchController = TextEditingController();
+  List<StakeholderModel> _allStakeholders = [];
   List<StakeholderModel> _filteredStakeholders = [];
   StakeholderType? _filterType;
+  bool _isLoading = true;
 
   /// Check if user can create stakeholders (based on permissions)
   bool get _canCreateStakeholder {
@@ -27,7 +29,26 @@ class _StakeholderListScreenState extends State<StakeholderListScreen> {
   @override
   void initState() {
     super.initState();
-    _filteredStakeholders = _stakeholderService.stakeholders;
+    _loadStakeholders();
+  }
+
+  Future<void> _loadStakeholders() async {
+    setState(() => _isLoading = true);
+    try {
+      final stakeholders = await _stakeholderService.getAllStakeholders();
+      setState(() {
+        _allStakeholders = stakeholders;
+        _filteredStakeholders = stakeholders;
+        _isLoading = false;
+      });
+    } catch (e) {
+      setState(() => _isLoading = false);
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error loading stakeholders: $e')),
+        );
+      }
+    }
   }
 
   @override
@@ -38,7 +59,7 @@ class _StakeholderListScreenState extends State<StakeholderListScreen> {
 
   void _filterStakeholders() {
     setState(() {
-      var stakeholders = _stakeholderService.stakeholders;
+      var stakeholders = _allStakeholders;
 
       // Apply type filter
       if (_filterType != null) {
@@ -182,34 +203,36 @@ class _StakeholderListScreenState extends State<StakeholderListScreen> {
 
           // Stakeholders list
           Expanded(
-            child: _filteredStakeholders.isEmpty
-                ? Center(
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Icon(
-                          Icons.people_outline,
-                          size: 64,
-                          color: Colors.grey[400],
+            child: _isLoading
+                ? const Center(child: CircularProgressIndicator())
+                : _filteredStakeholders.isEmpty
+                    ? Center(
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Icon(
+                              Icons.people_outline,
+                              size: 64,
+                              color: Colors.grey[400],
+                            ),
+                            const SizedBox(height: 16),
+                            Text(
+                              'No stakeholders found',
+                              style: TextStyle(
+                                fontSize: 16,
+                                color: Colors.grey[600],
+                              ),
+                            ),
+                          ],
                         ),
-                        const SizedBox(height: 16),
-                        Text(
-                          'No stakeholders found',
-                          style: TextStyle(
-                            fontSize: 16,
-                            color: Colors.grey[600],
-                          ),
-                        ),
-                      ],
-                    ),
-                  )
-                : ListView.builder(
-                    itemCount: _filteredStakeholders.length,
-                    itemBuilder: (context, index) {
-                      final stakeholder = _filteredStakeholders[index];
-                      return _StakeholderListItem(stakeholder: stakeholder);
-                    },
-                  ),
+                      )
+                    : ListView.builder(
+                        itemCount: _filteredStakeholders.length,
+                        itemBuilder: (context, index) {
+                          final stakeholder = _filteredStakeholders[index];
+                          return _StakeholderListItem(stakeholder: stakeholder);
+                        },
+                      ),
           ),
         ],
       ),
@@ -223,9 +246,7 @@ class _StakeholderListScreenState extends State<StakeholderListScreen> {
                 );
                 if (result == true) {
                   // Refresh the list after creating a stakeholder
-                  setState(() {
-                    _filteredStakeholders = _stakeholderService.stakeholders;
-                  });
+                  await _loadStakeholders();
                   _filterStakeholders();
                 }
               },
