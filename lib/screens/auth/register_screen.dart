@@ -5,7 +5,9 @@ import 'package:flutter/gestures.dart';
 import '../../services/services.dart';
 
 class RegisterScreen extends StatefulWidget {
-  const RegisterScreen({super.key});
+  final String? inviteToken;
+  
+  const RegisterScreen({super.key, this.inviteToken});
 
   @override
   State<RegisterScreen> createState() => _RegisterScreenState();
@@ -16,11 +18,58 @@ class _RegisterScreenState extends State<RegisterScreen> {
   final _emailController = TextEditingController();
   final _authService = AuthService();
   final _userService = UserService();
+  final _inviteService = InviteService();
 
   bool _isLoading = false;
   bool _isGoogleLoading = false;
   bool _isAppleLoading = false;
   String? _errorMessage;
+  
+  // Invite token data
+  String? _inviteToken;
+  String? _inviteStakeholderId;
+  String? _inviteDefaultRole;
+  bool _isValidatingToken = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _inviteToken = widget.inviteToken;
+    if (_inviteToken != null) {
+      _validateInviteToken();
+    }
+  }
+
+  Future<void> _validateInviteToken() async {
+    if (_inviteToken == null) return;
+    
+    setState(() => _isValidatingToken = true);
+    
+    try {
+      final result = await _inviteService.validateInviteToken(_inviteToken!);
+      if (result.valid) {
+        setState(() {
+          _inviteStakeholderId = result.stakeholderId;
+          _inviteDefaultRole = result.defaultRole;
+          if (result.email != null && result.email!.isNotEmpty) {
+            _emailController.text = result.email!;
+          }
+        });
+      } else {
+        setState(() {
+          _errorMessage = 'Invite link is ${result.reason ?? "invalid"}. You can still sign up normally.';
+          _inviteToken = null;
+        });
+      }
+    } catch (e) {
+      setState(() {
+        _errorMessage = 'Could not validate invite link.';
+        _inviteToken = null;
+      });
+    } finally {
+      setState(() => _isValidatingToken = false);
+    }
+  }
 
   @override
   void dispose() {
@@ -37,11 +86,16 @@ class _RegisterScreenState extends State<RegisterScreen> {
     });
 
     try {
-      // Navigate to password creation screen with email
+      // Navigate to password creation screen with email and invite token
       if (mounted) {
         Navigator.of(context).pushNamed(
           '/register-password',
-          arguments: {'email': _emailController.text.trim()},
+          arguments: {
+            'email': _emailController.text.trim(),
+            'inviteToken': _inviteToken,
+            'stakeholderId': _inviteStakeholderId,
+            'defaultRole': _inviteDefaultRole,
+          },
         );
       }
     } catch (e) {
@@ -62,6 +116,14 @@ class _RegisterScreenState extends State<RegisterScreen> {
     try {
       // Sign in with Google (works for both new and existing users)
       final user = await _authService.signInWithGoogle();
+      
+      // If there's an invite token, link user to stakeholder
+      if (_inviteToken != null && _inviteStakeholderId != null) {
+        await _inviteService.linkUserToStakeholder(
+          userId: user.id,
+          token: _inviteToken!,
+        );
+      }
       
       if (mounted) {
         // Check if user needs onboarding
@@ -98,6 +160,14 @@ class _RegisterScreenState extends State<RegisterScreen> {
     try {
       // Sign in with Apple (works for both new and existing users)
       final user = await _authService.signInWithApple();
+      
+      // If there's an invite token, link user to stakeholder
+      if (_inviteToken != null && _inviteStakeholderId != null) {
+        await _inviteService.linkUserToStakeholder(
+          userId: user.id,
+          token: _inviteToken!,
+        );
+      }
       
       if (mounted) {
         // Check if user already has a complete profile
@@ -154,6 +224,43 @@ class _RegisterScreenState extends State<RegisterScreen> {
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
                   const SizedBox(height: 40),
+
+                  // Invite token validation loading
+                  if (_isValidatingToken) ...[
+                    const Center(child: CircularProgressIndicator()),
+                    const SizedBox(height: 16),
+                    Text(
+                      'Validating your invitation...',
+                      style: TextStyle(color: Colors.grey[600]),
+                      textAlign: TextAlign.center,
+                    ),
+                    const SizedBox(height: 24),
+                  ],
+
+                  // Invite banner
+                  if (_inviteToken != null && !_isValidatingToken) ...[
+                    Container(
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        color: Colors.green[50],
+                        borderRadius: BorderRadius.circular(8),
+                        border: Border.all(color: Colors.green[200]!),
+                      ),
+                      child: Row(
+                        children: [
+                          Icon(Icons.mail, color: Colors.green[700], size: 20),
+                          const SizedBox(width: 8),
+                          const Expanded(
+                            child: Text(
+                              'You\'ve been invited! Create your account to get started.',
+                              style: TextStyle(color: Colors.black87, fontSize: 13),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                  ],
 
                   // Logo/Icon
                   Container(

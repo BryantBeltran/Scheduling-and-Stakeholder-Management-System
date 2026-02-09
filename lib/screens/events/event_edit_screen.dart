@@ -65,7 +65,12 @@ class _EventEditScreenState extends State<EventEditScreen> {
   void _initializeFields() {
     _titleController = TextEditingController(text: widget.event.title);
     _descriptionController = TextEditingController(text: widget.event.description ?? '');
-    _locationController = TextEditingController(text: widget.event.location.name);
+    _isVirtualLocation = widget.event.location.isVirtual;
+    _locationController = TextEditingController(
+      text: _isVirtualLocation 
+          ? widget.event.location.name 
+          : (widget.event.location.address ?? widget.event.location.name)
+    );
     _virtualLinkController = TextEditingController(text: widget.event.location.virtualLink ?? '');
 
     _selectedStartDate = widget.event.startTime;
@@ -75,7 +80,6 @@ class _EventEditScreenState extends State<EventEditScreen> {
     _selectedStatus = widget.event.status;
     _selectedPriority = widget.event.priority;
     _selectedStakeholderIds = List.from(widget.event.stakeholderIds);
-    _isVirtualLocation = widget.event.location.isVirtual;
 
     // Add listeners to track changes
     _titleController.addListener(_markChanged);
@@ -233,7 +237,10 @@ class _EventEditScreenState extends State<EventEditScreen> {
         startTime: startDateTime,
         endTime: endDateTime,
         location: EventLocation(
-          name: _locationController.text.trim(),
+          name: _isVirtualLocation 
+              ? _locationController.text.trim() 
+              : 'In-Person Location',
+          address: !_isVirtualLocation ? _locationController.text.trim() : null,
           isVirtual: _isVirtualLocation,
           virtualLink: _isVirtualLocation ? _virtualLinkController.text.trim() : null,
         ),
@@ -595,16 +602,17 @@ class _EventEditScreenState extends State<EventEditScreen> {
                         TextFormField(
                           controller: _virtualLinkController,
                           decoration: _buildInputDecoration(
-                            'Meeting link (optional)',
+                            'Meeting link (e.g., Zoom, Teams)',
                             prefixIcon: Icons.link,
                           ),
                           keyboardType: TextInputType.url,
                           validator: (value) {
-                            if (value != null && value.isNotEmpty) {
-                              final uri = Uri.tryParse(value);
-                              if (uri == null || !uri.hasScheme) {
-                                return 'Please enter a valid URL';
-                              }
+                            if (value == null || value.trim().isEmpty) {
+                              return 'Please enter a meeting link';
+                            }
+                            final uri = Uri.tryParse(value.trim());
+                            if (uri == null || !uri.hasScheme) {
+                              return 'Please enter a valid URL';
                             }
                             return null;
                           },

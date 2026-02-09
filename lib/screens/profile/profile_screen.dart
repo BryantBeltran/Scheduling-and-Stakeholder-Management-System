@@ -3,6 +3,7 @@ import '../../models/models.dart';
 import '../../services/services.dart';
 import 'profile_edit_screen.dart';
 import 'settings_screen.dart';
+import 'notifications_screen.dart';
 
 class ProfileScreen extends StatelessWidget {
   const ProfileScreen({super.key});
@@ -10,6 +11,7 @@ class ProfileScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final authService = AuthService();
+    final notificationService = NotificationService();
 
     return Scaffold(
       appBar: AppBar(
@@ -125,10 +127,33 @@ class ProfileScreen extends StatelessWidget {
               _ProfileMenuItem(
                 icon: Icons.notifications_outlined,
                 title: 'Notifications',
+                trailing: StreamBuilder<int>(
+                  stream: notificationService.unreadCountStream,
+                  initialData: notificationService.unreadCount,
+                  builder: (context, snapshot) {
+                    final count = snapshot.data ?? 0;
+                    if (count == 0) return const SizedBox.shrink();
+                    return Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                      decoration: BoxDecoration(
+                        color: Colors.red,
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: Text(
+                        count > 99 ? '99+' : '$count',
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 12,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    );
+                  },
+                ),
                 onTap: () {
                   Navigator.of(context).push(
                     MaterialPageRoute(
-                      builder: (context) => const SettingsScreen(),
+                      builder: (context) => const NotificationsScreen(),
                     ),
                   );
                 },
@@ -202,7 +227,8 @@ class ProfileScreen extends StatelessWidget {
                   if (confirm == true && context.mounted) {
                     await authService.signOut();
                     if (context.mounted) {
-                      // Pop all routes and go back to root (AuthWrapper will handle showing login)
+                      // Navigate to login and clear all routes
+                      // AuthWrapper will handle showing login in staging/prod
                       Navigator.of(context).pushNamedAndRemoveUntil(
                         '/login',
                         (route) => false,
@@ -264,12 +290,14 @@ class _ProfileMenuItem extends StatelessWidget {
   final String title;
   final VoidCallback onTap;
   final bool isDestructive;
+  final Widget? trailing;
 
   const _ProfileMenuItem({
     required this.icon,
     required this.title,
     required this.onTap,
     this.isDestructive = false,
+    this.trailing,
   });
 
   @override
@@ -294,6 +322,10 @@ class _ProfileMenuItem extends StatelessWidget {
                 ),
               ),
             ),
+            if (trailing != null) ...[
+              trailing!,
+              const SizedBox(width: 8),
+            ],
             Icon(Icons.chevron_right, color: Colors.grey[400], size: 24),
           ],
         ),

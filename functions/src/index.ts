@@ -6,12 +6,131 @@ import {
 } from "firebase-functions/v2/firestore";
 import * as logger from "firebase-functions/logger";
 import * as admin from "firebase-admin";
+import * as nodemailer from "nodemailer";
 
 // Initialize Firebase Admin SDK
 admin.initializeApp();
 
 // For cost control, set maximum concurrent instances
 setGlobalOptions({maxInstances: 10});
+
+// =============================================================================
+// EMAIL CONFIGURATION
+// =============================================================================
+// Uses Firebase environment config for SMTP credentials.
+// Set with:
+//   firebase functions:config:set smtp.host smtp.port smtp.user smtp.pass
+// For Gmail:
+//   host=smtp.gmail.com, port=587, user=your@gmail.com, pass=app-password
+// For testing without SMTP, the function will log the invite link
+// and skip email.
+// =============================================================================
+
+/**
+ * Create a Nodemailer transporter using SMTP config from environment.
+ * Returns null if SMTP is not configured (emails will be skipped gracefully).
+ * @return {nodemailer.Transporter | null} Transporter or null if not configured
+ */
+function getMailTransporter(): nodemailer.Transporter | null {
+  const smtpHost = process.env.SMTP_HOST;
+  const smtpPort = process.env.SMTP_PORT;
+  const smtpUser = process.env.SMTP_USER;
+  const smtpPass = process.env.SMTP_PASS;
+
+  if (!smtpHost || !smtpUser || !smtpPass) {
+    logger.warn(
+      "SMTP not configured. Set SMTP_HOST, SMTP_PORT, SMTP_USER, " +
+      "SMTP_PASS environment variables to enable invite emails."
+    );
+    return null;
+  }
+
+  return nodemailer.createTransport({
+    host: smtpHost,
+    port: parseInt(smtpPort || "587", 10),
+    secure: smtpPort === "465",
+    auth: {
+      user: smtpUser,
+      pass: smtpPass,
+    },
+  });
+}
+
+/**
+ * Send an invite email to a stakeholder
+ * @param {string} email - The recipient email address
+ * @param {string} inviteToken - The unique invite token
+ * @param {string} stakeholderName - The name of the stakeholder (optional)
+ * @return {Promise<boolean>} True if email was sent, false otherwise
+ */
+async function sendInviteEmail(
+  email: string,
+  inviteToken: string,
+  stakeholderName?: string
+): Promise<boolean> {
+  const transporter = getMailTransporter();
+  if (!transporter) {
+    logger.info(
+      "Email sending skipped (SMTP not configured). " +
+      `Invite link: https://ssms.app/invite?token=${inviteToken}`
+    );
+    return false;
+  }
+
+  const inviteLink = `https://ssms.app/invite?token=${inviteToken}`;
+  const senderEmail = process.env.SMTP_USER || "noreply@ssms.app";
+  const recipientName = stakeholderName || "there";
+
+  try {
+    /* eslint-disable max-len */
+    await transporter.sendMail({
+      from: `"SSMS" <${senderEmail}>`,
+      to: email,
+      subject: "You've been invited to SSMS",
+      html: `
+        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+          <div style="background-color: #000; color: #fff; padding: 24px; text-align: center;">
+            <h1 style="margin: 0; font-size: 24px;">Scheduling & Stakeholder Management</h1>
+          </div>
+          <div style="padding: 32px 24px;">
+            <h2 style="color: #333;">Hi ${recipientName}!</h2>
+            <p style="color: #555; font-size: 16px; line-height: 1.6;">
+              You've been invited to join the Scheduling & Stakeholder Management System.
+              Click the button below to create your account and get started.
+            </p>
+            <div style="text-align: center; margin: 32px 0;">
+              <a href="${inviteLink}"
+                 style="background-color: #000; color: #fff; padding: 14px 32px;
+                        text-decoration: none; border-radius: 8px; font-size: 16px;
+                        font-weight: 600; display: inline-block;">
+                Accept Invitation
+              </a>
+            </div>
+            <p style="color: #888; font-size: 13px;">
+              This invitation expires in 7 days. If you didn't expect this email,
+              you can safely ignore it.
+            </p>
+            <hr style="border: none; border-top: 1px solid #eee; margin: 24px 0;" />
+            <p style="color: #999; font-size: 12px;">
+              If the button doesn't work, copy and paste this link into your browser:<br/>
+              <a href="${inviteLink}" style="color: #666;">${inviteLink}</a>
+            </p>
+          </div>
+        </div>
+      `,
+      text: `Hi ${recipientName}! You've been invited to join SSMS. ` +
+            `Click here to create your account: ${inviteLink} ` +
+            "This invitation expires in 7 days.",
+    });
+    /* eslint-enable max-len */
+
+    logger.info(`Invite email sent successfully to ${email}`);
+    return true;
+  } catch (error) {
+    logger.error(`Failed to send invite email to ${email}:`, error);
+    return false;
+  }
+}
 
 
 // User Management
@@ -781,12 +900,18 @@ export const inviteStakeholder = onCall(async (request) => {
       token: inviteToken,
     });
 
-    // TODO: Send email with invite link
-    // For now, return the token for manual sharing
+    // Send invite email
+    const emailSent = await sendInviteEmail(
+      stakeholderData.email,
+      inviteToken,
+      stakeholderData.name || stakeholderData.displayName
+    );
+
     return {
       success: true,
       inviteToken: inviteToken,
       email: stakeholderData.email,
+      emailSent: emailSent,
     };
   } catch (error) {
     logger.error("Error inviting stakeholder:", error);
@@ -1145,6 +1270,8 @@ function getDefaultPermissions(role: string): string[] {
       PERMISSIONS.createEvent,
       PERMISSIONS.editEvent,
       PERMISSIONS.viewEvent,
+      PERMISSIONS.createStakeholder,
+      PERMISSIONS.editStakeholder,
       PERMISSIONS.viewStakeholder,
       PERMISSIONS.assignStakeholder,
     ];

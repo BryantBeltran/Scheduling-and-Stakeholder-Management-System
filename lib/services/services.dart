@@ -11,3 +11,4 @@ export 'permission_service.dart';
 export 'storage_service.dart';
 export 'invite_service.dart';
 export 'places_service.dart';
+export 'notification_service.dart';
