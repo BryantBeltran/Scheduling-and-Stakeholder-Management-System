@@ -308,7 +308,7 @@ class _EventListScreenState extends State<EventListScreen> {
           onPressed: () {
             Navigator.of(context).pushNamed('/event/create');
           },
-          backgroundColor: Colors.grey[800],
+          backgroundColor: Colors.black,
           icon: const Icon(Icons.add, color: Colors.white),
           label: const Text(
             'New Event',

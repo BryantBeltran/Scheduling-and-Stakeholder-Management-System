@@ -17,6 +17,7 @@ class _EventCreateScreenState extends State<EventCreateScreen> {
   final _titleController = TextEditingController();
   final _descriptionController = TextEditingController();
   final _locationController = TextEditingController();
+  final _virtualLinkController = TextEditingController();
   
   DateTime? _selectedDate;
   TimeOfDay? _selectedTime;
@@ -25,6 +26,8 @@ class _EventCreateScreenState extends State<EventCreateScreen> {
   final EventStatus _selectedStatus = EventStatus.draft;
   final EventPriority _selectedPriority = EventPriority.medium;
   List<String> _selectedStakeholderIds = [];
+  Map<String, StakeholderModel> _stakeholderCache = {};
+  bool _isVirtualLocation = false;
   
   bool _isLoading = false;
   final _eventService = EventService();
@@ -32,10 +35,24 @@ class _EventCreateScreenState extends State<EventCreateScreen> {
   final _stakeholderService = StakeholderService();
 
   @override
+  void initState() {
+    super.initState();
+    _loadStakeholders();
+  }
+
+  Future<void> _loadStakeholders() async {
+    final stakeholders = await _stakeholderService.getAllStakeholders();
+    setState(() {
+      _stakeholderCache = {for (var s in stakeholders) s.id: s};
+    });
+  }
+
+  @override
   void dispose() {
     _titleController.dispose();
     _descriptionController.dispose();
     _locationController.dispose();
+    _virtualLinkController.dispose();
     super.dispose();
   }
 
@@ -115,7 +132,12 @@ class _EventCreateScreenState extends State<EventCreateScreen> {
         startTime: startDateTime,
         endTime: endDateTime,
         location: EventLocation(
-          name: _locationController.text.trim(),
+          name: _isVirtualLocation 
+              ? _locationController.text.trim() 
+              : 'In-Person Location',
+          address: !_isVirtualLocation ? _locationController.text.trim() : null,
+          isVirtual: _isVirtualLocation,
+          virtualLink: _isVirtualLocation ? _virtualLinkController.text.trim() : null,
         ),
         ownerId: currentUser.id,
         ownerName: currentUser.displayName,
@@ -498,7 +520,7 @@ class _EventCreateScreenState extends State<EventCreateScreen> {
                         spacing: 8,
                         runSpacing: 8,
                         children: _selectedStakeholderIds.map((id) {
-                          final stakeholder = _stakeholderService.getStakeholderById(id);
+                          final stakeholder = _stakeholderCache[id];
                           return Chip(
                             label: Text(stakeholder?.name ?? 'Unknown'),
                             deleteIcon: const Icon(Icons.close, size: 18),
@@ -512,7 +534,7 @@ class _EventCreateScreenState extends State<EventCreateScreen> {
                       ),
                     ],
                     const SizedBox(height: 24),
-                    // Location
+                    // Location Section
                     const Text(
                       'Location',
                       style: TextStyle(
@@ -522,30 +544,111 @@ class _EventCreateScreenState extends State<EventCreateScreen> {
                       ),
                     ),
                     const SizedBox(height: 8),
-                    LocationAutocompleteField(
-                      controller: _locationController,
-                      decoration: InputDecoration(
-                        hintText: 'Search for a location',
-                        hintStyle: TextStyle(color: Colors.grey[400]),
-                        prefixIcon: Icon(Icons.location_on, color: Colors.grey[600]),
-                        border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(12),
-                          borderSide: BorderSide(color: Colors.grey[300]!),
+
+                    // Virtual/In-Person Toggle
+                    Row(
+                      children: [
+                        Expanded(
+                          child: _buildLocationTypeButton(
+                            'In-Person',
+                            Icons.location_on,
+                            !_isVirtualLocation,
+                            () => setState(() => _isVirtualLocation = false),
+                          ),
                         ),
-                        filled: true,
-                        fillColor: Colors.white,
-                        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                      ),
-                      onPlaceSelected: (details) {
-                        _locationController.text = details.formattedAddress;
-                      },
-                      validator: (value) {
-                        if (value == null || value.trim().isEmpty) {
-                          return 'Please enter a location';
-                        }
-                        return null;
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: _buildLocationTypeButton(
+                            'Virtual',
+                            Icons.videocam,
+                            _isVirtualLocation,
+                            () => setState(() => _isVirtualLocation = true),
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 12),
+
+                    // Location Name/Address - Use autocomplete for physical, regular text for virtual
+                    if (_isVirtualLocation)
+                      TextFormField(
+                        controller: _locationController,
+                        decoration: InputDecoration(
+                          hintText: 'Meeting name (e.g., Zoom Call)',
+                          hintStyle: TextStyle(color: Colors.grey[400]),
+                          prefixIcon: Icon(Icons.videocam, color: Colors.grey[600]),
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(12),
+                            borderSide: BorderSide(color: Colors.grey[300]!),
+                          ),
+                          filled: true,
+                          fillColor: Colors.white,
+                          contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                        ),
+                        validator: (value) {
+                          if (value == null || value.trim().isEmpty) {
+                            return 'Please enter a meeting name';
+                          }
+                          return null;
+                        },
+                      )
+                    else
+                      LocationAutocompleteField(
+                        controller: _locationController,
+                        decoration: InputDecoration(
+                          hintText: 'Search for a location',
+                          hintStyle: TextStyle(color: Colors.grey[400]),
+                          prefixIcon: Icon(Icons.location_on, color: Colors.grey[600]),
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(12),
+                            borderSide: BorderSide(color: Colors.grey[300]!),
+                          ),
+                          filled: true,
+                          fillColor: Colors.white,
+                          contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                        ),
+                        onPlaceSelected: (details) {
+                          _locationController.text = details.formattedAddress;
+                        },
+                        validator: (value) {
+                          if (value == null || value.trim().isEmpty) {
+                            return 'Please enter a location';
+                          }
+                          return null;
                       },
                     ),
+
+                    // Virtual Link (only if virtual)
+                    if (_isVirtualLocation) ...[
+                      const SizedBox(height: 12),
+                      TextFormField(
+                        controller: _virtualLinkController,
+                        decoration: InputDecoration(
+                          hintText: 'Meeting link (e.g., Zoom, Teams)',
+                          hintStyle: TextStyle(color: Colors.grey[400]),
+                          prefixIcon: Icon(Icons.link, color: Colors.grey[600]),
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(12),
+                            borderSide: BorderSide(color: Colors.grey[300]!),
+                          ),
+                          filled: true,
+                          fillColor: Colors.white,
+                          contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                        ),
+                        keyboardType: TextInputType.url,
+                        validator: (value) {
+                          if (value == null || value.trim().isEmpty) {
+                            return 'Please enter a meeting link';
+                          }
+                          final uri = Uri.tryParse(value.trim());
+                          if (uri == null || !uri.hasScheme) {
+                            return 'Please enter a valid URL';
+                          }
+                          return null;
+                        },
+                      ),
+                    ],
+                    
                     const SizedBox(height: 32),
                     // Done Button
                     SizedBox(
@@ -573,6 +676,46 @@ class _EventCreateScreenState extends State<EventCreateScreen> {
                 ),
               ),
             ),
+    );
+  }
+
+  Widget _buildLocationTypeButton(
+    String label,
+    IconData icon,
+    bool isSelected,
+    VoidCallback onTap,
+  ) {
+    return InkWell(
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.symmetric(vertical: 12),
+        decoration: BoxDecoration(
+          border: Border.all(
+            color: isSelected ? Colors.blue : Colors.grey[300]!,
+            width: isSelected ? 2 : 1,
+          ),
+          borderRadius: BorderRadius.circular(12),
+          color: isSelected ? Colors.blue.withOpacity(0.1) : Colors.white,
+        ),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(
+              icon,
+              size: 20,
+              color: isSelected ? Colors.blue : Colors.grey[600],
+            ),
+            const SizedBox(width: 8),
+            Text(
+              label,
+              style: TextStyle(
+                fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+                color: isSelected ? Colors.blue : Colors.grey[700],
+              ),
+            ),
+          ],
+        ),
+      ),
     );
   }
 }

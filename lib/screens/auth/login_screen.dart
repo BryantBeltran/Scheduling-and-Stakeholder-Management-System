@@ -63,19 +63,19 @@ class _LoginScreenState extends State<LoginScreen> {
     try {
       final user = await _authService.signInWithGoogle();
       
-      if (user != null && mounted) {
-        // Check if user already has a complete profile
-        final existingUser = await _userService.getUser(user.id);
+      if (mounted) {
+        // Check if user needs onboarding
+        final needsOnboarding = await _userService.needsOnboarding(user.id);
         
-        if (existingUser != null && existingUser.id.isNotEmpty) {
-          // Existing user - go to home
-          Navigator.of(context).pushReplacementNamed('/home');
-        } else {
-          // New user who clicked login instead of signup - go to onboarding
+        if (needsOnboarding) {
+          // New user - go to onboarding
           Navigator.of(context).pushNamed(
             '/onboarding',
             arguments: {'user': user},
           );
+        } else {
+          // Existing user with complete profile - go to home
+          Navigator.of(context).pushReplacementNamed('/home');
         }
       }
     } on AuthException catch (e) {
@@ -262,7 +262,28 @@ class _LoginScreenState extends State<LoginScreen> {
                       return null;
                     },
                   ),
-                  const SizedBox(height: 24),
+                  const SizedBox(height: 8),
+
+                  // Forgot password link
+                  Align(
+                    alignment: Alignment.centerRight,
+                    child: TextButton(
+                      onPressed: () => Navigator.of(context).pushNamed('/forgot-password'),
+                      style: TextButton.styleFrom(
+                        padding: EdgeInsets.zero,
+                        minimumSize: Size.zero,
+                        tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                      ),
+                      child: Text(
+                        'Forgot Password?',
+                        style: TextStyle(
+                          color: Colors.grey[600],
+                          fontSize: 13,
+                        ),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 16),
 
                   // Login button
                   SizedBox(

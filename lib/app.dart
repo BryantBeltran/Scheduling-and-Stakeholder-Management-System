@@ -46,7 +46,6 @@ class SchedulingApp extends StatelessWidget {
       home: const AuthWrapper(),
       routes: {
         '/login': (context) => const LoginScreen(),
-        '/register': (context) => const RegisterScreen(),
         '/forgot-password': (context) => const ForgotPasswordScreen(),
         '/home': (context) => const HomeScreen(),
         '/event/create': (context) => const EventCreateScreen(),
@@ -55,8 +54,23 @@ class SchedulingApp extends StatelessWidget {
         if (settings.name == '/register-password') {
           final args = settings.arguments as Map<String, dynamic>?;
           final email = args?['email'] ?? '';
+          final inviteToken = args?['inviteToken'] as String?;
+          final stakeholderId = args?['stakeholderId'] as String?;
+          final defaultRole = args?['defaultRole'] as String?;
           return MaterialPageRoute(
-            builder: (context) => RegisterPasswordScreen(email: email),
+            builder: (context) => RegisterPasswordScreen(
+              email: email,
+              inviteToken: inviteToken,
+              stakeholderId: stakeholderId,
+              defaultRole: defaultRole,
+            ),
+          );
+        }
+        if (settings.name == '/register') {
+          final args = settings.arguments as Map<String, dynamic>?;
+          final inviteToken = args?['inviteToken'] as String?;
+          return MaterialPageRoute(
+            builder: (context) => RegisterScreen(inviteToken: inviteToken),
           );
         }
         if (settings.name == '/onboarding') {
@@ -67,7 +81,12 @@ class SchedulingApp extends StatelessWidget {
             // OAuth flow - user from Google/Apple Sign-In
             final user = args!['user'] as UserModel;
             return MaterialPageRoute(
-              builder: (context) => OnboardingScreen(initialUser: user),
+              builder: (context) => OnboardingScreen(
+                initialUser: user,
+                inviteToken: args['inviteToken'] as String?,
+                stakeholderId: args['stakeholderId'] as String?,
+                defaultRole: args['defaultRole'] as String?,
+              ),
             );
           } else {
             // Email/password flow - use email and displayName
@@ -77,6 +96,9 @@ class SchedulingApp extends StatelessWidget {
               builder: (context) => OnboardingScreen(
                 email: email,
                 displayName: displayName,
+                inviteToken: args?['inviteToken'] as String?,
+                stakeholderId: args?['stakeholderId'] as String?,
+                defaultRole: args?['defaultRole'] as String?,
               ),
             );
           }
@@ -128,7 +150,8 @@ class SchedulingApp extends StatelessWidget {
 
 /// Wrapper widget that handles authentication state routing.
 /// 
-/// Shows [HomeScreen] if user is authenticated, [LoginScreen] otherwise.
+/// Shows [HomeScreen] if user is authenticated and onboarded,
+/// routes to onboarding if needed, [LoginScreen] otherwise.
 class AuthWrapper extends StatefulWidget {
   const AuthWrapper({super.key});
 
@@ -138,6 +161,7 @@ class AuthWrapper extends StatefulWidget {
 
 class _AuthWrapperState extends State<AuthWrapper> {
   final _authService = AuthService();
+  final _userService = UserService();
 
   @override
   Widget build(BuildContext context) {
@@ -163,7 +187,26 @@ class _AuthWrapperState extends State<AuthWrapper> {
 
         // Show home if authenticated, otherwise show login
         if (snapshot.hasData && snapshot.data != null) {
-          return const HomeScreen();
+          final user = snapshot.data!;
+          
+          // Check if new user needs onboarding
+          return FutureBuilder<bool>(
+            future: _userService.needsOnboarding(user.id),
+            builder: (context, onboardingSnapshot) {
+              if (onboardingSnapshot.connectionState == ConnectionState.waiting) {
+                return const Scaffold(
+                  body: Center(child: CircularProgressIndicator()),
+                );
+              }
+              
+              if (onboardingSnapshot.data == true) {
+                // New user needs onboarding
+                return OnboardingScreen(initialUser: user);
+              }
+              
+              return const HomeScreen();
+            },
+          );
         }
 
         return const LoginScreen();

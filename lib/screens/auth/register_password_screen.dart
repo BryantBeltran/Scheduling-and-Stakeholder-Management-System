@@ -3,8 +3,17 @@ import '../../services/services.dart';
 
 class RegisterPasswordScreen extends StatefulWidget {
   final String email;
+  final String? inviteToken;
+  final String? stakeholderId;
+  final String? defaultRole;
 
-  const RegisterPasswordScreen({super.key, required this.email});
+  const RegisterPasswordScreen({
+    super.key,
+    required this.email,
+    this.inviteToken,
+    this.stakeholderId,
+    this.defaultRole,
+  });
 
   @override
   State<RegisterPasswordScreen> createState() => _RegisterPasswordScreenState();
@@ -53,6 +62,9 @@ class _RegisterPasswordScreenState extends State<RegisterPasswordScreen> {
           arguments: {
             'email': widget.email,
             'displayName': _nameController.text.trim(),
+            'inviteToken': widget.inviteToken,
+            'stakeholderId': widget.stakeholderId,
+            'defaultRole': widget.defaultRole,
           },
         );
       }

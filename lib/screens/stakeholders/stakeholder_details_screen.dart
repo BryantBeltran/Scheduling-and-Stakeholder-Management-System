@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import '../../models/models.dart';
 import '../../services/services.dart';
+import 'stakeholder_edit_screen.dart';
 
 class StakeholderDetailsScreen extends StatefulWidget {
   final String stakeholderId;
@@ -21,6 +22,7 @@ class _StakeholderDetailsScreenState extends State<StakeholderDetailsScreen> {
   final _permissionService = PermissionService();
   
   bool _isInviting = false;
+  bool _isLoading = true;
   StakeholderModel? _stakeholder;
 
   @override
@@ -29,11 +31,22 @@ class _StakeholderDetailsScreenState extends State<StakeholderDetailsScreen> {
     _loadStakeholder();
   }
 
-  void _loadStakeholder() {
-    setState(() {
-      _stakeholder = _stakeholderService.stakeholders
-          .firstWhere((s) => s.id == widget.stakeholderId);
-    });
+  Future<void> _loadStakeholder() async {
+    setState(() => _isLoading = true);
+    try {
+      final stakeholder = await _stakeholderService.getStakeholderById(widget.stakeholderId);
+      setState(() {
+        _stakeholder = stakeholder;
+        _isLoading = false;
+      });
+    } catch (e) {
+      setState(() => _isLoading = false);
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error loading stakeholder: $e')),
+        );
+      }
+    }
   }
 
   Future<void> _sendInvite() async {
@@ -211,11 +224,44 @@ class _StakeholderDetailsScreenState extends State<StakeholderDetailsScreen> {
 
   @override
   Widget build(BuildContext context) {
+    if (_isLoading) {
+      return Scaffold(
+        appBar: AppBar(
+          leading: IconButton(
+            icon: const Icon(Icons.arrow_back),
+            onPressed: () => Navigator.of(context).pop(),
+          ),
+          title: const Text(
+            'Stakeholder Details',
+            style: TextStyle(fontWeight: FontWeight.bold, fontSize: 20),
+          ),
+          centerTitle: true,
+          elevation: 0,
+          backgroundColor: Colors.white,
+          foregroundColor: Colors.black,
+        ),
+        body: const Center(child: CircularProgressIndicator()),
+      );
+    }
+
     final stakeholder = _stakeholder;
     
     if (stakeholder == null) {
       return Scaffold(
-        appBar: AppBar(title: const Text('Stakeholder Details')),
+        appBar: AppBar(
+          leading: IconButton(
+            icon: const Icon(Icons.arrow_back),
+            onPressed: () => Navigator.of(context).pop(),
+          ),
+          title: const Text(
+            'Stakeholder Details',
+            style: TextStyle(fontWeight: FontWeight.bold, fontSize: 20),
+          ),
+          centerTitle: true,
+          elevation: 0,
+          backgroundColor: Colors.white,
+          foregroundColor: Colors.black,
+        ),
         body: const Center(child: Text('Stakeholder not found')),
       );
     }
@@ -237,10 +283,16 @@ class _StakeholderDetailsScreenState extends State<StakeholderDetailsScreen> {
         actions: [
           IconButton(
             icon: const Icon(Icons.edit),
-            onPressed: () {
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(content: Text('Edit coming soon!')),
+            onPressed: () async {
+              final result = await Navigator.of(context).push<bool>(
+                MaterialPageRoute(
+                  builder: (context) => StakeholderEditScreen(stakeholder: stakeholder),
+                ),
               );
+              if (result == true) {
+                // Reload stakeholder after edit
+                await _loadStakeholder();
+              }
             },
           ),
         ],

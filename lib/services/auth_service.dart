@@ -28,6 +28,7 @@ import 'package:sign_in_with_apple/sign_in_with_apple.dart';
 import '../config/app_config.dart';
 import '../models/models.dart';
 import 'user_service.dart';
+import 'notification_service.dart';
 
 /// Authentication service with Firebase integration
 class AuthService {
@@ -51,6 +52,9 @@ class AuthService {
   
   // User service for Firestore operations
   final _userService = UserService();
+  
+  // Notification service for real-time notifications
+  final _notificationService = NotificationService();
 
   // Lazy Firebase instances - only accessed when useFirebase is true
   firebase_auth.FirebaseAuth get _firebaseAuth => firebase_auth.FirebaseAuth.instance;
@@ -67,6 +71,9 @@ class AuthService {
         _currentUser = _convertFirebaseUser(firebaseUser);
         _authStateController.add(_currentUser);
         
+        // Start listening to notifications for this user
+        _notificationService.startListening(firebaseUser.uid);
+        
         // Then fetch full user data from Firestore (includes role/permissions)
         final fullUser = await _userService.getUser(firebaseUser.uid);
         if (fullUser != null) {
@@ -76,6 +83,8 @@ class AuthService {
       } else {
         _currentUser = null;
         _authStateController.add(_currentUser);
+        // Stop notification listener on sign out
+        _notificationService.stopListening();
       }
     });
   }
@@ -332,9 +341,6 @@ class AuthService {
 
         _currentUser = _convertFirebaseUser(userCredential.user!);
         
-        // Check if this is a new user (additionalUserInfo indicates first sign-in)
-        final isNewUser = userCredential.additionalUserInfo?.isNewUser ?? false;
-        
         // Save/update user in Firestore
         await _userService.saveUser(_currentUser!);
         
@@ -485,6 +491,9 @@ class AuthService {
   Future<void> signOut() async {
     if (AppConfig.instance.useFirebase) {
       // Production: Sign out from Firebase and Google
+      // Clear local state immediately so UI responds right away
+      _currentUser = null;
+      _authStateController.add(null);
       await _firebaseAuth.signOut();
       await _googleSignIn.signOut();
     } else {
