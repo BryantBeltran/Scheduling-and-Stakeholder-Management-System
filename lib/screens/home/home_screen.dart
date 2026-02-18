@@ -131,25 +131,32 @@ class _DashboardScreenState extends State<DashboardScreen> {
   bool _isLoading = true;
   List<EventModel> _events = [];
   List<StakeholderModel> _stakeholders = [];
+  final EventService _eventService = EventService();
+  final StakeholderService _stakeholderService = StakeholderService();
   
   @override
   void initState() {
     super.initState();
     _loadData();
+    // Listen to event stream for real-time updates
+    _eventService.eventsStream.listen((events) {
+      if (mounted) {
+        setState(() {
+          _events = events;
+        });
+      }
+    });
   }
   
   Future<void> _loadData() async {
     setState(() => _isLoading = true);
     
     try {
-      final eventService = EventService();
-      final stakeholderService = StakeholderService();
-      
       // Fetch events from Firestore or mock data
-      _events = await eventService.getAllEvents();
+      _events = await _eventService.getAllEvents();
       
       // Get stakeholders from Firestore or mock data
-      _stakeholders = await stakeholderService.getAllStakeholders();
+      _stakeholders = await _stakeholderService.getAllStakeholders();
     } catch (e) {
       debugPrint('Error loading data: $e');
       // Initialize with empty lists on error
@@ -157,7 +164,9 @@ class _DashboardScreenState extends State<DashboardScreen> {
       _stakeholders = [];
     }
     
-    setState(() => _isLoading = false);
+    if (mounted) {
+      setState(() => _isLoading = false);
+    }
   }
 
   @override
@@ -232,6 +241,16 @@ class _DashboardScreenState extends State<DashboardScreen> {
             final completedEvents = _events
                 .where((e) => e.status == EventStatus.completed)
                 .toList();
+            final inProgressEvents = _events
+                .where((e) => e.status == EventStatus.inProgress)
+                .toList();
+            final todayEvents = _events.where((e) {
+              final today = DateTime(now.year, now.month, now.day);
+              final eventDay = DateTime(
+                e.startTime.year, e.startTime.month, e.startTime.day,
+              );
+              return eventDay == today;
+            }).toList();
 
             return ListView(
                       padding: const EdgeInsets.all(20),
@@ -402,6 +421,95 @@ class _DashboardScreenState extends State<DashboardScreen> {
                                       Icon(
                                         Icons.check_circle,
                                         color: Colors.purple,
+                                        size: 36,
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        const SizedBox(height: 20),
+
+                        // In Progress & Today Stats Row
+                        Card(
+                          elevation: 0,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12),
+                            side: BorderSide(color: Colors.grey[200]!),
+                          ),
+                          child: Row(
+                            children: [
+                              Expanded(
+                                child: Padding(
+                                  padding: const EdgeInsets.all(20),
+                                  child: Row(
+                                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                    children: [
+                                      Column(
+                                        crossAxisAlignment: CrossAxisAlignment.start,
+                                        children: [
+                                          Text(
+                                            'In Progress',
+                                            style: TextStyle(
+                                              fontSize: 14,
+                                              color: Colors.grey[600],
+                                            ),
+                                          ),
+                                          const SizedBox(height: 8),
+                                          Text(
+                                            '${inProgressEvents.length}',
+                                            style: const TextStyle(
+                                              fontSize: 28,
+                                              fontWeight: FontWeight.bold,
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                      Icon(
+                                        Icons.play_circle_fill,
+                                        color: Colors.deepOrange,
+                                        size: 36,
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ),
+                              Container(
+                                width: 1,
+                                height: 80,
+                                color: Colors.grey[300],
+                              ),
+                              Expanded(
+                                child: Padding(
+                                  padding: const EdgeInsets.all(20),
+                                  child: Row(
+                                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                    children: [
+                                      Column(
+                                        crossAxisAlignment: CrossAxisAlignment.start,
+                                        children: [
+                                          Text(
+                                            'Today',
+                                            style: TextStyle(
+                                              fontSize: 14,
+                                              color: Colors.grey[600],
+                                            ),
+                                          ),
+                                          const SizedBox(height: 8),
+                                          Text(
+                                            '${todayEvents.length}',
+                                            style: const TextStyle(
+                                              fontSize: 28,
+                                              fontWeight: FontWeight.bold,
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                      Icon(
+                                        Icons.today,
+                                        color: Colors.teal,
                                         size: 36,
                                       ),
                                     ],

@@ -74,6 +74,23 @@ class _EventDetailsScreenState extends State<EventDetailsScreen> {
   Future<void> _updateStatus(EventStatus newStatus) async {
     if (_event == null) return;
 
+    // Validate status transition
+    final statusValidation = EventValidators.canChangeStatus(
+      _event!.status,
+      newStatus,
+    );
+    if (!statusValidation.isValid) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(statusValidation.errorMessage!),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+      return;
+    }
+
     try {
       final updatedEvent = _event!.copyWith(status: newStatus);
       await _eventService.updateEvent(updatedEvent);
@@ -93,6 +110,22 @@ class _EventDetailsScreenState extends State<EventDetailsScreen> {
   }
 
   Future<void> _deleteEvent() async {
+    if (_event == null) return;
+
+    // Validate that event can be deleted
+    final deleteValidation = EventValidators.canDeleteEvent(_event!);
+    if (!deleteValidation.isValid) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(deleteValidation.errorMessage!),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+      return;
+    }
+
     final confirm = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(

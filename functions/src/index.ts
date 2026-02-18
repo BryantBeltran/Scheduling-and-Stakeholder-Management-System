@@ -199,13 +199,13 @@ export const onUserDeleted = onDocumentDeleted(
       const eventsSnapshot = await admin
         .firestore()
         .collection("events")
-        .where("organizerId", "==", userId)
+        .where("ownerId", "==", userId)
         .get();
 
       eventsSnapshot.docs.forEach((doc) => {
         batch.update(doc.ref, {
-          organizerId: null,
-          organizerName: "Deleted User",
+          ownerId: null,
+          ownerName: "Deleted User",
         });
       });
 
@@ -598,31 +598,88 @@ export const onEventCreated = onDocumentCreated(
 );
 
 export const createEvent = onCall(async (request) => {
-  const {title, description, startTime, endTime, location, organizerId} =
-    request.data;
+  const {
+    title, description, startTime, endTime, location,
+    ownerId, ownerName, status, priority, stakeholderIds,
+    recurrenceRule, metadata,
+  } = request.data;
 
-  if (!title || !startTime || !organizerId) {
+  if (!title || !startTime || !ownerId) {
     throw new HttpsError(
       "invalid-argument",
-      "Title, start time, and organizer ID are required."
+      "Title, start time, and owner ID are required."
     );
   }
 
+  // Validate title length
+  if (title.length < 3 || title.length > 100) {
+    throw new HttpsError(
+      "invalid-argument",
+      "Title must be between 3 and 100 characters."
+    );
+  }
+
+  // Validate time range
+  if (endTime) {
+    const start = new Date(startTime);
+    const end = new Date(endTime);
+    if (end <= start) {
+      throw new HttpsError(
+        "invalid-argument",
+        "End time must be after start time."
+      );
+    }
+    const diffMs = end.getTime() - start.getTime();
+    if (diffMs < 5 * 60 * 1000) {
+      throw new HttpsError(
+        "invalid-argument",
+        "Event must be at least 5 minutes long."
+      );
+    }
+    if (diffMs > 30 * 24 * 60 * 60 * 1000) {
+      throw new HttpsError(
+        "invalid-argument",
+        "Event cannot be longer than 30 days."
+      );
+    }
+  }
+
   try {
+    // Build location object matching Flutter EventLocation model
+    const eventLocation = location && typeof location === "object"
+      ? {
+        name: location.name || "",
+        address: location.address || null,
+        latitude: location.latitude || null,
+        longitude: location.longitude || null,
+        isVirtual: location.isVirtual || false,
+        virtualLink: location.virtualLink || null,
+      }
+      : {
+        name: typeof location === "string" ? location : "",
+        address: null,
+        latitude: null,
+        longitude: null,
+        isVirtual: false,
+        virtualLink: null,
+      };
+
+    const now = new Date().toISOString();
     const eventRef = await admin.firestore().collection("events").add({
       title,
-      description: description || "",
-      startTime: admin.firestore.Timestamp.fromDate(new Date(startTime)),
-      endTime: endTime ?
-        admin.firestore.Timestamp.fromDate(new Date(endTime)) :
-        null,
-      location: location || "",
-      organizerId,
-      status: "scheduled",
-      priority: "medium",
-      stakeholderIds: [],
-      createdAt: admin.firestore.FieldValue.serverTimestamp(),
-      updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+      description: description || null,
+      startTime: startTime,
+      endTime: endTime || null,
+      location: eventLocation,
+      ownerId,
+      ownerName: ownerName || null,
+      status: status || "draft",
+      priority: priority || "medium",
+      stakeholderIds: stakeholderIds || [],
+      recurrenceRule: recurrenceRule || null,
+      metadata: metadata || null,
+      createdAt: now,
+      updatedAt: now,
     });
 
     logger.info(`Event created: ${title}`, {id: eventRef.id});
@@ -647,42 +704,149 @@ export const getEvent = onCall(async (request) => {
     }
     return {id: eventDoc.id, ...eventDoc.data()};
   } catch (error) {
+    if (error instanceof HttpsError) throw error;
     logger.error("Error getting event:", error);
     throw new HttpsError("internal", "Error getting event.", error);
   }
 });
 
+/**
+ * Get all events for the authenticated user
+ * Returns events where ownerId matches the caller's UID
+ */
+export const getAllEvents = onCall(async (request) => {
+  const callerUid = request.auth?.uid;
+
+  if (!callerUid) {
+    throw new HttpsError("unauthenticated", "Authentication required.");
+  }
+
+  try {
+    const snapshot = await admin
+      .firestore()
+      .collection("events")
+      .where("ownerId", "==", callerUid)
+      .get();
+
+    const events = snapshot.docs.map((doc) => ({
+      id: doc.id,
+      ...doc.data(),
+    }));
+
+    logger.info(`Events retrieved for user: ${callerUid}`, {
+      count: events.length,
+    });
+    return events;
+  } catch (error) {
+    logger.error("Error getting all events:", error);
+    throw new HttpsError("internal", "Error getting all events.", error);
+  }
+});
+
 export const updateEvent = onCall(async (request) => {
-  const {id, title, description, startTime, endTime, location, status} =
-    request.data;
+  const {
+    id, title, description, startTime, endTime, location,
+    status, priority, stakeholderIds, ownerName,
+    recurrenceRule, metadata,
+  } = request.data;
 
   if (!id) {
     throw new HttpsError("invalid-argument", "Event ID is required.");
   }
 
+  const callerUid = request.auth?.uid;
+  if (!callerUid) {
+    throw new HttpsError("unauthenticated", "Authentication required.");
+  }
+
   try {
+    // Verify ownership
+    const eventDoc = await admin
+      .firestore()
+      .collection("events")
+      .doc(id)
+      .get();
+
+    if (!eventDoc.exists) {
+      throw new HttpsError("not-found", "Event not found.");
+    }
+
+    const existingData = eventDoc.data();
+    if (existingData?.ownerId !== callerUid) {
+      throw new HttpsError(
+        "permission-denied",
+        "You do not have permission to update this event."
+      );
+    }
+
+    // Validate title if provided
+    if (title !== undefined) {
+      if (title.length < 3 || title.length > 100) {
+        throw new HttpsError(
+          "invalid-argument",
+          "Title must be between 3 and 100 characters."
+        );
+      }
+    }
+
     const updateData: Record<string, unknown> = {
-      updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+      updatedAt: new Date().toISOString(),
     };
 
-    if (title) updateData.title = title;
+    if (title !== undefined) updateData.title = title;
     if (description !== undefined) updateData.description = description;
-    if (startTime) {
-      updateData.startTime =
-        admin.firestore.Timestamp.fromDate(new Date(startTime));
+    if (startTime !== undefined) updateData.startTime = startTime;
+    if (endTime !== undefined) updateData.endTime = endTime;
+    if (ownerName !== undefined) updateData.ownerName = ownerName;
+    if (status !== undefined) updateData.status = status;
+    if (priority !== undefined) updateData.priority = priority;
+    if (stakeholderIds !== undefined) updateData.stakeholderIds = stakeholderIds;
+    if (recurrenceRule !== undefined) updateData.recurrenceRule = recurrenceRule;
+    if (metadata !== undefined) updateData.metadata = metadata;
+
+    // Handle location as object (matching Flutter EventLocation model)
+    if (location !== undefined) {
+      if (typeof location === "object" && location !== null) {
+        updateData.location = {
+          name: location.name || "",
+          address: location.address || null,
+          latitude: location.latitude || null,
+          longitude: location.longitude || null,
+          isVirtual: location.isVirtual || false,
+          virtualLink: location.virtualLink || null,
+        };
+      } else {
+        updateData.location = {
+          name: typeof location === "string" ? location : "",
+          address: null,
+          latitude: null,
+          longitude: null,
+          isVirtual: false,
+          virtualLink: null,
+        };
+      }
     }
-    if (endTime) {
-      updateData.endTime =
-        admin.firestore.Timestamp.fromDate(new Date(endTime));
+
+    // Validate time range if both times are provided
+    const finalStart = (startTime || existingData?.startTime) as string;
+    const finalEnd = (endTime || existingData?.endTime) as string;
+    if (finalStart && finalEnd) {
+      const start = new Date(finalStart);
+      const end = new Date(finalEnd);
+      if (end <= start) {
+        throw new HttpsError(
+          "invalid-argument",
+          "End time must be after start time."
+        );
+      }
     }
-    if (location !== undefined) updateData.location = location;
-    if (status) updateData.status = status;
 
     await admin.firestore().collection("events").doc(id).update(updateData);
 
     logger.info(`Event updated: ${id}`);
     return {success: true};
   } catch (error) {
+    if (error instanceof HttpsError) throw error;
     logger.error("Error updating event:", error);
     throw new HttpsError("internal", "Error updating event.", error);
   }
@@ -695,11 +859,77 @@ export const deleteEvent = onCall(async (request) => {
     throw new HttpsError("invalid-argument", "Event ID is required.");
   }
 
+  const callerUid = request.auth?.uid;
+  if (!callerUid) {
+    throw new HttpsError("unauthenticated", "Authentication required.");
+  }
+
   try {
-    await admin.firestore().collection("events").doc(id).delete();
+    // Verify ownership
+    const eventDoc = await admin
+      .firestore()
+      .collection("events")
+      .doc(id)
+      .get();
+
+    if (!eventDoc.exists) {
+      throw new HttpsError("not-found", "Event not found.");
+    }
+
+    const eventData = eventDoc.data();
+    if (eventData?.ownerId !== callerUid) {
+      throw new HttpsError(
+        "permission-denied",
+        "You do not have permission to delete this event."
+      );
+    }
+
+    const batch = admin.firestore().batch();
+
+    // Delete the event
+    batch.delete(admin.firestore().collection("events").doc(id));
+
+    // Clean up associated eventStakeholder relationships
+    const eventStakeholders = await admin
+      .firestore()
+      .collection("eventStakeholders")
+      .where("eventId", "==", id)
+      .get();
+
+    eventStakeholders.docs.forEach((doc) => {
+      batch.delete(doc.ref);
+    });
+
+    // Remove event from stakeholders' eventIds arrays
+    if (eventData?.stakeholderIds && eventData.stakeholderIds.length > 0) {
+      for (const stakeholderId of eventData.stakeholderIds) {
+        const stakeholderRef = admin
+          .firestore()
+          .collection("stakeholders")
+          .doc(stakeholderId);
+        batch.update(stakeholderRef, {
+          eventIds: admin.firestore.FieldValue.arrayRemove(id),
+        });
+      }
+    }
+
+    // Delete related notifications
+    const notifications = await admin
+      .firestore()
+      .collection("notifications")
+      .where("eventId", "==", id)
+      .get();
+
+    notifications.docs.forEach((doc) => {
+      batch.delete(doc.ref);
+    });
+
+    await batch.commit();
+
     logger.info(`Event deleted: ${id}`);
     return {success: true};
   } catch (error) {
+    if (error instanceof HttpsError) throw error;
     logger.error("Error deleting event:", error);
     throw new HttpsError("internal", "Error deleting event.", error);
   }

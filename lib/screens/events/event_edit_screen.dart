@@ -223,6 +223,35 @@ class _EventEditScreenState extends State<EventEditScreen> {
       return;
     }
 
+    // Validate status change using EventValidators
+    if (_selectedStatus != widget.event.status) {
+      final statusValidation = EventValidators.canChangeStatus(
+        widget.event.status,
+        _selectedStatus,
+      );
+      if (!statusValidation.isValid) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(statusValidation.errorMessage!),
+            backgroundColor: Colors.red,
+          ),
+        );
+        return;
+      }
+    }
+
+    // Validate stakeholders
+    final stakeholderValidation = EventValidators.validateStakeholders(_selectedStakeholderIds);
+    if (!stakeholderValidation.isValid) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(stakeholderValidation.errorMessage!),
+          backgroundColor: Colors.red,
+        ),
+      );
+      return;
+    }
+
     setState(() => _isLoading = true);
 
     try {
@@ -237,9 +266,7 @@ class _EventEditScreenState extends State<EventEditScreen> {
         startTime: startDateTime,
         endTime: endDateTime,
         location: EventLocation(
-          name: _isVirtualLocation 
-              ? _locationController.text.trim() 
-              : 'In-Person Location',
+          name: _locationController.text.trim(),
           address: !_isVirtualLocation ? _locationController.text.trim() : null,
           isVirtual: _isVirtualLocation,
           virtualLink: _isVirtualLocation ? _virtualLinkController.text.trim() : null,
@@ -328,18 +355,7 @@ class _EventEditScreenState extends State<EventEditScreen> {
                       TextFormField(
                         controller: _titleController,
                         decoration: _buildInputDecoration('Enter event title'),
-                        validator: (value) {
-                          if (value == null || value.trim().isEmpty) {
-                            return 'Please enter a title';
-                          }
-                          if (value.trim().length < 3) {
-                            return 'Title must be at least 3 characters';
-                          }
-                          if (value.trim().length > 100) {
-                            return 'Title must be less than 100 characters';
-                          }
-                          return null;
-                        },
+                        validator: EventValidators.titleValidator,
                       ),
                       const SizedBox(height: 24),
 
@@ -440,12 +456,7 @@ class _EventEditScreenState extends State<EventEditScreen> {
                         decoration: _buildInputDecoration('Write your event description'),
                         maxLines: 4,
                         maxLength: 500,
-                        validator: (value) {
-                          if (value != null && value.length > 500) {
-                            return 'Description must be less than 500 characters';
-                          }
-                          return null;
-                        },
+                        validator: EventValidators.descriptionValidator,
                       ),
                       const SizedBox(height: 24),
 
