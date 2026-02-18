@@ -111,6 +111,9 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
         );
       }
 
+      // Trigger branded welcome email via Cloud Function
+      await _inviteService.notifyOnboardingComplete();
+
       if (mounted) {
         // Navigate to home screen
         Navigator.of(context).pushNamedAndRemoveUntil(

@@ -22,9 +22,13 @@ import 'screens/events/event_details_screen.dart';
 import 'screens/events/event_edit_screen.dart';
 import 'screens/stakeholders/stakeholder_details_screen.dart';
 import 'screens/admin/user_management_screen.dart';
+import 'screens/profile/notifications_screen.dart';
 import 'widgets/protected_route.dart';
 import 'services/services.dart';
 import 'models/models.dart';
+
+/// Global navigator key for push notification navigation.
+final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
 
 /// Main application widget that configures theming and routing.
 /// 
@@ -43,11 +47,13 @@ class SchedulingApp extends StatelessWidget {
       theme: AppTheme.lightTheme,
       darkTheme: AppTheme.darkTheme,
       themeMode: ThemeMode.light,
+      navigatorKey: navigatorKey,
       home: const AuthWrapper(),
       routes: {
         '/login': (context) => const LoginScreen(),
         '/forgot-password': (context) => const ForgotPasswordScreen(),
         '/home': (context) => const HomeScreen(),
+        '/notifications': (context) => const NotificationsScreen(),
         '/event/create': (context) => const EventCreateScreen(),
       },
       onGenerateRoute: (settings) {
@@ -162,6 +168,15 @@ class AuthWrapper extends StatefulWidget {
 class _AuthWrapperState extends State<AuthWrapper> {
   final _authService = AuthService();
   final _userService = UserService();
+  final _notificationService = NotificationService();
+  final _pushService = PushNotificationService();
+
+  @override
+  void initState() {
+    super.initState();
+    // Initialize push notifications
+    _pushService.initialize(navigatorKey);
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -169,7 +184,7 @@ class _AuthWrapperState extends State<AuthWrapper> {
     
     // In dev mode, always start at login screen to allow testing all screens
     if (config.isDev) {
-      debugPrint('🔓 Dev mode: Starting at login screen');
+      debugPrint('Dev mode: Starting at login screen');
       return const DevModeWrapper(child: LoginScreen());
     }
     
@@ -188,6 +203,14 @@ class _AuthWrapperState extends State<AuthWrapper> {
         // Show home if authenticated, otherwise show login
         if (snapshot.hasData && snapshot.data != null) {
           final user = snapshot.data!;
+
+          // Start listening to in-app notifications
+          _notificationService.startListening(user.id);
+
+          // Register FCM token and request permission
+          _pushService.requestPermission().then((_) {
+            _pushService.registerToken(user.id);
+          });
           
           // Check if new user needs onboarding
           return FutureBuilder<bool>(

@@ -78,6 +78,13 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
                   if (!notification.isRead) {
                     _notificationService.markAsRead(notification.id);
                   }
+                  // Navigate to event if notification has a linked event
+                  if (notification.hasLinkedEvent) {
+                    Navigator.of(context).pushNamed(
+                      '/event/details',
+                      arguments: notification.eventId,
+                    );
+                  }
                 },
                 onDismissed: () {
                   _notificationService.deleteNotification(notification.id);
@@ -185,6 +192,13 @@ class _NotificationTile extends StatelessWidget {
                   ],
                 ),
               ),
+              // Show chevron for event-linked notifications
+              if (notification.hasLinkedEvent)
+                Icon(
+                  Icons.chevron_right,
+                  color: Colors.grey[400],
+                  size: 20,
+                ),
             ],
           ),
         ),
@@ -193,6 +207,24 @@ class _NotificationTile extends StatelessWidget {
   }
 
   IconData _getNotificationIcon(String title) {
+    // Also check notification type for better icon mapping
+    final type = notification.type;
+    switch (type) {
+      case app.NotificationType.welcome:
+        return Icons.celebration;
+      case app.NotificationType.eventAssignment:
+        return Icons.event_available;
+      case app.NotificationType.eventReminder:
+        return Icons.alarm;
+      case app.NotificationType.eventUpdate:
+        return Icons.update;
+      case app.NotificationType.inviteAccepted:
+        return Icons.how_to_reg;
+      case app.NotificationType.general:
+        // Fall through to title-based matching
+        break;
+    }
+
     final lower = title.toLowerCase();
     if (lower.contains('welcome')) return Icons.celebration;
     if (lower.contains('event')) return Icons.event;

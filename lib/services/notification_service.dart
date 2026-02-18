@@ -74,6 +74,9 @@ class NotificationService {
             userId: data['userId'] as String? ?? '',
             createdAt: (data['createdAt'] as Timestamp?)?.toDate() ?? DateTime.now(),
             isRead: data['isRead'] as bool? ?? false,
+            type: app.parseNotificationType(data['type'] as String?),
+            eventId: data['eventId'] as String?,
+            data: data['data'] as Map<String, dynamic>?,
           );
         }).toList();
 

@@ -37,6 +37,7 @@ import '../events/event_list_screen.dart';
 import '../stakeholders/stakeholder_list_screen.dart';
 import '../stakeholders/stakeholder_dashboard_screen.dart';
 import '../profile/profile_screen.dart';
+import '../profile/notifications_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -133,6 +134,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
   List<StakeholderModel> _stakeholders = [];
   final EventService _eventService = EventService();
   final StakeholderService _stakeholderService = StakeholderService();
+  final NotificationService _notificationService = NotificationService();
   
   @override
   void initState() {
@@ -190,12 +192,27 @@ class _DashboardScreenState extends State<DashboardScreen> {
         backgroundColor: Colors.white,
         foregroundColor: Colors.black,
         actions: [
-          IconButton(
-            icon: const Icon(Icons.notifications_outlined),
-            onPressed: () {
-              // TODO: Show notifications
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(content: Text('Notifications coming soon!')),
+          StreamBuilder<int>(
+            stream: _notificationService.unreadCountStream,
+            initialData: _notificationService.unreadCount,
+            builder: (context, snapshot) {
+              final unreadCount = snapshot.data ?? 0;
+              return IconButton(
+                icon: Badge(
+                  isLabelVisible: unreadCount > 0,
+                  label: Text(
+                    unreadCount > 99 ? '99+' : '$unreadCount',
+                    style: const TextStyle(fontSize: 10),
+                  ),
+                  child: const Icon(Icons.notifications_outlined),
+                ),
+                onPressed: () {
+                  Navigator.of(context).push(
+                    MaterialPageRoute(
+                      builder: (_) => const NotificationsScreen(),
+                    ),
+                  );
+                },
               );
             },
           ),
