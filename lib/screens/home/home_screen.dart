@@ -527,6 +527,77 @@ class _DashboardScreenState extends State<DashboardScreen> {
                         if (authSnapshot.data?.isStakeholder == true)
                           const SizedBox(height: 20),
                         
+                        // Today's Events Section
+                        if (todayEvents.isNotEmpty) ...[
+                          Card(
+                            elevation: 0,
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(12),
+                              side: BorderSide(color: Colors.teal.withValues(alpha: 0.3)),
+                            ),
+                            color: Colors.teal.withValues(alpha: 0.05),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Padding(
+                                  padding: const EdgeInsets.fromLTRB(20, 20, 20, 16),
+                                  child: Row(
+                                    children: [
+                                      Icon(Icons.today, color: Colors.teal, size: 22),
+                                      const SizedBox(width: 8),
+                                      const Text(
+                                        "Today's Events",
+                                        style: TextStyle(
+                                          fontSize: 18,
+                                          fontWeight: FontWeight.bold,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                                ...todayEvents.map((event) => ListTile(
+                                  leading: CircleAvatar(
+                                    backgroundColor: _statusColor(event.status),
+                                    child: Icon(
+                                      _statusIcon(event.status),
+                                      color: Colors.white,
+                                      size: 18,
+                                    ),
+                                  ),
+                                  title: Text(
+                                    event.title,
+                                    style: const TextStyle(fontWeight: FontWeight.w600),
+                                  ),
+                                  subtitle: Text(
+                                    '${_formatTime(event.startTime)} - ${_formatTime(event.endTime)}',
+                                    style: TextStyle(color: Colors.grey[600]),
+                                  ),
+                                  trailing: Chip(
+                                    label: Text(
+                                      event.status.name[0].toUpperCase() + event.status.name.substring(1),
+                                      style: TextStyle(
+                                        fontSize: 11,
+                                        color: _statusColor(event.status),
+                                      ),
+                                    ),
+                                    backgroundColor: _statusColor(event.status).withValues(alpha: 0.1),
+                                    side: BorderSide.none,
+                                    padding: EdgeInsets.zero,
+                                    visualDensity: VisualDensity.compact,
+                                  ),
+                                  onTap: () => Navigator.pushNamed(
+                                    context,
+                                    '/event/details',
+                                    arguments: event.id,
+                                  ),
+                                )),
+                                const SizedBox(height: 8),
+                              ],
+                            ),
+                          ),
+                          const SizedBox(height: 20),
+                        ],
+
                         // Upcoming Events Section
                         Card(
                           elevation: 0,
@@ -582,6 +653,43 @@ class _DashboardScreenState extends State<DashboardScreen> {
         ),
       ),
     );
+  }
+
+  Color _statusColor(EventStatus status) {
+    switch (status) {
+      case EventStatus.draft:
+        return Colors.grey;
+      case EventStatus.scheduled:
+        return Colors.blue;
+      case EventStatus.inProgress:
+        return Colors.deepOrange;
+      case EventStatus.completed:
+        return Colors.green;
+      case EventStatus.cancelled:
+        return Colors.red;
+    }
+  }
+
+  IconData _statusIcon(EventStatus status) {
+    switch (status) {
+      case EventStatus.draft:
+        return Icons.edit_note;
+      case EventStatus.scheduled:
+        return Icons.schedule;
+      case EventStatus.inProgress:
+        return Icons.play_arrow;
+      case EventStatus.completed:
+        return Icons.check;
+      case EventStatus.cancelled:
+        return Icons.cancel;
+    }
+  }
+
+  String _formatTime(DateTime time) {
+    final hour = time.hour % 12 == 0 ? 12 : time.hour % 12;
+    final minute = time.minute.toString().padLeft(2, '0');
+    final period = time.hour < 12 ? 'AM' : 'PM';
+    return '$hour:$minute $period';
   }
 
   Widget _buildStakeholderDashboardCard(BuildContext context) {

@@ -646,16 +646,16 @@ export const createEvent = onCall(async (request) => {
 
   try {
     // Build location object matching Flutter EventLocation model
-    const eventLocation = location && typeof location === "object"
-      ? {
+    const eventLocation = location && typeof location === "object" ?
+      {
         name: location.name || "",
         address: location.address || null,
         latitude: location.latitude || null,
         longitude: location.longitude || null,
         isVirtual: location.isVirtual || false,
         virtualLink: location.virtualLink || null,
-      }
-      : {
+      } :
+      {
         name: typeof location === "string" ? location : "",
         address: null,
         latitude: null,
@@ -800,8 +800,12 @@ export const updateEvent = onCall(async (request) => {
     if (ownerName !== undefined) updateData.ownerName = ownerName;
     if (status !== undefined) updateData.status = status;
     if (priority !== undefined) updateData.priority = priority;
-    if (stakeholderIds !== undefined) updateData.stakeholderIds = stakeholderIds;
-    if (recurrenceRule !== undefined) updateData.recurrenceRule = recurrenceRule;
+    if (stakeholderIds !== undefined) {
+      updateData.stakeholderIds = stakeholderIds;
+    }
+    if (recurrenceRule !== undefined) {
+      updateData.recurrenceRule = recurrenceRule;
+    }
     if (metadata !== undefined) updateData.metadata = metadata;
 
     // Handle location as object (matching Flutter EventLocation model)
