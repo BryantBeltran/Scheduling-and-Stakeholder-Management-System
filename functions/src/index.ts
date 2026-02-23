@@ -13,7 +13,12 @@ import * as nodemailer from "nodemailer";
 admin.initializeApp();
 
 // For cost control, set maximum concurrent instances
-setGlobalOptions({maxInstances: 10});
+// SMTP secrets injected from Firebase Secret Manager in production;
+// falls back to functions/.env for local development.
+setGlobalOptions({
+  maxInstances: 10,
+  secrets: ["SMTP_HOST", "SMTP_PORT", "SMTP_USER", "SMTP_PASS", "SMTP_FROM"],
+});
 
 // =============================================================================
 // EMAIL CONFIGURATION
@@ -79,7 +84,7 @@ async function sendInviteEmail(
   }
 
   const inviteLink = `https://ssms.app/invite?token=${inviteToken}`;
-  const senderEmail = process.env.SMTP_USER || "noreply@ssms.app";
+  const senderEmail = process.env.SMTP_FROM || "onboarding@resend.com";
   const recipientName = stakeholderName || "there";
 
   try {
@@ -155,7 +160,7 @@ async function sendPasswordResetMail(
     return false;
   }
 
-  const senderEmail = process.env.SMTP_USER || "noreply@ssms.app";
+  const senderEmail = process.env.SMTP_FROM || "onboarding@resend.dev";
   const recipientName = displayName || "there";
 
   try {
@@ -230,7 +235,7 @@ async function sendWelcomeEmail(
     return false;
   }
 
-  const senderEmail = process.env.SMTP_USER || "noreply@ssms.app";
+  const senderEmail = process.env.SMTP_FROM || "onboarding@resend.dev";
   const name = displayName || "there";
 
   try {
@@ -1248,12 +1253,43 @@ export const deleteStakeholder = onCall(async (request) => {
 
 export const inviteStakeholder = onCall(async (request) => {
   const {stakeholderId, defaultRole} = request.data;
+  const callerUid = request.auth?.uid;
+
+  if (!callerUid) {
+    throw new HttpsError("unauthenticated", "Authentication required.");
+  }
 
   if (!stakeholderId) {
     throw new HttpsError(
       "invalid-argument",
       "Stakeholder ID is required."
     );
+  }
+
+  // Check invite permission
+  const canInvite = await hasPermission(
+    callerUid, PERMISSIONS.inviteStakeholder
+  );
+  if (!canInvite) {
+    throw new HttpsError(
+      "permission-denied",
+      "You don't have permission to invite stakeholders."
+    );
+  }
+
+  // Non-admins (e.g. managers) may only assign member or viewer roles
+  const callerDoc = await admin
+    .firestore().collection("users").doc(callerUid).get();
+  const callerRole = callerDoc.data()?.role;
+  const resolvedRole = defaultRole || "member";
+
+  if (callerRole !== "admin") {
+    if (!["member", "viewer"].includes(resolvedRole)) {
+      throw new HttpsError(
+        "permission-denied",
+        "You can only invite stakeholders as member or viewer."
+      );
+    }
   }
 
   try {
@@ -1280,7 +1316,7 @@ export const inviteStakeholder = onCall(async (request) => {
       inviteStatus: "pending",
       invitedAt: admin.firestore.FieldValue.serverTimestamp(),
       inviteToken: inviteToken,
-      defaultRole: defaultRole || "member",
+      defaultRole: resolvedRole,
       updatedAt: admin.firestore.FieldValue.serverTimestamp(),
     });
 
@@ -1288,7 +1324,7 @@ export const inviteStakeholder = onCall(async (request) => {
     await admin.firestore().collection("invites").doc(inviteToken).set({
       stakeholderId: stakeholderId,
       email: stakeholderData.email,
-      defaultRole: defaultRole || "member",
+      defaultRole: resolvedRole,
       createdAt: admin.firestore.FieldValue.serverTimestamp(),
       expiresAt: admin.firestore.Timestamp.fromDate(
         new Date(Date.now() + 7 * 24 * 60 * 60 * 1000) // 7 days
@@ -2282,6 +2318,22 @@ export const resendInvite = onCall(async (request) => {
       );
     }
 
+    // Non-admins (e.g. managers) may only resend invites
+    // for member or viewer roles
+    const callerDoc = await admin
+      .firestore().collection("users").doc(callerUid).get();
+    const callerRole = callerDoc.data()?.role;
+    const existingRole = stakeholderData.defaultRole || "member";
+
+    if (callerRole !== "admin") {
+      if (!["member", "viewer"].includes(existingRole)) {
+        throw new HttpsError(
+          "permission-denied",
+          "You can only resend invites for member or viewer stakeholders."
+        );
+      }
+    }
+
     // Expire old invite if it exists
     const oldToken = stakeholderData.inviteToken;
     if (oldToken) {
@@ -2579,6 +2631,16 @@ async function hasPermission(
 
     const userData = userDoc.data();
     const permissions = userData?.permissions || [];
+
+    // Admin role and root permission bypass all permission checks
+    if (
+      userData?.role === "admin" ||
+      permissions.includes(PERMISSIONS.admin) ||
+      permissions.includes(PERMISSIONS.root)
+    ) {
+      return true;
+    }
+
     return permissions.includes(permission);
   } catch (error) {
     logger.error(`Error checking permission for user ${userId}:`, error);
