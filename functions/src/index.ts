@@ -13,8 +13,7 @@ import * as nodemailer from "nodemailer";
 admin.initializeApp();
 
 // For cost control, set maximum concurrent instances
-// SMTP secrets injected from Firebase Secret Manager in production;
-// falls back to functions/.env for local development.
+// SMTP credentials injected from Firebase Secret Manager
 setGlobalOptions({
   maxInstances: 10,
   secrets: ["SMTP_HOST", "SMTP_PORT", "SMTP_USER", "SMTP_PASS", "SMTP_FROM"],
