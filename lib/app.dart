@@ -23,6 +23,7 @@ import 'screens/events/event_edit_screen.dart';
 import 'screens/stakeholders/stakeholder_details_screen.dart';
 import 'screens/admin/user_management_screen.dart';
 import 'screens/profile/notifications_screen.dart';
+import 'screens/profile/notification_preferences_screen.dart';
 import 'widgets/protected_route.dart';
 import 'services/services.dart';
 import 'models/models.dart';
@@ -54,6 +55,7 @@ class SchedulingApp extends StatelessWidget {
         '/forgot-password': (context) => const ForgotPasswordScreen(),
         '/home': (context) => const HomeScreen(),
         '/notifications': (context) => const NotificationsScreen(),
+        '/notification-preferences': (context) => const NotificationPreferencesScreen(),
         '/event/create': (context) => const EventCreateScreen(),
       },
       onGenerateRoute: (settings) {

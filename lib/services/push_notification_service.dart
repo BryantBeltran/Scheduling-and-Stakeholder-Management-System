@@ -264,7 +264,7 @@ class PushNotificationService {
 
   /// Handle FCM messages received while the app is in the foreground.
   ///
-  /// Displays a local notification banner so the user sees it immediately.
+  /// Shows both a local system notification banner AND an in-app overlay toast.
   void _handleForegroundMessage(RemoteMessage message) {
     debugPrint('Foreground FCM: ${message.notification?.title}');
 
@@ -274,6 +274,7 @@ class PushNotificationService {
     final type = message.data['type'] ?? 'general';
     final isReminder = type == 'event_reminder';
 
+    // System notification banner (flutter_local_notifications)
     _localNotifications.show(
       message.hashCode,
       notification.title ?? 'SSMS',
@@ -294,6 +295,46 @@ class PushNotificationService {
       ),
       payload: jsonEncode(message.data),
     );
+
+    // In-app overlay toast
+    _showInAppToast(
+      title: notification.title ?? 'SSMS',
+      body: notification.body ?? '',
+      data: message.data,
+    );
+  }
+
+  /// Show a dismissible in-app banner toast over the current screen.
+  ///
+  /// Auto-dismisses after 4 seconds. Tapping it navigates using the same
+  /// logic as a regular notification tap.
+  void _showInAppToast({
+    required String title,
+    required String body,
+    required Map<String, dynamic> data,
+  }) {
+    final overlay = _navigatorKey?.currentState?.overlay;
+    if (overlay == null) return;
+
+    late OverlayEntry entry;
+    entry = OverlayEntry(
+      builder: (context) => _InAppNotificationToast(
+        title: title,
+        body: body,
+        onTap: () {
+          entry.remove();
+          _navigateFromPayload(data);
+        },
+        onDismiss: () => entry.remove(),
+      ),
+    );
+
+    overlay.insert(entry);
+
+    // Auto-remove after 4 seconds
+    Future.delayed(const Duration(seconds: 4), () {
+      if (entry.mounted) entry.remove();
+    });
   }
 
   /// Handle notification tap when app was in background.
@@ -463,5 +504,128 @@ class PushNotificationService {
         'defaultReminderMinutes': 30,
       };
     }
+  }
+}
+
+// ---------------------------------------------------------------------------
+// IN-APP NOTIFICATION TOAST WIDGET
+// ---------------------------------------------------------------------------
+
+/// Animated in-app banner shown when a push notification arrives in the
+/// foreground. Slides down from the top and auto-dismisses after 4 seconds.
+class _InAppNotificationToast extends StatefulWidget {
+  final String title;
+  final String body;
+  final VoidCallback onTap;
+  final VoidCallback onDismiss;
+
+  const _InAppNotificationToast({
+    required this.title,
+    required this.body,
+    required this.onTap,
+    required this.onDismiss,
+  });
+
+  @override
+  State<_InAppNotificationToast> createState() => _InAppNotificationToastState();
+}
+
+class _InAppNotificationToastState extends State<_InAppNotificationToast>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _controller;
+  late final Animation<Offset> _slideAnimation;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 300),
+    );
+    _slideAnimation = Tween<Offset>(
+      begin: const Offset(0, -1),
+      end: Offset.zero,
+    ).animate(CurvedAnimation(parent: _controller, curve: Curves.easeOut));
+    _controller.forward();
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Positioned(
+      top: MediaQuery.of(context).padding.top + 8,
+      left: 16,
+      right: 16,
+      child: SlideTransition(
+        position: _slideAnimation,
+        child: Material(
+          elevation: 6,
+          borderRadius: BorderRadius.circular(12),
+          child: InkWell(
+            onTap: widget.onTap,
+            borderRadius: BorderRadius.circular(12),
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: Colors.grey.shade200),
+              ),
+              child: Row(
+                children: [
+                  Container(
+                    width: 36,
+                    height: 36,
+                    decoration: BoxDecoration(
+                      color: Colors.blue.shade50,
+                      shape: BoxShape.circle,
+                    ),
+                    child: Icon(Icons.notifications, color: Colors.blue.shade700, size: 20),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Text(
+                          widget.title,
+                          style: const TextStyle(
+                            fontWeight: FontWeight.w600,
+                            fontSize: 14,
+                          ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                        if (widget.body.isNotEmpty) ...[
+                          const SizedBox(height: 2),
+                          Text(
+                            widget.body,
+                            style: TextStyle(fontSize: 12, color: Colors.grey[600]),
+                            maxLines: 2,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ],
+                      ],
+                    ),
+                  ),
+                  IconButton(
+                    icon: Icon(Icons.close, size: 18, color: Colors.grey[500]),
+                    onPressed: widget.onDismiss,
+                    padding: EdgeInsets.zero,
+                    constraints: const BoxConstraints(),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
   }
 }

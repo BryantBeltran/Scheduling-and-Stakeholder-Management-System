@@ -12,6 +12,8 @@ class StakeholderListScreen extends StatefulWidget {
   State<StakeholderListScreen> createState() => _StakeholderListScreenState();
 }
 
+enum _SortOption { nameAZ, nameZA, type, status, dateNewest }
+
 class _StakeholderListScreenState extends State<StakeholderListScreen> {
   final _stakeholderService = StakeholderService();
   final _permissionService = PermissionService();
@@ -19,6 +21,7 @@ class _StakeholderListScreenState extends State<StakeholderListScreen> {
   List<StakeholderModel> _allStakeholders = [];
   List<StakeholderModel> _filteredStakeholders = [];
   StakeholderType? _filterType;
+  _SortOption _sortOption = _SortOption.nameAZ;
   bool _isLoading = true;
 
   /// Check if user can create stakeholders (based on permissions)
@@ -59,14 +62,14 @@ class _StakeholderListScreenState extends State<StakeholderListScreen> {
 
   void _filterStakeholders() {
     setState(() {
-      var stakeholders = _allStakeholders;
+      var stakeholders = List<StakeholderModel>.from(_allStakeholders);
 
       // Apply type filter
       if (_filterType != null) {
         stakeholders = stakeholders.where((s) => s.type == _filterType).toList();
       }
 
-      // Apply search filter (on already filtered list if type filter is active)
+      // Apply search filter
       if (_searchController.text.isNotEmpty) {
         final query = _searchController.text.toLowerCase();
         stakeholders = stakeholders.where((s) {
@@ -74,6 +77,21 @@ class _StakeholderListScreenState extends State<StakeholderListScreen> {
               s.email.toLowerCase().contains(query) ||
               (s.organization?.toLowerCase().contains(query) ?? false);
         }).toList();
+      }
+
+      // Apply sort
+      switch (_sortOption) {
+        case _SortOption.nameAZ:
+          stakeholders.sort((a, b) => a.name.compareTo(b.name));
+        case _SortOption.nameZA:
+          stakeholders.sort((a, b) => b.name.compareTo(a.name));
+        case _SortOption.type:
+          stakeholders.sort((a, b) => a.type.name.compareTo(b.type.name));
+        case _SortOption.status:
+          stakeholders.sort(
+              (a, b) => a.participationStatus.name.compareTo(b.participationStatus.name));
+        case _SortOption.dateNewest:
+          stakeholders.sort((a, b) => b.createdAt.compareTo(a.createdAt));
       }
 
       _filteredStakeholders = stakeholders;
@@ -149,12 +167,7 @@ class _StakeholderListScreenState extends State<StakeholderListScreen> {
                 ),
                 const SizedBox(width: 12),
                 OutlinedButton(
-                  onPressed: () {
-                    // TODO: Implement sort
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(content: Text('Sort coming soon!')),
-                    );
-                  },
+                  onPressed: _showSortDialog,
                   style: OutlinedButton.styleFrom(
                     padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                     shape: RoundedRectangleBorder(
@@ -292,6 +305,40 @@ class _StakeholderListScreenState extends State<StakeholderListScreen> {
           ),
         );
       },
+    );
+  }
+
+  void _showSortDialog() {
+    final options = <({_SortOption option, String label})>[
+      (option: _SortOption.nameAZ, label: 'Name A → Z'),
+      (option: _SortOption.nameZA, label: 'Name Z → A'),
+      (option: _SortOption.type, label: 'Type'),
+      (option: _SortOption.status, label: 'Participation Status'),
+      (option: _SortOption.dateNewest, label: 'Date Added (Newest)'),
+    ];
+
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Sort Stakeholders'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: options.map((entry) {
+            return RadioListTile<_SortOption>(
+              title: Text(entry.label),
+              value: entry.option,
+              groupValue: _sortOption,
+              onChanged: (value) {
+                if (value != null) {
+                  setState(() => _sortOption = value);
+                  _filterStakeholders();
+                }
+                Navigator.pop(context);
+              },
+            );
+          }).toList(),
+        ),
+      ),
     );
   }
 }

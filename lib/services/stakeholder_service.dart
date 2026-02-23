@@ -146,6 +146,15 @@ class StakeholderService {
     if (AppConfig.instance.useFirebase) {
       // Production: Save to Firestore
       try {
+        // Duplicate email check
+        final existing = await _stakeholdersCollection
+            .where('email', isEqualTo: stakeholder.email)
+            .limit(1)
+            .get();
+        if (existing.docs.isNotEmpty) {
+          throw Exception('A stakeholder with this email already exists.');
+        }
+
         final now = DateTime.now();
         final stakeholderData = stakeholder.toJson();
         stakeholderData.remove('id'); // Let Firestore generate the ID
@@ -153,15 +162,15 @@ class StakeholderService {
         stakeholderData['updatedAt'] = FieldValue.serverTimestamp();
 
         final docRef = await _stakeholdersCollection.add(stakeholderData);
-        
+
         debugPrint('[StakeholderService] Created stakeholder: ${docRef.id}');
-        
+
         final newStakeholder = stakeholder.copyWith(
           id: docRef.id,
           createdAt: now,
           updatedAt: now,
         );
-        
+
         return newStakeholder;
       } catch (e) {
         debugPrint('[StakeholderService] Error creating stakeholder: $e');
@@ -249,16 +258,10 @@ class StakeholderService {
 
   /// Assigns a stakeholder to an event.
   ///
-  /// Adds the event ID to the stakeholder's `eventIds` list if not already present.
-  /// Returns the updated stakeholder model.
-  ///
-  /// Throws an exception if the stakeholder is not found.
-  ///
-  /// Example:
-  /// ```dart
-  /// await stakeholderService.assignToEvent('sh_123', 'evt_456');
-  /// print('Stakeholder assigned to event');
-  /// ```
+  /// Performs a three-way write:
+  /// 1. Adds eventId to stakeholder.eventIds
+  /// 2. Adds stakeholderId to event.stakeholderIds
+  /// 3. Creates/updates eventStakeholders junction document
   Future<StakeholderModel> assignToEvent(String stakeholderId, String eventId) async {
     final stakeholder = await getStakeholderById(stakeholderId);
     if (stakeholder == null) throw Exception('Stakeholder not found');
@@ -267,19 +270,104 @@ class StakeholderService {
       return stakeholder;
     }
 
-    return updateStakeholder(stakeholder.copyWith(
-      eventIds: [...stakeholder.eventIds, eventId],
-    ));
+    if (AppConfig.instance.useFirebase) {
+      try {
+        final batch = _firestore.batch();
+
+        // 1. Update stakeholder.eventIds
+        batch.update(
+          _stakeholdersCollection.doc(stakeholderId),
+          {
+            'eventIds': FieldValue.arrayUnion([eventId]),
+            'updatedAt': FieldValue.serverTimestamp(),
+          },
+        );
+
+        // 2. Update event.stakeholderIds
+        batch.update(
+          _firestore.collection('events').doc(eventId),
+          {'stakeholderIds': FieldValue.arrayUnion([stakeholderId])},
+        );
+
+        // 3. Write junction document
+        final junctionId = '${eventId}_$stakeholderId';
+        batch.set(
+          _firestore.collection('eventStakeholders').doc(junctionId),
+          {
+            'eventId': eventId,
+            'stakeholderId': stakeholderId,
+            'assignedAt': FieldValue.serverTimestamp(),
+          },
+        );
+
+        await batch.commit();
+
+        debugPrint('[StakeholderService] Assigned $stakeholderId to event $eventId');
+
+        return stakeholder.copyWith(
+          eventIds: [...stakeholder.eventIds, eventId],
+          updatedAt: DateTime.now(),
+        );
+      } catch (e) {
+        debugPrint('[StakeholderService] Error assigning stakeholder to event: $e');
+        rethrow;
+      }
+    } else {
+      return updateStakeholder(stakeholder.copyWith(
+        eventIds: [...stakeholder.eventIds, eventId],
+      ));
+    }
   }
 
-  /// Remove stakeholder from event
+  /// Remove stakeholder from event.
+  ///
+  /// Reverses the three-way write performed by [assignToEvent].
   Future<StakeholderModel> removeFromEvent(String stakeholderId, String eventId) async {
     final stakeholder = await getStakeholderById(stakeholderId);
     if (stakeholder == null) throw Exception('Stakeholder not found');
 
-    return updateStakeholder(stakeholder.copyWith(
-      eventIds: stakeholder.eventIds.where((id) => id != eventId).toList(),
-    ));
+    if (AppConfig.instance.useFirebase) {
+      try {
+        final batch = _firestore.batch();
+
+        // 1. Remove eventId from stakeholder.eventIds
+        batch.update(
+          _stakeholdersCollection.doc(stakeholderId),
+          {
+            'eventIds': FieldValue.arrayRemove([eventId]),
+            'updatedAt': FieldValue.serverTimestamp(),
+          },
+        );
+
+        // 2. Remove stakeholderId from event.stakeholderIds
+        batch.update(
+          _firestore.collection('events').doc(eventId),
+          {'stakeholderIds': FieldValue.arrayRemove([stakeholderId])},
+        );
+
+        // 3. Delete junction document
+        final junctionId = '${eventId}_$stakeholderId';
+        batch.delete(
+          _firestore.collection('eventStakeholders').doc(junctionId),
+        );
+
+        await batch.commit();
+
+        debugPrint('[StakeholderService] Removed $stakeholderId from event $eventId');
+
+        return stakeholder.copyWith(
+          eventIds: stakeholder.eventIds.where((id) => id != eventId).toList(),
+          updatedAt: DateTime.now(),
+        );
+      } catch (e) {
+        debugPrint('[StakeholderService] Error removing stakeholder from event: $e');
+        rethrow;
+      }
+    } else {
+      return updateStakeholder(stakeholder.copyWith(
+        eventIds: stakeholder.eventIds.where((id) => id != eventId).toList(),
+      ));
+    }
   }
 
   /// Search stakeholders
