@@ -59,7 +59,9 @@ class AuthService {
 
   // Lazy Firebase instances - only accessed when useFirebase is true
   firebase_auth.FirebaseAuth get _firebaseAuth => firebase_auth.FirebaseAuth.instance;
-  GoogleSignIn get _googleSignIn => GoogleSignIn();
+  GoogleSignIn get _googleSignIn => GoogleSignIn(
+    serverClientId: '144390773762-6rv0ubtp9daq7buuko9plcpihifqrc96.apps.googleusercontent.com',
+  );
 
   void _initializeFirebaseAuth() {
     if (_firebaseAuthInitialized) return;

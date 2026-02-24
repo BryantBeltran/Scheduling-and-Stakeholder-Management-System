@@ -82,7 +82,7 @@ async function sendInviteEmail(
     return false;
   }
 
-  const senderEmail = process.env.SMTP_FROM || "onboarding@resend.dev";
+  const senderEmail = process.env.SMTP_FROM || "no-reply@managemateapp.me";
   const recipientName = stakeholderName || "there";
 
   try {
@@ -154,7 +154,7 @@ async function sendPasswordResetMail(
     return false;
   }
 
-  const senderEmail = process.env.SMTP_FROM || "onboarding@resend.dev";
+  const senderEmail = process.env.SMTP_FROM || "no-reply@managemateapp.me";
   const recipientName = displayName || "there";
 
   try {
@@ -229,7 +229,7 @@ async function sendWelcomeEmail(
     return false;
   }
 
-  const senderEmail = process.env.SMTP_FROM || "onboarding@resend.dev";
+  const senderEmail = process.env.SMTP_FROM || "no-reply@managemateapp.me";
   const name = displayName || "there";
 
   try {

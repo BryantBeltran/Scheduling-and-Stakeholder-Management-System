@@ -1,24 +1,43 @@
 import 'package:firebase_core/firebase_core.dart';
+import 'package:firebase_app_check/firebase_app_check.dart';
 import 'package:flutter/foundation.dart';
 
 /// Service for initializing and managing Firebase
 class FirebaseService {
   static FirebaseService? _instance;
   static FirebaseService get instance => _instance ??= FirebaseService._();
-  
+
   FirebaseService._();
-  
+
   bool _initialized = false;
   bool get isInitialized => _initialized;
-  
+
   /// Initialize Firebase for the app
   Future<void> initialize() async {
     if (_initialized) return;
-    
+
     try {
       await Firebase.initializeApp(
         options: _getFirebaseOptions(),
       );
+
+      // Initialize App Check to protect Firebase resources from abuse.
+      // Non-blocking: if App Check isn't registered in Firebase Console yet,
+      // the app still works — just without App Check protection.
+      try {
+        await FirebaseAppCheck.instance.activate(
+          androidProvider: kDebugMode
+              ? AndroidProvider.debug
+              : AndroidProvider.playIntegrity,
+          appleProvider: kDebugMode
+              ? AppleProvider.debug
+              : AppleProvider.deviceCheck,
+        );
+        debugPrint('Firebase App Check activated');
+      } catch (e) {
+        debugPrint('App Check activation failed (non-fatal): $e');
+      }
+
       _initialized = true;
       debugPrint('_______Firebase initialized successfully_____');
     } catch (e) {
