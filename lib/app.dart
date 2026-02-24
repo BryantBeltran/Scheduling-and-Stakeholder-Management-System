@@ -8,6 +8,7 @@
 // ==============================================================================
 
 import 'package:flutter/material.dart';
+import 'package:app_links/app_links.dart';
 import 'config/app_config.dart';
 import 'theme/app_theme.dart';
 import 'screens/auth/login_screen.dart';
@@ -172,12 +173,37 @@ class _AuthWrapperState extends State<AuthWrapper> {
   final _userService = UserService();
   final _notificationService = NotificationService();
   final _pushService = PushNotificationService();
+  final _appLinks = AppLinks();
 
   @override
   void initState() {
     super.initState();
-    // Initialize push notifications
     _pushService.initialize(navigatorKey);
+    _initDeepLinks();
+  }
+
+  void _initDeepLinks() {
+    // Handle link that cold-started the app
+    _appLinks.getInitialLink().then((uri) {
+      if (uri != null) _handleInviteLink(uri);
+    });
+
+    // Handle links while app is already running
+    _appLinks.uriLinkStream.listen((uri) {
+      _handleInviteLink(uri);
+    });
+  }
+
+  void _handleInviteLink(Uri uri) {
+    // Expected: ssms://invite?token=<token>
+    if (uri.host != 'invite') return;
+    final token = uri.queryParameters['token'];
+    if (token == null || token.isEmpty) return;
+
+    navigatorKey.currentState?.pushNamed(
+      '/register',
+      arguments: {'inviteToken': token},
+    );
   }
 
   @override

@@ -112,4 +112,6 @@ dependencies {
     implementation("com.google.firebase:firebase-firestore")
     implementation("com.google.firebase:firebase-storage")
     implementation("com.google.firebase:firebase-appcheck-playintegrity")
+    // Required for AndroidProvider.debug (used in non-release builds)
+    debugImplementation("com.google.firebase:firebase-appcheck-debug")
 }

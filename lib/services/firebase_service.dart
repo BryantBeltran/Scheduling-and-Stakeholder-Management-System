@@ -2,6 +2,11 @@ import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_app_check/firebase_app_check.dart';
 import 'package:flutter/foundation.dart';
 
+// Use Play Integrity only for actual production releases (not profile/debug builds).
+// kDebugMode is false for both profile AND release, so we use kReleaseMode here
+// to avoid Play Integrity failures on sideloaded/non-Play-Store builds.
+const bool _useProductionAppCheck = kReleaseMode;
+
 /// Service for initializing and managing Firebase
 class FirebaseService {
   static FirebaseService? _instance;
@@ -26,12 +31,12 @@ class FirebaseService {
       // the app still works — just without App Check protection.
       try {
         await FirebaseAppCheck.instance.activate(
-          androidProvider: kDebugMode
-              ? AndroidProvider.debug
-              : AndroidProvider.playIntegrity,
-          appleProvider: kDebugMode
-              ? AppleProvider.debug
-              : AppleProvider.deviceCheck,
+          androidProvider: _useProductionAppCheck
+              ? AndroidProvider.playIntegrity
+              : AndroidProvider.debug,
+          appleProvider: _useProductionAppCheck
+              ? AppleProvider.deviceCheck
+              : AppleProvider.debug,
         );
         debugPrint('Firebase App Check activated');
       } catch (e) {

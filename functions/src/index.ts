@@ -86,6 +86,7 @@ async function sendInviteEmail(
   const recipientName = stakeholderName || "there";
 
   try {
+    const deepLink = `ssms://invite?token=${inviteToken}`;
     /* eslint-disable max-len */
     await transporter.sendMail({
       from: `"SSMS" <${senderEmail}>`,
@@ -100,26 +101,30 @@ async function sendInviteEmail(
             <h2 style="color: #333;">Hi ${recipientName}!</h2>
             <p style="color: #555; font-size: 16px; line-height: 1.6;">
               You've been invited to join the Scheduling &amp; Stakeholder Management System.
-              Download the SSMS app and use the invite code below to create your account.
+              Tap the button below to open the app and get started.
             </p>
-            <div style="background-color: #f4f4f4; border-radius: 8px; padding: 24px; margin: 32px 0; text-align: center;">
-              <p style="margin: 0 0 8px; color: #555; font-size: 14px;">Your invite code</p>
+            <div style="text-align: center; margin: 32px 0;">
+              <a href="${deepLink}" style="display: inline-block; background-color: #000; color: #fff; text-decoration: none; padding: 16px 40px; border-radius: 8px; font-size: 16px; font-weight: 700;">
+                Open SSMS &amp; Sign Up
+              </a>
+            </div>
+            <p style="color: #888; font-size: 13px; text-align: center; margin-bottom: 24px;">
+              If the button doesn&rsquo;t work, make sure the SSMS app is installed first.
+            </p>
+            <div style="background-color: #f4f4f4; border-radius: 8px; padding: 24px; margin: 24px 0; text-align: center;">
+              <p style="margin: 0 0 8px; color: #555; font-size: 14px;">Or enter this invite code manually in the app</p>
               <p style="margin: 0; font-family: monospace; font-size: 20px; font-weight: 700; letter-spacing: 2px; color: #000; word-break: break-all;">${inviteToken}</p>
             </div>
-            <ol style="color: #555; font-size: 15px; line-height: 2;">
-              <li>Download the <strong>SSMS</strong> app</li>
-              <li>Tap <strong>Sign Up</strong> on the login screen</li>
-              <li>Enter the invite code above when prompted</li>
-            </ol>
             <p style="color: #888; font-size: 13px; margin-top: 24px;">
-              This invite code expires in 7 days. If you didn&rsquo;t expect this email,
+              This invite expires in 7 days. If you didn&rsquo;t expect this email,
               you can safely ignore it.
             </p>
           </div>
         </div>
       `,
       text: `Hi ${recipientName}! You've been invited to join SSMS. ` +
-            "Download the app, tap Sign Up, and enter this invite code: " +
+            `Open the app directly: ${deepLink}\n\n` +
+            "Or open SSMS, tap Sign Up, and enter this invite code: " +
             `${inviteToken} — expires in 7 days.`,
     });
     /* eslint-enable max-len */
