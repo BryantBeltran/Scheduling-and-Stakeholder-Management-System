@@ -82,8 +82,7 @@ async function sendInviteEmail(
     return false;
   }
 
-  const inviteLink = `https://ssms.app/invite?token=${inviteToken}`;
-  const senderEmail = process.env.SMTP_FROM || "onboarding@resend.com";
+  const senderEmail = process.env.SMTP_FROM || "onboarding@resend.dev";
   const recipientName = stakeholderName || "there";
 
   try {
@@ -95,37 +94,33 @@ async function sendInviteEmail(
       html: `
         <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
           <div style="background-color: #000; color: #fff; padding: 24px; text-align: center;">
-            <h1 style="margin: 0; font-size: 24px;">Scheduling & Stakeholder Management</h1>
+            <h1 style="margin: 0; font-size: 24px;">Scheduling &amp; Stakeholder Management</h1>
           </div>
           <div style="padding: 32px 24px;">
             <h2 style="color: #333;">Hi ${recipientName}!</h2>
             <p style="color: #555; font-size: 16px; line-height: 1.6;">
-              You've been invited to join the Scheduling & Stakeholder Management System.
-              Click the button below to create your account and get started.
+              You've been invited to join the Scheduling &amp; Stakeholder Management System.
+              Download the SSMS app and use the invite code below to create your account.
             </p>
-            <div style="text-align: center; margin: 32px 0;">
-              <a href="${inviteLink}"
-                 style="background-color: #000; color: #fff; padding: 14px 32px;
-                        text-decoration: none; border-radius: 8px; font-size: 16px;
-                        font-weight: 600; display: inline-block;">
-                Accept Invitation
-              </a>
+            <div style="background-color: #f4f4f4; border-radius: 8px; padding: 24px; margin: 32px 0; text-align: center;">
+              <p style="margin: 0 0 8px; color: #555; font-size: 14px;">Your invite code</p>
+              <p style="margin: 0; font-family: monospace; font-size: 20px; font-weight: 700; letter-spacing: 2px; color: #000; word-break: break-all;">${inviteToken}</p>
             </div>
-            <p style="color: #888; font-size: 13px;">
-              This invitation expires in 7 days. If you didn't expect this email,
+            <ol style="color: #555; font-size: 15px; line-height: 2;">
+              <li>Download the <strong>SSMS</strong> app</li>
+              <li>Tap <strong>Sign Up</strong> on the login screen</li>
+              <li>Enter the invite code above when prompted</li>
+            </ol>
+            <p style="color: #888; font-size: 13px; margin-top: 24px;">
+              This invite code expires in 7 days. If you didn&rsquo;t expect this email,
               you can safely ignore it.
-            </p>
-            <hr style="border: none; border-top: 1px solid #eee; margin: 24px 0;" />
-            <p style="color: #999; font-size: 12px;">
-              If the button doesn't work, copy and paste this link into your browser:<br/>
-              <a href="${inviteLink}" style="color: #666;">${inviteLink}</a>
             </p>
           </div>
         </div>
       `,
       text: `Hi ${recipientName}! You've been invited to join SSMS. ` +
-            `Click here to create your account: ${inviteLink} ` +
-            "This invitation expires in 7 days.",
+            "Download the app, tap Sign Up, and enter this invite code: " +
+            `${inviteToken} — expires in 7 days.`,
     });
     /* eslint-enable max-len */
 
@@ -1655,6 +1650,37 @@ async function sendPushAndInAppNotification(
   eventId: string | null = null,
   extraData: Record<string, string> = {}
 ): Promise<void> {
+  // Fetch user doc once — needed for settings checks and FCM tokens
+  const userDoc = await admin
+    .firestore()
+    .collection("users")
+    .doc(userId)
+    .get();
+  const userData = userDoc.data();
+  const userSettings =
+    (userData?.settings ?? {}) as Record<string, unknown>;
+
+  // Respect type-specific notification preferences.
+  // If a category is disabled, skip both in-app and push.
+  if (
+    type === "event_reminder" &&
+    userSettings.eventReminders === false
+  ) {
+    logger.info(
+      `Event reminders disabled for user ${userId}, skipping.`
+    );
+    return;
+  }
+  if (
+    ["event_assignment", "event_update"].includes(type) &&
+    userSettings.stakeholderUpdates === false
+  ) {
+    logger.info(
+      `Stakeholder updates disabled for user ${userId}, skipping.`
+    );
+    return;
+  }
+
   // 1. Create Firestore in-app notification
   await admin.firestore().collection("notifications").add({
     userId,
@@ -1667,13 +1693,15 @@ async function sendPushAndInAppNotification(
   });
 
   // 2. Send FCM push notification
+  // Skip FCM if the user has disabled push notifications entirely.
+  if (userSettings.pushNotifications === false) {
+    logger.info(
+      `Push notifications disabled for user ${userId}, skipping FCM.`
+    );
+    return;
+  }
+
   try {
-    const userDoc = await admin
-      .firestore()
-      .collection("users")
-      .doc(userId)
-      .get();
-    const userData = userDoc.data();
     const fcmTokens: string[] = userData?.fcmTokens || [];
 
     if (fcmTokens.length === 0) {

@@ -173,10 +173,21 @@ class PushNotificationService {
   /// Request notification permissions from the user.
   ///
   /// Returns true if permission was granted (or already granted).
+  /// Only shows the OS prompt if permission has not yet been determined.
   Future<bool> requestPermission() async {
     if (!AppConfig.instance.useFirebase) return false;
 
     try {
+      // Check current status — avoid re-prompting on every login.
+      final current = await _messaging.getNotificationSettings();
+      if (current.authorizationStatus != AuthorizationStatus.notDetermined) {
+        final granted =
+            current.authorizationStatus == AuthorizationStatus.authorized ||
+                current.authorizationStatus == AuthorizationStatus.provisional;
+        debugPrint('Notification permission (cached): ${current.authorizationStatus}');
+        return granted;
+      }
+
       final settings = await _messaging.requestPermission(
         alert: true,
         announcement: false,

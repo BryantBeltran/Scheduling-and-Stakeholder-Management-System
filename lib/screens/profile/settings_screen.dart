@@ -104,6 +104,25 @@ class _SettingsScreenState extends State<SettingsScreen> {
     _saveSettings();
   }
 
+  /// Handles the Push Notifications toggle.
+  ///
+  /// Saves the preference to Firestore AND unregisters/re-registers
+  /// the FCM token so the device actually stops/starts receiving pushes.
+  Future<void> _handlePushNotificationsToggle(bool value) async {
+    setState(() => _pushNotifications = value);
+    _saveSettings();
+
+    final user = AuthService().currentUser;
+    if (user == null) return;
+
+    if (value) {
+      await PushNotificationService().requestPermission();
+      await PushNotificationService().registerToken(user.id);
+    } else {
+      await PushNotificationService().unregisterToken(user.id);
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     if (_isLoading) {
@@ -149,9 +168,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
             title: 'Push Notifications',
             subtitle: 'Receive push notifications on your device',
             value: _pushNotifications,
-            onChanged: (value) {
-              _updateSetting(() => _pushNotifications = value);
-            },
+            onChanged: _handlePushNotificationsToggle,
           ),
           _SwitchTile(
             title: 'Event Reminders',

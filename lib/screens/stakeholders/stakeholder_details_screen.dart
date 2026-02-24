@@ -115,7 +115,9 @@ class _StakeholderDetailsScreenState extends State<StakeholderDetailsScreen> {
 
       if (!mounted) return;
 
-      if (result.success) {
+      if (result.success &&
+          result.inviteToken != null &&
+          result.email != null) {
         _showInviteSuccessDialog(
           result.inviteToken!,
           result.email!,
@@ -131,7 +133,9 @@ class _StakeholderDetailsScreenState extends State<StakeholderDetailsScreen> {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(
-              'Failed to resend invite: ${result.error}',
+              result.error != null
+                  ? 'Failed to resend invite: ${result.error}'
+                  : 'Resend failed — please try again.',
             ),
             backgroundColor: Colors.red,
           ),
@@ -198,8 +202,6 @@ class _StakeholderDetailsScreenState extends State<StakeholderDetailsScreen> {
   }
 
   void _showInviteSuccessDialog(String token, String email) {
-    final inviteLink = _inviteService.generateInviteLink(token);
-    
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
@@ -214,7 +216,7 @@ class _StakeholderDetailsScreenState extends State<StakeholderDetailsScreen> {
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Text('An invitation has been prepared for:'),
+            const Text('An invitation email has been sent to:'),
             const SizedBox(height: 8),
             Text(
               email,
@@ -222,7 +224,7 @@ class _StakeholderDetailsScreenState extends State<StakeholderDetailsScreen> {
             ),
             const SizedBox(height: 16),
             const Text(
-              'Share this link with them:',
+              'You can also share this invite code directly:',
               style: TextStyle(fontSize: 12, color: Colors.grey),
             ),
             const SizedBox(height: 8),
@@ -236,18 +238,22 @@ class _StakeholderDetailsScreenState extends State<StakeholderDetailsScreen> {
                 children: [
                   Expanded(
                     child: Text(
-                      inviteLink,
-                      style: const TextStyle(fontSize: 12),
+                      token,
+                      style: const TextStyle(
+                        fontSize: 13,
+                        fontFamily: 'monospace',
+                        letterSpacing: 0.5,
+                      ),
                       overflow: TextOverflow.ellipsis,
                     ),
                   ),
                   IconButton(
                     icon: const Icon(Icons.copy, size: 20),
                     onPressed: () {
-                      Clipboard.setData(ClipboardData(text: inviteLink));
+                      Clipboard.setData(ClipboardData(text: token));
                       ScaffoldMessenger.of(context).showSnackBar(
                         const SnackBar(
-                          content: Text('Link copied to clipboard!'),
+                          content: Text('Invite code copied!'),
                           duration: Duration(seconds: 2),
                         ),
                       );
