@@ -195,8 +195,9 @@ class _AuthWrapperState extends State<AuthWrapper> {
   }
 
   void _handleInviteLink(Uri uri) {
-    // Expected: ssms://invite?token=<token>
-    if (uri.host != 'invite') return;
+    // Expected: https://managemateapp.me/invite?token=<token>
+    if (uri.host != 'managemateapp.me') return;
+    if (!uri.path.startsWith('/invite')) return;
     final token = uri.queryParameters['token'];
     if (token == null || token.isEmpty) return;
 

@@ -86,7 +86,7 @@ async function sendInviteEmail(
   const recipientName = stakeholderName || "there";
 
   try {
-    const deepLink = `ssms://invite?token=${inviteToken}`;
+    const deepLink = `https://managemateapp.me/invite?token=${inviteToken}`;
     /* eslint-disable max-len */
     await transporter.sendMail({
       from: `"SSMS" <${senderEmail}>`,
@@ -111,10 +111,6 @@ async function sendInviteEmail(
             <p style="color: #888; font-size: 13px; text-align: center; margin-bottom: 24px;">
               If the button doesn&rsquo;t work, make sure the SSMS app is installed first.
             </p>
-            <div style="background-color: #f4f4f4; border-radius: 8px; padding: 24px; margin: 24px 0; text-align: center;">
-              <p style="margin: 0 0 8px; color: #555; font-size: 14px;">Or enter this invite code manually in the app</p>
-              <p style="margin: 0; font-family: monospace; font-size: 20px; font-weight: 700; letter-spacing: 2px; color: #000; word-break: break-all;">${inviteToken}</p>
-            </div>
             <p style="color: #888; font-size: 13px; margin-top: 24px;">
               This invite expires in 7 days. If you didn&rsquo;t expect this email,
               you can safely ignore it.
@@ -123,9 +119,8 @@ async function sendInviteEmail(
         </div>
       `,
       text: `Hi ${recipientName}! You've been invited to join SSMS. ` +
-            `Open the app directly: ${deepLink}\n\n` +
-            "Or open SSMS, tap Sign Up, and enter this invite code: " +
-            `${inviteToken} — expires in 7 days.`,
+            `Tap this link to open the app: ${deepLink}\n\n` +
+            "This invite expires in 7 days.",
     });
     /* eslint-enable max-len */
 
