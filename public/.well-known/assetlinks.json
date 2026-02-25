@@ -1,0 +1,10 @@
+[{
+  "relation": ["delegate_permission/common.handle_all_urls"],
+  "target": {
+    "namespace": "android_app",
+    "package_name": "com.example.scheduling_and_stakeholder_management_system",
+    "sha256_cert_fingerprints": [
+      "4C:71:54:8E:D9:AC:DD:EF:85:E8:52:20:8C:83:7F:2B:5F:67:BC:79:7F:99:A7:54:26:DB:9C:33:DB:D9:4A:52"
+    ]
+  }
+}]
