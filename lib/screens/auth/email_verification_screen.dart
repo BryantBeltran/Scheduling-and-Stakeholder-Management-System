@@ -89,9 +89,14 @@ class _EmailVerificationScreenState extends State<EmailVerificationScreen> {
       if (mounted) {
         setState(() => _resendMessage = 'Verification email sent!');
       }
+    } on AuthException catch (e) {
+      if (mounted) {
+        setState(() => _resendMessage = e.message);
+      }
     } catch (e) {
       if (mounted) {
-        setState(() => _resendMessage = 'Failed to resend. Please try again.');
+        setState(() =>
+            _resendMessage = 'Failed to send verification email. Check your network.');
       }
     } finally {
       if (mounted) setState(() => _isResending = false);

@@ -546,22 +546,41 @@ class AuthService {
   /// Send email verification to the currently signed-in user.
   ///
   /// Should be called immediately after account creation.
-  /// No-op in dev mode.
+  /// No-op in dev mode. Throws [AuthException] on failure.
   Future<void> sendEmailVerification() async {
     if (!AppConfig.instance.useFirebase) return;
     final firebaseUser = _firebaseAuth.currentUser;
-    if (firebaseUser == null || firebaseUser.emailVerified) return;
-    await firebaseUser.sendEmailVerification();
+    if (firebaseUser == null) {
+      throw AuthException('No user signed in');
+    }
+    if (firebaseUser.emailVerified) return;
+    try {
+      await firebaseUser.sendEmailVerification();
+      debugPrint('Verification email sent to ${firebaseUser.email}');
+    } on firebase_auth.FirebaseAuthException catch (e) {
+      debugPrint('sendEmailVerification failed: ${e.code} – ${e.message}');
+      throw AuthException(_getErrorMessage(e.code));
+    } catch (e) {
+      debugPrint('sendEmailVerification error: $e');
+      throw AuthException('Failed to send verification email');
+    }
   }
 
   /// Reload the Firebase user and return whether their email is verified.
   ///
   /// Call this when the user taps "I've verified my email" or on a timer.
+  /// Returns the last-known value if a network error occurs.
   Future<bool> checkEmailVerified() async {
     if (!AppConfig.instance.useFirebase) return true;
     final firebaseUser = _firebaseAuth.currentUser;
     if (firebaseUser == null) return false;
-    await firebaseUser.reload();
+    try {
+      await firebaseUser.reload();
+    } on firebase_auth.FirebaseAuthException catch (e) {
+      // Network errors should not crash the UI — return cached value
+      debugPrint('checkEmailVerified reload failed: ${e.code}');
+      return firebaseUser.emailVerified;
+    }
     return _firebaseAuth.currentUser?.emailVerified ?? false;
   }
 

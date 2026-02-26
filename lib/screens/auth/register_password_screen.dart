@@ -55,8 +55,12 @@ class _RegisterPasswordScreenState extends State<RegisterPasswordScreen> {
         displayName: _nameController.text.trim(),
       );
 
-      // Send verification email
-      await _authService.sendEmailVerification();
+      // Send verification email (non-blocking — user can resend from the next screen)
+      try {
+        await _authService.sendEmailVerification();
+      } catch (e) {
+        debugPrint('Initial verification email failed: $e');
+      }
 
       if (mounted) {
         // Navigate to email verification screen; on success it proceeds to onboarding
