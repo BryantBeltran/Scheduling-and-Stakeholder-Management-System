@@ -48,23 +48,30 @@ class _RegisterPasswordScreenState extends State<RegisterPasswordScreen> {
     });
 
     try {
-      // Create account but don't navigate yet - go to onboarding first
+      // Create the account
       await _authService.signUpWithEmailAndPassword(
         email: widget.email,
         password: _passwordController.text,
         displayName: _nameController.text.trim(),
       );
-      
+
+      // Send verification email
+      await _authService.sendEmailVerification();
+
       if (mounted) {
-        // Navigate to onboarding to collect additional info
+        // Navigate to email verification screen; on success it proceeds to onboarding
         Navigator.of(context).pushNamed(
-          '/onboarding',
+          '/email-verification',
           arguments: {
             'email': widget.email,
-            'displayName': _nameController.text.trim(),
-            'inviteToken': widget.inviteToken,
-            'stakeholderId': widget.stakeholderId,
-            'defaultRole': widget.defaultRole,
+            'nextRoute': '/onboarding',
+            'nextArguments': {
+              'email': widget.email,
+              'displayName': _nameController.text.trim(),
+              'inviteToken': widget.inviteToken,
+              'stakeholderId': widget.stakeholderId,
+              'defaultRole': widget.defaultRole,
+            },
           },
         );
       }

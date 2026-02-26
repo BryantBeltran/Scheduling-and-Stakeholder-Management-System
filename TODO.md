@@ -15,7 +15,7 @@
   - Configure Apple Developer account
   - Files: `lib/screens/auth/login_screen.dart`, `register_screen.dart`
 
-- [ ] **Add email verification flow**
+- [x] **Add email verification flow**
   - Send verification email on signup
   - Block access until email verified
 

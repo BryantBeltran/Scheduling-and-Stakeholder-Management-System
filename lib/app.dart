@@ -16,6 +16,7 @@ import 'screens/auth/register_screen.dart';
 import 'screens/auth/register_password_screen.dart';
 import 'screens/auth/onboarding_screen.dart';
 import 'screens/auth/forgot_password_screen.dart';
+import 'screens/auth/email_verification_screen.dart';
 import 'screens/home/home_screen.dart';
 import 'screens/dev/dev_screen_navigator.dart';
 import 'screens/events/event_create_screen.dart';
@@ -60,6 +61,19 @@ class SchedulingApp extends StatelessWidget {
         '/event/create': (context) => const EventCreateScreen(),
       },
       onGenerateRoute: (settings) {
+        if (settings.name == '/email-verification') {
+          final args = settings.arguments as Map<String, dynamic>?;
+          final email = args?['email'] as String? ?? '';
+          final nextRoute = args?['nextRoute'] as String?;
+          final nextArguments = args?['nextArguments'];
+          return MaterialPageRoute(
+            builder: (context) => EmailVerificationScreen(
+              email: email,
+              nextRoute: nextRoute,
+              nextArguments: nextArguments,
+            ),
+          );
+        }
         if (settings.name == '/register-password') {
           final args = settings.arguments as Map<String, dynamic>?;
           final email = args?['email'] ?? '';
@@ -254,28 +268,46 @@ class _AuthWrapperState extends State<AuthWrapper> {
             _pushService.registerToken(user.id);
           });
           
-          // Check if new user needs onboarding
+          // Check email verification for email/password users.
+          // OAuth providers (Google, Apple) are always pre-verified.
           return FutureBuilder<bool>(
-            future: _userService.needsOnboarding(user.id),
-            builder: (context, onboardingSnapshot) {
-              if (onboardingSnapshot.connectionState == ConnectionState.waiting) {
+            future: _authService.checkEmailVerified(),
+            builder: (context, verifiedSnapshot) {
+              if (verifiedSnapshot.connectionState == ConnectionState.waiting) {
                 return const Scaffold(
                   body: Center(child: CircularProgressIndicator()),
                 );
               }
-              
-              if (onboardingSnapshot.data == true) {
-                // New user needs onboarding — pass along any pending invite token
-                // captured from a deep link that arrived before auth resolved.
-                final token = _pendingInviteToken;
-                _pendingInviteToken = null;
-                return OnboardingScreen(
-                  initialUser: user,
-                  inviteToken: token,
-                );
+
+              final isVerified = verifiedSnapshot.data ?? true;
+              if (!isVerified) {
+                return EmailVerificationScreen(email: user.email);
               }
-              
-              return const HomeScreen();
+
+              // Check if new user needs onboarding
+              return FutureBuilder<bool>(
+                future: _userService.needsOnboarding(user.id),
+                builder: (context, onboardingSnapshot) {
+                  if (onboardingSnapshot.connectionState == ConnectionState.waiting) {
+                    return const Scaffold(
+                      body: Center(child: CircularProgressIndicator()),
+                    );
+                  }
+
+                  if (onboardingSnapshot.data == true) {
+                    // New user needs onboarding — pass along any pending invite token
+                    // captured from a deep link that arrived before auth resolved.
+                    final token = _pendingInviteToken;
+                    _pendingInviteToken = null;
+                    return OnboardingScreen(
+                      initialUser: user,
+                      inviteToken: token,
+                    );
+                  }
+
+                  return const HomeScreen();
+                },
+              );
             },
           );
         }

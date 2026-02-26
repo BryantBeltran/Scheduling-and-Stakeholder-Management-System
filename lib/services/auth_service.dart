@@ -543,6 +543,28 @@ class AuthService {
     }
   }
 
+  /// Send email verification to the currently signed-in user.
+  ///
+  /// Should be called immediately after account creation.
+  /// No-op in dev mode.
+  Future<void> sendEmailVerification() async {
+    if (!AppConfig.instance.useFirebase) return;
+    final firebaseUser = _firebaseAuth.currentUser;
+    if (firebaseUser == null || firebaseUser.emailVerified) return;
+    await firebaseUser.sendEmailVerification();
+  }
+
+  /// Reload the Firebase user and return whether their email is verified.
+  ///
+  /// Call this when the user taps "I've verified my email" or on a timer.
+  Future<bool> checkEmailVerified() async {
+    if (!AppConfig.instance.useFirebase) return true;
+    final firebaseUser = _firebaseAuth.currentUser;
+    if (firebaseUser == null) return false;
+    await firebaseUser.reload();
+    return _firebaseAuth.currentUser?.emailVerified ?? false;
+  }
+
   /// Update user profile
   Future<UserModel> updateProfile({
     String? displayName,
