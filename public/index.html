@@ -80,22 +80,30 @@
       </p>
 
       <button type="button" class="btn" id="openBtn" onclick="openApp()">
-        Open App &amp; Sign Up
+        Open SSMS &amp; Sign Up
       </button>
 
       <div id="status"></div>
 
-      <div class="fallback">
+      <div class="fallback" id="fallback">
         Don't have the app?
         <a href="https://play.google.com/store/apps/details?id=com.managemateapp.ssms" id="storeLink">Download it here</a>
       </div>
     </div>
 
     <script>
-      // Detect platform to show the right store link
       const ua = navigator.userAgent || '';
       const isIOS = /iPad|iPhone|iPod/.test(ua);
       const isAndroid = /Android/.test(ua);
+      const isMobile = isIOS || isAndroid;
+
+      // On desktop, hide the button and show a clear message instead
+      if (!isMobile) {
+        document.getElementById('openBtn').style.display = 'none';
+        document.getElementById('fallback').style.display = 'none';
+        document.getElementById('status').textContent =
+          'This invite link is for the SSMS mobile app. Open it on your Android or iOS device to sign up.';
+      }
 
       if (isIOS) {
         document.getElementById('storeLink').href =
@@ -103,7 +111,6 @@
         document.getElementById('storeLink').textContent = 'Download on the App Store';
       }
 
-      // Extract the invite token from the current URL
       function getToken() {
         return new URLSearchParams(window.location.search).get('token') || '';
       }
@@ -116,30 +123,30 @@
           return;
         }
 
-        // Custom scheme deep link (catches installed app immediately)
+        // Custom scheme: caught immediately if the app is installed
         const schemeLink = 'managemateapp://invite?token=' + encodeURIComponent(token);
-        // Universal / App Link (same domain — also handled by the app)
+        // HTTPS App Link: Android will intercept this if App Links are verified
         const universalLink = 'https://managemateapp.me/invite?token=' + encodeURIComponent(token);
 
-        // On iOS prefer the universal link; on Android prefer the scheme
         if (isIOS) {
+          // iOS: use universal link (Apple Universal Links)
           window.location.href = universalLink;
-        } else {
+        } else if (isAndroid) {
+          // Android: try custom scheme first; if the app is installed it opens immediately
           window.location.href = schemeLink;
         }
 
-        // After a short delay, if the app didn't open, show instructions
+        // Show fallback message after 2.5s if the app didn't open
         setTimeout(function() {
           document.getElementById('status').textContent =
-            'App not opening? Make sure ManageMate is installed, then tap the button again.';
-        }, 2000);
+            'App not opening? Make sure the SSMS app is installed, then tap the button again.';
+        }, 2500);
       }
 
-      // Auto-trigger on page load (gives best UX on mobile)
+      // Auto-trigger on load for mobile (best UX — no extra tap needed)
       window.addEventListener('load', function() {
         const token = getToken();
-        if (token && (isIOS || isAndroid)) {
-          // Small delay so the page renders first
+        if (token && isMobile) {
           setTimeout(openApp, 600);
         }
       });
