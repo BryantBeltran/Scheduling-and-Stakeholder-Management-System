@@ -104,7 +104,7 @@ class InviteService {
       debugPrint('Error validating invite token: $e');
       return TokenValidationResult(
         valid: false,
-        reason: e.toString(),
+        reason: 'unavailable',
       );
     }
   }
