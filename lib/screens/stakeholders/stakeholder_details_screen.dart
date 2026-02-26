@@ -15,11 +15,12 @@ class StakeholderDetailsScreen extends StatefulWidget {
   State<StakeholderDetailsScreen> createState() => _StakeholderDetailsScreenState();
 }
 
-class _StakeholderDetailsScreenState extends State<StakeholderDetailsScreen> {
+class _StakeholderDetailsScreenState extends State<StakeholderDetailsScreen>
+    with WidgetsBindingObserver {
   final _stakeholderService = StakeholderService();
   final _inviteService = InviteService();
   final _permissionService = PermissionService();
-  
+
   bool _isInviting = false;
   bool _isLoading = true;
   StakeholderModel? _stakeholder;
@@ -27,7 +28,22 @@ class _StakeholderDetailsScreenState extends State<StakeholderDetailsScreen> {
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     _loadStakeholder();
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    // Refresh when the app comes back to the foreground
+    if (state == AppLifecycleState.resumed) {
+      _loadStakeholder();
+    }
   }
 
   Future<void> _loadStakeholder() async {
@@ -313,7 +329,9 @@ class _StakeholderDetailsScreenState extends State<StakeholderDetailsScreen> {
           ),
         ],
       ),
-      body: ListView(
+      body: RefreshIndicator(
+        onRefresh: _loadStakeholder,
+        child: ListView(
         padding: const EdgeInsets.all(16),
         children: [
           // Profile Card
@@ -681,6 +699,7 @@ class _StakeholderDetailsScreenState extends State<StakeholderDetailsScreen> {
             ),
           ],
         ],
+      ),
       ),
     );
   }

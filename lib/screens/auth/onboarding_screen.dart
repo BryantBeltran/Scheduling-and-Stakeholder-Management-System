@@ -39,12 +39,14 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
   final _formKey = GlobalKey<FormState>();
   final _userService = UserService();
   final _inviteService = InviteService();
-  
+  final _stakeholderService = StakeholderService();
+
   late TextEditingController _displayNameController;
   late TextEditingController _organizationController;
   late TextEditingController _phoneController;
-  
+
   bool _isLoading = false;
+  bool _isFetchingStakeholder = false;
   String? _errorMessage;
 
   @override
@@ -55,6 +57,41 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
     );
     _organizationController = TextEditingController();
     _phoneController = TextEditingController();
+
+    // If we have a stakeholderId from an invite, fetch stakeholder data to autofill
+    if (widget.stakeholderId != null) {
+      _fetchStakeholderData();
+    }
+  }
+
+  Future<void> _fetchStakeholderData() async {
+    setState(() => _isFetchingStakeholder = true);
+    try {
+      final stakeholder =
+          await _stakeholderService.getStakeholderById(widget.stakeholderId!);
+      if (stakeholder != null && mounted) {
+        setState(() {
+          // Only autofill fields that are still empty
+          if (_displayNameController.text.isEmpty && stakeholder.name.isNotEmpty) {
+            _displayNameController.text = stakeholder.name;
+          }
+          if (_organizationController.text.isEmpty &&
+              stakeholder.organization != null &&
+              stakeholder.organization!.isNotEmpty) {
+            _organizationController.text = stakeholder.organization!;
+          }
+          if (_phoneController.text.isEmpty &&
+              stakeholder.phone != null &&
+              stakeholder.phone!.isNotEmpty) {
+            _phoneController.text = stakeholder.phone!;
+          }
+        });
+      }
+    } catch (e) {
+      debugPrint('Failed to fetch stakeholder data for autofill: $e');
+    } finally {
+      if (mounted) setState(() => _isFetchingStakeholder = false);
+    }
   }
 
   @override
@@ -63,6 +100,19 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
     _organizationController.dispose();
     _phoneController.dispose();
     super.dispose();
+  }
+
+  UserRole _parseRole(String? role) {
+    switch (role) {
+      case 'admin':
+        return UserRole.admin;
+      case 'manager':
+        return UserRole.manager;
+      case 'viewer':
+        return UserRole.viewer;
+      default:
+        return UserRole.member;
+    }
   }
 
   Future<void> _completeOnboarding() async {
@@ -103,12 +153,34 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
         }
       }
 
-      // If user came from an invite, link them to their stakeholder
+      // If user came from an invite, link them to their stakeholder.
+      // The Cloud Function sets role & permissions on the user doc.
+      bool linked = false;
       if (userId != null && widget.inviteToken != null) {
-        await _inviteService.linkUserToStakeholder(
+        linked = await _inviteService.linkUserToStakeholder(
           userId: userId,
           token: widget.inviteToken!,
         );
+      }
+
+      // If the Cloud Function was unavailable, apply role/stakeholder
+      // locally so the user still gets their assigned permissions.
+      if (!linked && userId != null && widget.stakeholderId != null) {
+        final role = _parseRole(widget.defaultRole);
+        await _userService.applyInviteRole(
+          userId: userId,
+          stakeholderId: widget.stakeholderId!,
+          role: role,
+        );
+      }
+
+      // Re-fetch user data so the in-memory model picks up the
+      // role/permissions written by either the CF or the local fallback.
+      if (userId != null) {
+        final freshUser = await _userService.getUser(userId);
+        if (freshUser != null) {
+          AuthService().updateCurrentUser(freshUser);
+        }
       }
 
       // Trigger branded welcome email via Cloud Function
@@ -165,6 +237,11 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                   textAlign: TextAlign.center,
                 ),
                 const SizedBox(height: 32),
+
+                if (_isFetchingStakeholder) ...[
+                  const Center(child: CircularProgressIndicator(strokeWidth: 2)),
+                  const SizedBox(height: 16),
+                ],
 
                 // Display Name
                 TextFormField(

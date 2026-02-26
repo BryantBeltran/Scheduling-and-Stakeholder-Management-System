@@ -30,7 +30,8 @@ class _EmailVerificationScreenState extends State<EmailVerificationScreen> {
   Timer? _pollTimer;
   bool _isChecking = false;
   bool _isResending = false;
-  String? _resendMessage;
+  String? _statusMessage;
+  bool _statusIsError = false;
 
   // Cooldown to prevent spamming resend
   DateTime? _lastResent;
@@ -39,8 +40,19 @@ class _EmailVerificationScreenState extends State<EmailVerificationScreen> {
   @override
   void initState() {
     super.initState();
+    // Send verification email as soon as the screen loads
+    _sendInitialVerification();
     // Poll every 5 seconds
-    _pollTimer = Timer.periodic(const Duration(seconds: 5), (_) => _checkVerification());
+    _pollTimer = Timer.periodic(const Duration(seconds: 5), (_) => _pollCheck());
+  }
+
+  Future<void> _sendInitialVerification() async {
+    try {
+      await _authService.sendEmailVerification();
+      _lastResent = DateTime.now();
+    } catch (e) {
+      debugPrint('Initial verification email failed: $e');
+    }
   }
 
   @override
@@ -49,18 +61,64 @@ class _EmailVerificationScreenState extends State<EmailVerificationScreen> {
     super.dispose();
   }
 
-  Future<void> _checkVerification() async {
+  void _navigateNext() {
+    _pollTimer?.cancel();
+    Navigator.of(context).pushReplacementNamed(
+      widget.nextRoute ?? '/onboarding',
+      arguments: widget.nextArguments,
+    );
+  }
+
+  /// Silent background poll — does not show errors to avoid spamming the UI.
+  Future<void> _pollCheck() async {
     if (_isChecking) return;
-    setState(() => _isChecking = true);
+    _isChecking = true;
 
     try {
       final verified = await _authService.checkEmailVerified();
       if (verified && mounted) {
-        _pollTimer?.cancel();
-        Navigator.of(context).pushReplacementNamed(
-          widget.nextRoute ?? '/onboarding',
-          arguments: widget.nextArguments,
-        );
+        _navigateNext();
+      }
+    } catch (_) {
+      // Silently ignore network errors during background polling
+    } finally {
+      _isChecking = false;
+    }
+  }
+
+  /// Manual check triggered by the user tapping the button — shows feedback.
+  Future<void> _manualCheck() async {
+    if (_isChecking) return;
+    setState(() {
+      _isChecking = true;
+      _statusMessage = null;
+    });
+
+    try {
+      final verified = await _authService.checkEmailVerified();
+      if (verified && mounted) {
+        _navigateNext();
+        return;
+      }
+      if (mounted) {
+        setState(() {
+          _statusMessage = 'Email not verified yet. Check your inbox and click the link.';
+          _statusIsError = true;
+        });
+      }
+    } on AuthException catch (e) {
+      if (mounted) {
+        setState(() {
+          _statusMessage = '${e.message}. Please try again.';
+          _statusIsError = true;
+        });
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          _statusMessage = 'Network error. Please check your connection and try again.';
+          _statusIsError = true;
+        });
       }
     } finally {
       if (mounted) setState(() => _isChecking = false);
@@ -73,30 +131,40 @@ class _EmailVerificationScreenState extends State<EmailVerificationScreen> {
         DateTime.now().difference(_lastResent!) < _resendCooldown) {
       final remaining =
           _resendCooldown - DateTime.now().difference(_lastResent!);
-      setState(() => _resendMessage =
-          'Please wait ${remaining.inSeconds}s before resending.');
+      setState(() {
+        _statusMessage = 'Please wait ${remaining.inSeconds}s before resending.';
+        _statusIsError = true;
+      });
       return;
     }
 
     setState(() {
       _isResending = true;
-      _resendMessage = null;
+      _statusMessage = null;
     });
 
     try {
       await _authService.sendEmailVerification();
       _lastResent = DateTime.now();
       if (mounted) {
-        setState(() => _resendMessage = 'Verification email sent!');
+        setState(() {
+          _statusMessage = 'Verification email sent!';
+          _statusIsError = false;
+        });
       }
     } on AuthException catch (e) {
       if (mounted) {
-        setState(() => _resendMessage = e.message);
+        setState(() {
+          _statusMessage = e.message;
+          _statusIsError = true;
+        });
       }
     } catch (e) {
       if (mounted) {
-        setState(() =>
-            _resendMessage = 'Failed to send verification email. Check your network.');
+        setState(() {
+          _statusMessage = 'Failed to send verification email. Check your network.';
+          _statusIsError = true;
+        });
       }
     } finally {
       if (mounted) setState(() => _isResending = false);
@@ -175,7 +243,7 @@ class _EmailVerificationScreenState extends State<EmailVerificationScreen> {
                   width: double.infinity,
                   height: 52,
                   child: ElevatedButton(
-                    onPressed: _isChecking ? null : _checkVerification,
+                    onPressed: _isChecking ? null : _manualCheck,
                     style: ElevatedButton.styleFrom(
                       backgroundColor: Colors.black,
                       foregroundColor: Colors.white,
@@ -231,15 +299,13 @@ class _EmailVerificationScreenState extends State<EmailVerificationScreen> {
                   ),
                 ),
 
-                // Resend feedback message
-                if (_resendMessage != null) ...[
+                // Status feedback message
+                if (_statusMessage != null) ...[
                   const SizedBox(height: 12),
                   Text(
-                    _resendMessage!,
+                    _statusMessage!,
                     style: TextStyle(
-                      color: _resendMessage!.contains('sent')
-                          ? Colors.green[700]
-                          : Colors.orange[800],
+                      color: _statusIsError ? Colors.orange[800] : Colors.green[700],
                       fontSize: 13,
                     ),
                     textAlign: TextAlign.center,

@@ -133,6 +133,16 @@ class AuthService {
   /// Shorthand for `currentUser != null`.
   bool get isAuthenticated => _currentUser != null;
 
+  /// Replace the in-memory user model and notify listeners.
+  ///
+  /// Call after an external process (e.g. a Cloud Function) has updated
+  /// the user document in Firestore and you need the app to reflect
+  /// the new role/permissions immediately.
+  void updateCurrentUser(UserModel user) {
+    _currentUser = user;
+    _authStateController.add(_currentUser);
+  }
+
   /// Authenticates a user with email and password.
   ///
   /// Returns a [UserModel] on successful authentication.
@@ -569,19 +579,30 @@ class AuthService {
   /// Reload the Firebase user and return whether their email is verified.
   ///
   /// Call this when the user taps "I've verified my email" or on a timer.
-  /// Returns the last-known value if a network error occurs.
+  /// Tries `reload()` first, then falls back to a forced token refresh.
+  /// Throws [AuthException] on network failure so the caller can inform
+  /// the user instead of silently returning stale data.
   Future<bool> checkEmailVerified() async {
     if (!AppConfig.instance.useFirebase) return true;
     final firebaseUser = _firebaseAuth.currentUser;
     if (firebaseUser == null) return false;
+
     try {
       await firebaseUser.reload();
+      return _firebaseAuth.currentUser?.emailVerified ?? false;
     } on firebase_auth.FirebaseAuthException catch (e) {
-      // Network errors should not crash the UI — return cached value
       debugPrint('checkEmailVerified reload failed: ${e.code}');
-      return firebaseUser.emailVerified;
+
+      // Try forcing a token refresh as an alternative
+      try {
+        await firebaseUser.getIdToken(true);
+        await firebaseUser.reload();
+        return _firebaseAuth.currentUser?.emailVerified ?? false;
+      } catch (_) {
+        // Both approaches failed — propagate the error
+        throw AuthException(_getErrorMessage(e.code));
+      }
     }
-    return _firebaseAuth.currentUser?.emailVerified ?? false;
   }
 
   /// Update user profile

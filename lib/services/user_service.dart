@@ -278,6 +278,47 @@ class UserService {
     }
   }
 
+  /// Apply invite role and link stakeholder locally.
+  ///
+  /// Fallback used when the `linkUserToStakeholder` Cloud Function is
+  /// unreachable. Writes role, permissions, and stakeholderId directly
+  /// to the Firestore user document.
+  Future<void> applyInviteRole({
+    required String userId,
+    required String stakeholderId,
+    required UserRole role,
+  }) async {
+    if (!AppConfig.instance.useFirebase) return;
+
+    try {
+      final permissions = UserModel.getDefaultPermissions(role)
+          .map((p) => p.toString().split('.').last)
+          .toList();
+
+      final batch = _firestore.batch();
+
+      // Update user with role, permissions, and stakeholder link
+      batch.update(_firestore.collection('users').doc(userId), {
+        'role': role.toString().split('.').last,
+        'permissions': permissions,
+        'stakeholderId': stakeholderId,
+        'updatedAt': FieldValue.serverTimestamp(),
+      });
+
+      // Update stakeholder with user link
+      batch.update(_firestore.collection('stakeholders').doc(stakeholderId), {
+        'linkedUserId': userId,
+        'inviteStatus': 'accepted',
+        'updatedAt': FieldValue.serverTimestamp(),
+      });
+
+      await batch.commit();
+      debugPrint('Applied invite role $role for user $userId → stakeholder $stakeholderId');
+    } catch (e) {
+      debugPrint('Error applying invite role locally: $e');
+    }
+  }
+
   /// Check if a stakeholder exists with the given email and link them to the user
   Future<String?> linkStakeholderByEmail(String userId, String email) async {
     if (!AppConfig.instance.useFirebase) {
