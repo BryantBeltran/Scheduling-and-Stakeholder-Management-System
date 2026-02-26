@@ -79,9 +79,14 @@
         Tap the button below to create your account.
       </p>
 
-      <button type="button" class="btn" id="openBtn" onclick="openApp()">
+      <!--
+        Button is an <a> tag so tapping it is a direct navigation.
+        JS-triggered window.location redirects are blocked by Gmail's webview.
+        The href is set by the script below once the token is known.
+      -->
+      <a class="btn" id="openBtn" href="#">
         Open SSMS &amp; Sign Up
-      </button>
+      </a>
 
       <div id="status"></div>
 
@@ -97,12 +102,23 @@
       const isAndroid = /Android/.test(ua);
       const isMobile = isIOS || isAndroid;
 
-      // On desktop, hide the button and show a clear message instead
+      const token = new URLSearchParams(window.location.search).get('token') || '';
+
       if (!isMobile) {
+        // Desktop: hide button, show instruction
         document.getElementById('openBtn').style.display = 'none';
         document.getElementById('fallback').style.display = 'none';
         document.getElementById('status').textContent =
           'This invite link is for the SSMS mobile app. Open it on your Android or iOS device to sign up.';
+      } else if (!token) {
+        document.getElementById('openBtn').style.display = 'none';
+        document.getElementById('status').textContent =
+          'Invalid invite link — the token is missing.';
+      } else {
+        // Set the href directly on the <a> tag — works in Gmail webview
+        const schemeLink = 'managemateapp://invite?token=' + encodeURIComponent(token);
+        const universalLink = 'https://managemateapp.me/invite?token=' + encodeURIComponent(token);
+        document.getElementById('openBtn').href = isIOS ? universalLink : schemeLink;
       }
 
       if (isIOS) {
@@ -110,46 +126,6 @@
           'https://apps.apple.com/app/managemate/id0000000000'; // update when live
         document.getElementById('storeLink').textContent = 'Download on the App Store';
       }
-
-      function getToken() {
-        return new URLSearchParams(window.location.search).get('token') || '';
-      }
-
-      function openApp() {
-        const token = getToken();
-        if (!token) {
-          document.getElementById('status').textContent =
-            'Invalid invite link — the token is missing.';
-          return;
-        }
-
-        // Custom scheme: caught immediately if the app is installed
-        const schemeLink = 'managemateapp://invite?token=' + encodeURIComponent(token);
-        // HTTPS App Link: Android will intercept this if App Links are verified
-        const universalLink = 'https://managemateapp.me/invite?token=' + encodeURIComponent(token);
-
-        if (isIOS) {
-          // iOS: use universal link (Apple Universal Links)
-          window.location.href = universalLink;
-        } else if (isAndroid) {
-          // Android: try custom scheme first; if the app is installed it opens immediately
-          window.location.href = schemeLink;
-        }
-
-        // Show fallback message after 2.5s if the app didn't open
-        setTimeout(function() {
-          document.getElementById('status').textContent =
-            'App not opening? Make sure the SSMS app is installed, then tap the button again.';
-        }, 2500);
-      }
-
-      // Auto-trigger on load for mobile (best UX — no extra tap needed)
-      window.addEventListener('load', function() {
-        const token = getToken();
-        if (token && isMobile) {
-          setTimeout(openApp, 600);
-        }
-      });
     </script>
   </body>
 </html>
