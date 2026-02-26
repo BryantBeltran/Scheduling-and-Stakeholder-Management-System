@@ -1,6 +1,7 @@
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_app_check/firebase_app_check.dart';
 import 'package:flutter/foundation.dart';
+import '../firebase_options.dart';
 
 // Use Play Integrity only for actual production releases (not profile/debug builds).
 // kDebugMode is false for both profile AND release, so we use kReleaseMode here
@@ -52,33 +53,7 @@ class FirebaseService {
   }
   
   /// Get Firebase options based on platform
-  FirebaseOptions? _getFirebaseOptions() {
-    // TODO: Replace with your Firebase project configuration
-    // Get these values from Firebase Console > Project Settings
-    // For now, returning null will use the default configuration from google-services.json/GoogleService-Info.plist
-    return null;
-    
-    // Example configuration (uncomment and fill in your values):
-    /*
-    if (defaultTargetPlatform == TargetPlatform.android) {
-      return const FirebaseOptions(
-        apiKey: 'YOUR_ANDROID_API_KEY',
-        appId: 'YOUR_ANDROID_APP_ID',
-        messagingSenderId: 'YOUR_SENDER_ID',
-        projectId: 'YOUR_PROJECT_ID',
-        storageBucket: 'YOUR_STORAGE_BUCKET',
-      );
-    } else if (defaultTargetPlatform == TargetPlatform.iOS) {
-      return const FirebaseOptions(
-        apiKey: 'YOUR_IOS_API_KEY',
-        appId: 'YOUR_IOS_APP_ID',
-        messagingSenderId: 'YOUR_SENDER_ID',
-        projectId: 'YOUR_PROJECT_ID',
-        storageBucket: 'YOUR_STORAGE_BUCKET',
-        iosBundleId: 'YOUR_BUNDLE_ID',
-      );
-    }
-    return null;
-    */
+  FirebaseOptions _getFirebaseOptions() {
+    return DefaultFirebaseOptions.currentPlatform;
   }
 }
