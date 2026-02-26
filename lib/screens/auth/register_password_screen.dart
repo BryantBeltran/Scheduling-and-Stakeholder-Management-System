@@ -25,11 +25,34 @@ class _RegisterPasswordScreenState extends State<RegisterPasswordScreen> {
   final _passwordController = TextEditingController();
   final _confirmPasswordController = TextEditingController();
   final _authService = AuthService();
+  final _stakeholderService = StakeholderService();
 
   bool _isLoading = false;
   bool _obscurePassword = true;
   bool _obscureConfirmPassword = true;
   String? _errorMessage;
+
+  @override
+  void initState() {
+    super.initState();
+    if (widget.stakeholderId != null) {
+      _fetchStakeholderName();
+    }
+  }
+
+  Future<void> _fetchStakeholderName() async {
+    try {
+      final stakeholder =
+          await _stakeholderService.getStakeholderById(widget.stakeholderId!);
+      if (stakeholder != null && mounted && _nameController.text.isEmpty) {
+        setState(() {
+          _nameController.text = stakeholder.name;
+        });
+      }
+    } catch (e) {
+      debugPrint('Failed to fetch stakeholder name for autofill: $e');
+    }
+  }
 
   @override
   void dispose() {
