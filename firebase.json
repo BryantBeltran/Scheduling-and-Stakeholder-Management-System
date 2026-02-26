@@ -67,6 +67,12 @@
     "ignore": [
       "firebase.json",
       "**/node_modules/**"
+    ],
+    "rewrites": [
+      {
+        "source": "/invite",
+        "destination": "/index.html"
+      }
     ]
   }
 }

@@ -175,6 +175,9 @@ class _AuthWrapperState extends State<AuthWrapper> {
   final _pushService = PushNotificationService();
   final _appLinks = AppLinks();
 
+  /// Pending invite token from a deep link received before auth state resolved.
+  String? _pendingInviteToken;
+
   @override
   void initState() {
     super.initState();
@@ -196,12 +199,22 @@ class _AuthWrapperState extends State<AuthWrapper> {
 
   void _handleInviteLink(Uri uri) {
     // Expected: https://managemateapp.me/invite?token=<token>
-    if (uri.host != 'managemateapp.me') return;
+    // Also handle custom scheme: managemateapp://invite?token=<token>
+    final validHost = uri.host == 'managemateapp.me' || uri.scheme == 'managemateapp';
+    if (!validHost) return;
     if (!uri.path.startsWith('/invite')) return;
     final token = uri.queryParameters['token'];
     if (token == null || token.isEmpty) return;
 
-    navigatorKey.currentState?.pushNamed(
+    final nav = navigatorKey.currentState;
+    if (nav == null) {
+      // Auth state hasn't resolved yet — stash the token so the build
+      // method can pass it through to onboarding once the user is known.
+      _pendingInviteToken = token;
+      return;
+    }
+
+    nav.pushNamed(
       '/register',
       arguments: {'inviteToken': token},
     );
@@ -252,8 +265,14 @@ class _AuthWrapperState extends State<AuthWrapper> {
               }
               
               if (onboardingSnapshot.data == true) {
-                // New user needs onboarding
-                return OnboardingScreen(initialUser: user);
+                // New user needs onboarding — pass along any pending invite token
+                // captured from a deep link that arrived before auth resolved.
+                final token = _pendingInviteToken;
+                _pendingInviteToken = null;
+                return OnboardingScreen(
+                  initialUser: user,
+                  inviteToken: token,
+                );
               }
               
               return const HomeScreen();
