@@ -104,12 +104,19 @@ async function sendInviteEmail(
               Tap the button below to open the app and get started.
             </p>
             <div style="text-align: center; margin: 32px 0;">
-              <a href="${deepLink}" style="display: inline-block; background-color: #000; color: #fff; text-decoration: none; padding: 16px 40px; border-radius: 8px; font-size: 16px; font-weight: 700;">
-                Open SSMS &amp; Sign Up
-              </a>
+              <table role="presentation" cellpadding="0" cellspacing="0" style="margin: 0 auto;">
+                <tr>
+                  <td style="background-color: #000; border-radius: 8px; text-align: center;">
+                    <a href="${deepLink}" target="_blank" style="display: inline-block; padding: 16px 40px; color: #ffffff; font-size: 16px; font-weight: 700; text-decoration: none; font-family: Arial, sans-serif;">Open SSMS &amp; Sign Up</a>
+                  </td>
+                </tr>
+              </table>
             </div>
-            <p style="color: #888; font-size: 13px; text-align: center; margin-bottom: 24px;">
-              If the button doesn&rsquo;t work, make sure the SSMS app is installed first.
+            <p style="color: #888; font-size: 13px; text-align: center; margin-bottom: 8px;">
+              Or copy this link into your mobile browser:
+            </p>
+            <p style="text-align: center; margin-bottom: 24px;">
+              <a href="${deepLink}" style="color: #555; font-size: 13px; word-break: break-all;">${deepLink}</a>
             </p>
             <p style="color: #888; font-size: 13px; margin-top: 24px;">
               This invite expires in 7 days. If you didn&rsquo;t expect this email,
