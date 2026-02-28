@@ -270,6 +270,8 @@ class _AuthWrapperState extends State<AuthWrapper> {
           
           // Check email verification for email/password users.
           // OAuth providers (Google, Apple) are always pre-verified.
+          // Invited stakeholders (those with a stakeholderId) bypass
+          // verification because they authenticated via a trusted invite link.
           return FutureBuilder<bool>(
             future: _authService.checkEmailVerified(),
             builder: (context, verifiedSnapshot) {
@@ -280,7 +282,8 @@ class _AuthWrapperState extends State<AuthWrapper> {
               }
 
               final isVerified = verifiedSnapshot.data ?? true;
-              if (!isVerified) {
+              final isInvitedUser = user.stakeholderId != null;
+              if (!isVerified && !isInvitedUser) {
                 return EmailVerificationScreen(email: user.email);
               }
 

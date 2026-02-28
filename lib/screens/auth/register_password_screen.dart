@@ -78,29 +78,42 @@ class _RegisterPasswordScreenState extends State<RegisterPasswordScreen> {
         displayName: _nameController.text.trim(),
       );
 
-      // Send verification email (non-blocking — user can resend from the next screen)
-      try {
-        await _authService.sendEmailVerification();
-      } catch (e) {
-        debugPrint('Initial verification email failed: $e');
-      }
-
       if (mounted) {
-        // Navigate to email verification screen; on success it proceeds to onboarding
-        Navigator.of(context).pushNamed(
-          '/email-verification',
-          arguments: {
-            'email': widget.email,
-            'nextRoute': '/onboarding',
-            'nextArguments': {
+        if (widget.inviteToken != null) {
+          // Invited stakeholder: skip email verification, go directly to onboarding
+          Navigator.of(context).pushNamed(
+            '/onboarding',
+            arguments: {
               'email': widget.email,
               'displayName': _nameController.text.trim(),
               'inviteToken': widget.inviteToken,
               'stakeholderId': widget.stakeholderId,
               'defaultRole': widget.defaultRole,
             },
-          },
-        );
+          );
+        } else {
+          // Regular sign-up: require email verification before onboarding
+          try {
+            await _authService.sendEmailVerification();
+          } catch (e) {
+            debugPrint('Initial verification email failed: $e');
+          }
+          if (!mounted) return;
+          Navigator.of(context).pushNamed(
+            '/email-verification',
+            arguments: {
+              'email': widget.email,
+              'nextRoute': '/onboarding',
+              'nextArguments': {
+                'email': widget.email,
+                'displayName': _nameController.text.trim(),
+                'inviteToken': widget.inviteToken,
+                'stakeholderId': widget.stakeholderId,
+                'defaultRole': widget.defaultRole,
+              },
+            },
+          );
+        }
       }
     } on AuthException catch (e) {
       setState(() => _errorMessage = e.message);
