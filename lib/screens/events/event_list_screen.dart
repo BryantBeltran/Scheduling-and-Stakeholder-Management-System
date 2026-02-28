@@ -3,6 +3,7 @@
 import 'package:flutter/material.dart';
 import '../../models/models.dart';
 import '../../services/services.dart';
+import 'event_details_screen.dart';
 
 class EventListScreen extends StatefulWidget {
   const EventListScreen({super.key});
@@ -101,9 +102,29 @@ class _EventListScreenState extends State<EventListScreen> {
     return sorted;
   }
 
-  // TODO: Implement delete event functionality in UI
-  // ignore: unused_element
+  // Delete event with validation
   Future<void> _deleteEvent(String eventId) async {
+    // Find the event to validate
+    try {
+      final event = await _eventService.getEventById(eventId);
+      if (event != null) {
+        final deleteValidation = EventValidators.canDeleteEvent(event);
+        if (!deleteValidation.isValid) {
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text(deleteValidation.errorMessage!),
+                backgroundColor: Colors.red,
+              ),
+            );
+          }
+          return;
+        }
+      }
+    } catch (_) {
+      // If we can't fetch the event, proceed with delete dialog anyway
+    }
+
     final confirm = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
@@ -291,8 +312,26 @@ class _EventListScreenState extends State<EventListScreen> {
                     final event = _filteredEvents[index];
                     return Padding(
                       padding: const EdgeInsets.only(bottom: 12),
-                      child: _EventListItem(
-                        event: event,
+                      child: Dismissible(
+                        key: Key(event.id),
+                        direction: DismissDirection.endToStart,
+                        background: Container(
+                          alignment: Alignment.centerRight,
+                          padding: const EdgeInsets.symmetric(horizontal: 20),
+                          decoration: BoxDecoration(
+                            color: Colors.red,
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          child: const Icon(Icons.delete, color: Colors.white),
+                        ),
+                        confirmDismiss: (direction) async {
+                          _deleteEvent(event.id);
+                          return false; // Don't auto-dismiss; dialog handles it
+                        },
+                        child: _EventListItem(
+                          event: event,
+                          onDelete: () => _deleteEvent(event.id),
+                        ),
                       ),
                     );
                   },
@@ -525,8 +564,9 @@ class _EventListScreenState extends State<EventListScreen> {
 
 class _EventListItem extends StatelessWidget {
   final EventModel event;
+  final VoidCallback? onDelete;
 
-  const _EventListItem({required this.event});
+  const _EventListItem({required this.event, this.onDelete});
 
   @override
   Widget build(BuildContext context) {
@@ -543,6 +583,46 @@ class _EventListItem extends StatelessWidget {
         borderRadius: BorderRadius.circular(12),
         onTap: () {
           Navigator.of(context).pushNamed('/event/details', arguments: event.id);
+        },
+        onLongPress: () {
+          showModalBottomSheet(
+            context: context,
+            shape: const RoundedRectangleBorder(
+              borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+            ),
+            builder: (ctx) => Padding(
+              padding: const EdgeInsets.symmetric(vertical: 16),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  ListTile(
+                    leading: const Icon(Icons.visibility),
+                    title: const Text('View Details'),
+                    onTap: () {
+                      Navigator.pop(ctx);
+                      Navigator.of(context).pushNamed('/event/details', arguments: event.id);
+                    },
+                  ),
+                  ListTile(
+                    leading: const Icon(Icons.edit),
+                    title: const Text('Edit Event'),
+                    onTap: () {
+                      Navigator.pop(ctx);
+                      Navigator.of(context).pushNamed('/event/edit', arguments: event);
+                    },
+                  ),
+                  ListTile(
+                    leading: const Icon(Icons.delete, color: Colors.red),
+                    title: const Text('Delete Event', style: TextStyle(color: Colors.red)),
+                    onTap: () {
+                      Navigator.pop(ctx);
+                      onDelete?.call();
+                    },
+                  ),
+                ],
+              ),
+            ),
+          );
         },
         child: Row(
           children: [

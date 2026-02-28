@@ -145,4 +145,47 @@ class InviteService {
     final base = baseUrl ?? 'https://ssms.app/invite';
     return '$base?token=$inviteToken';
   }
+
+  /// Resend an invitation to a stakeholder
+  /// 
+  /// Generates a fresh token and sends a new email.
+  /// [stakeholderId] - The ID of the stakeholder to re-invite
+  /// 
+  /// Returns [InviteResult] with success status and new invite token
+  Future<InviteResult> resendInvite({
+    required String stakeholderId,
+  }) async {
+    try {
+      final callable = _functions.httpsCallable('resendInvite');
+      final result = await callable.call<Map<String, dynamic>>({
+        'stakeholderId': stakeholderId,
+      });
+
+      final data = result.data;
+      return InviteResult(
+        success: data['success'] == true,
+        inviteToken: data['inviteToken'] as String?,
+        email: data['email'] as String?,
+      );
+    } catch (e) {
+      debugPrint('Error resending invite: $e');
+      return InviteResult(
+        success: false,
+        error: e.toString(),
+      );
+    }
+  }
+
+  /// Notify the backend that onboarding is complete
+  /// so it can send a branded welcome email.
+  Future<void> notifyOnboardingComplete() async {
+    try {
+      final callable = _functions
+          .httpsCallable('onOnboardingComplete');
+      await callable.call<Map<String, dynamic>>({});
+    } catch (e) {
+      // Non-critical — log and move on
+      debugPrint('Welcome email trigger failed: $e');
+    }
+  }
 }

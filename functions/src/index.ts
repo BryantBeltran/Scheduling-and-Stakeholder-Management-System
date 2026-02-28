@@ -4,6 +4,7 @@ import {
   onDocumentCreated,
   onDocumentDeleted,
 } from "firebase-functions/v2/firestore";
+import {onSchedule} from "firebase-functions/v2/scheduler";
 import * as logger from "firebase-functions/logger";
 import * as admin from "firebase-admin";
 import * as nodemailer from "nodemailer";
@@ -132,6 +133,153 @@ async function sendInviteEmail(
   }
 }
 
+/**
+ * Send a branded password reset email via Nodemailer
+ * Falls back to Firebase's built-in reset if SMTP is not configured
+ * @param {string} email - The recipient email address
+ * @param {string} resetLink - The Firebase password reset link
+ * @param {string} displayName - User's display name (optional)
+ * @return {Promise<boolean>} True if email was sent
+ */
+async function sendPasswordResetMail(
+  email: string,
+  resetLink: string,
+  displayName?: string
+): Promise<boolean> {
+  const transporter = getMailTransporter();
+  if (!transporter) {
+    logger.info(
+      "SMTP not configured — Firebase default reset " +
+      "email will be used instead."
+    );
+    return false;
+  }
+
+  const senderEmail = process.env.SMTP_USER || "noreply@ssms.app";
+  const recipientName = displayName || "there";
+
+  try {
+    /* eslint-disable max-len */
+    await transporter.sendMail({
+      from: `"SSMS" <${senderEmail}>`,
+      to: email,
+      subject: "Reset Your SSMS Password",
+      html: `
+        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+          <div style="background-color: #000; color: #fff; padding: 24px; text-align: center;">
+            <h1 style="margin: 0; font-size: 24px;">Scheduling &amp; Stakeholder Management</h1>
+          </div>
+          <div style="padding: 32px 24px;">
+            <h2 style="color: #333;">Hi ${recipientName}!</h2>
+            <p style="color: #555; font-size: 16px; line-height: 1.6;">
+              We received a request to reset your password. Click the button
+              below to choose a new password.
+            </p>
+            <div style="text-align: center; margin: 32px 0;">
+              <a href="${resetLink}"
+                 style="background-color: #000; color: #fff; padding: 14px 32px;
+                        text-decoration: none; border-radius: 8px; font-size: 16px;
+                        font-weight: 600; display: inline-block;">
+                Reset Password
+              </a>
+            </div>
+            <p style="color: #888; font-size: 13px;">
+              This link expires in 1 hour. If you didn&rsquo;t request a password
+              reset, you can safely ignore this email.
+            </p>
+            <hr style="border: none; border-top: 1px solid #eee; margin: 24px 0;" />
+            <p style="color: #999; font-size: 12px;">
+              If the button doesn&rsquo;t work, copy and paste this link:<br/>
+              <a href="${resetLink}" style="color: #666;">${resetLink}</a>
+            </p>
+          </div>
+        </div>
+      `,
+      text: `Hi ${recipientName}! ` +
+            "We received a request to reset your password. " +
+            `Click here to reset it: ${resetLink} ` +
+            "This link expires in 1 hour.",
+    });
+    /* eslint-enable max-len */
+
+    logger.info(`Password reset email sent to ${email}`);
+    return true;
+  } catch (error) {
+    logger.error(
+      `Failed to send reset email to ${email}:`, error
+    );
+    return false;
+  }
+}
+
+/**
+ * Send a welcome / onboarding confirmation email
+ * @param {string} email - The recipient email address
+ * @param {string} displayName - User's display name
+ * @return {Promise<boolean>} True if email was sent
+ */
+async function sendWelcomeEmail(
+  email: string,
+  displayName?: string
+): Promise<boolean> {
+  const transporter = getMailTransporter();
+  if (!transporter) {
+    logger.info(
+      "Welcome email skipped (SMTP not configured)."
+    );
+    return false;
+  }
+
+  const senderEmail = process.env.SMTP_USER || "noreply@ssms.app";
+  const name = displayName || "there";
+
+  try {
+    /* eslint-disable max-len */
+    await transporter.sendMail({
+      from: `"SSMS" <${senderEmail}>`,
+      to: email,
+      subject: "Welcome to SSMS!",
+      html: `
+        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+          <div style="background-color: #000; color: #fff; padding: 24px; text-align: center;">
+            <h1 style="margin: 0; font-size: 24px;">Scheduling &amp; Stakeholder Management</h1>
+          </div>
+          <div style="padding: 32px 24px;">
+            <h2 style="color: #333;">Welcome, ${name}!</h2>
+            <p style="color: #555; font-size: 16px; line-height: 1.6;">
+              Your account has been set up successfully. You now have full
+              access to the Scheduling &amp; Stakeholder Management System.
+            </p>
+            <div style="background-color: #f9f9f9; border-radius: 8px; padding: 20px; margin: 24px 0;">
+              <h3 style="margin: 0 0 12px; color: #333;">Getting Started</h3>
+              <ul style="color: #555; font-size: 14px; line-height: 1.8; padding-left: 20px;">
+                <li>Create and manage events from your dashboard</li>
+                <li>View your assigned events and stakeholders</li>
+                <li>Get real-time notifications for updates</li>
+              </ul>
+            </div>
+            <p style="color: #888; font-size: 13px;">
+              If you have any questions, reach out to your organization admin.
+            </p>
+          </div>
+        </div>
+      `,
+      text: `Welcome, ${name}! Your SSMS account is ready. ` +
+            "You can now create events, manage stakeholders, " +
+            "and receive real-time notifications.",
+    });
+    /* eslint-enable max-len */
+
+    logger.info(`Welcome email sent to ${email}`);
+    return true;
+  } catch (error) {
+    logger.error(
+      `Failed to send welcome email to ${email}:`, error
+    );
+    return false;
+  }
+}
+
 
 // User Management
 /**
@@ -199,13 +347,13 @@ export const onUserDeleted = onDocumentDeleted(
       const eventsSnapshot = await admin
         .firestore()
         .collection("events")
-        .where("organizerId", "==", userId)
+        .where("ownerId", "==", userId)
         .get();
 
       eventsSnapshot.docs.forEach((doc) => {
         batch.update(doc.ref, {
-          organizerId: null,
-          organizerName: "Deleted User",
+          ownerId: null,
+          ownerName: "Deleted User",
         });
       });
 
@@ -569,26 +717,45 @@ export const onEventCreated = onDocumentCreated(
     try {
       // If there are assigned stakeholders, notify them
       if (eventData.stakeholderIds && eventData.stakeholderIds.length > 0) {
-        const batch = admin.firestore().batch();
-
         for (const stakeholderId of eventData.stakeholderIds) {
-          const notificationRef = admin
+          // Look up stakeholder to find their linked userId
+          const stakeholderDoc = await admin
             .firestore()
-            .collection("notifications")
-            .doc();
+            .collection("stakeholders")
+            .doc(stakeholderId)
+            .get();
+          const stakeholder = stakeholderDoc.data();
+          const linkedUserId = stakeholder?.linkedUserId;
 
-          batch.set(notificationRef, {
-            userId: stakeholderId,
-            title: "New Event Assigned",
-            body: `You've been assigned to: ${eventData.title}`,
-            createdAt: admin.firestore.FieldValue.serverTimestamp(),
-            isRead: false,
-            type: "event_assignment",
-            eventId: eventId,
-          });
+          if (linkedUserId) {
+            // Send push + in-app notification to linked user
+            await sendPushAndInAppNotification(
+              linkedUserId,
+              "New Event Assigned",
+              `You've been assigned to: ${eventData.title}`,
+              "event_assignment",
+              eventId
+            );
+          } else {
+            // Stakeholder has no account — create in-app
+            // notification under stakeholder ID for later
+            await admin
+              .firestore()
+              .collection("notifications")
+              .add({
+                userId: stakeholderId,
+                title: "New Event Assigned",
+                body: "You've been assigned to: " +
+                  `${eventData.title}`,
+                createdAt: admin.firestore.FieldValue
+                  .serverTimestamp(),
+                isRead: false,
+                type: "event_assignment",
+                eventId: eventId,
+              });
+          }
         }
 
-        await batch.commit();
         logger.info(`Notifications sent for event: ${eventId}`);
       }
     } catch (error) {
@@ -598,31 +765,88 @@ export const onEventCreated = onDocumentCreated(
 );
 
 export const createEvent = onCall(async (request) => {
-  const {title, description, startTime, endTime, location, organizerId} =
-    request.data;
+  const {
+    title, description, startTime, endTime, location,
+    ownerId, ownerName, status, priority, stakeholderIds,
+    recurrenceRule, metadata,
+  } = request.data;
 
-  if (!title || !startTime || !organizerId) {
+  if (!title || !startTime || !ownerId) {
     throw new HttpsError(
       "invalid-argument",
-      "Title, start time, and organizer ID are required."
+      "Title, start time, and owner ID are required."
     );
   }
 
+  // Validate title length
+  if (title.length < 3 || title.length > 100) {
+    throw new HttpsError(
+      "invalid-argument",
+      "Title must be between 3 and 100 characters."
+    );
+  }
+
+  // Validate time range
+  if (endTime) {
+    const start = new Date(startTime);
+    const end = new Date(endTime);
+    if (end <= start) {
+      throw new HttpsError(
+        "invalid-argument",
+        "End time must be after start time."
+      );
+    }
+    const diffMs = end.getTime() - start.getTime();
+    if (diffMs < 5 * 60 * 1000) {
+      throw new HttpsError(
+        "invalid-argument",
+        "Event must be at least 5 minutes long."
+      );
+    }
+    if (diffMs > 30 * 24 * 60 * 60 * 1000) {
+      throw new HttpsError(
+        "invalid-argument",
+        "Event cannot be longer than 30 days."
+      );
+    }
+  }
+
   try {
+    // Build location object matching Flutter EventLocation model
+    const eventLocation = location && typeof location === "object" ?
+      {
+        name: location.name || "",
+        address: location.address || null,
+        latitude: location.latitude || null,
+        longitude: location.longitude || null,
+        isVirtual: location.isVirtual || false,
+        virtualLink: location.virtualLink || null,
+      } :
+      {
+        name: typeof location === "string" ? location : "",
+        address: null,
+        latitude: null,
+        longitude: null,
+        isVirtual: false,
+        virtualLink: null,
+      };
+
+    const now = new Date().toISOString();
     const eventRef = await admin.firestore().collection("events").add({
       title,
-      description: description || "",
-      startTime: admin.firestore.Timestamp.fromDate(new Date(startTime)),
-      endTime: endTime ?
-        admin.firestore.Timestamp.fromDate(new Date(endTime)) :
-        null,
-      location: location || "",
-      organizerId,
-      status: "scheduled",
-      priority: "medium",
-      stakeholderIds: [],
-      createdAt: admin.firestore.FieldValue.serverTimestamp(),
-      updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+      description: description || null,
+      startTime: startTime,
+      endTime: endTime || null,
+      location: eventLocation,
+      ownerId,
+      ownerName: ownerName || null,
+      status: status || "draft",
+      priority: priority || "medium",
+      stakeholderIds: stakeholderIds || [],
+      recurrenceRule: recurrenceRule || null,
+      metadata: metadata || null,
+      createdAt: now,
+      updatedAt: now,
     });
 
     logger.info(`Event created: ${title}`, {id: eventRef.id});
@@ -647,42 +871,153 @@ export const getEvent = onCall(async (request) => {
     }
     return {id: eventDoc.id, ...eventDoc.data()};
   } catch (error) {
+    if (error instanceof HttpsError) throw error;
     logger.error("Error getting event:", error);
     throw new HttpsError("internal", "Error getting event.", error);
   }
 });
 
+/**
+ * Get all events for the authenticated user
+ * Returns events where ownerId matches the caller's UID
+ */
+export const getAllEvents = onCall(async (request) => {
+  const callerUid = request.auth?.uid;
+
+  if (!callerUid) {
+    throw new HttpsError("unauthenticated", "Authentication required.");
+  }
+
+  try {
+    const snapshot = await admin
+      .firestore()
+      .collection("events")
+      .where("ownerId", "==", callerUid)
+      .get();
+
+    const events = snapshot.docs.map((doc) => ({
+      id: doc.id,
+      ...doc.data(),
+    }));
+
+    logger.info(`Events retrieved for user: ${callerUid}`, {
+      count: events.length,
+    });
+    return events;
+  } catch (error) {
+    logger.error("Error getting all events:", error);
+    throw new HttpsError("internal", "Error getting all events.", error);
+  }
+});
+
 export const updateEvent = onCall(async (request) => {
-  const {id, title, description, startTime, endTime, location, status} =
-    request.data;
+  const {
+    id, title, description, startTime, endTime, location,
+    status, priority, stakeholderIds, ownerName,
+    recurrenceRule, metadata,
+  } = request.data;
 
   if (!id) {
     throw new HttpsError("invalid-argument", "Event ID is required.");
   }
 
+  const callerUid = request.auth?.uid;
+  if (!callerUid) {
+    throw new HttpsError("unauthenticated", "Authentication required.");
+  }
+
   try {
+    // Verify ownership
+    const eventDoc = await admin
+      .firestore()
+      .collection("events")
+      .doc(id)
+      .get();
+
+    if (!eventDoc.exists) {
+      throw new HttpsError("not-found", "Event not found.");
+    }
+
+    const existingData = eventDoc.data();
+    if (existingData?.ownerId !== callerUid) {
+      throw new HttpsError(
+        "permission-denied",
+        "You do not have permission to update this event."
+      );
+    }
+
+    // Validate title if provided
+    if (title !== undefined) {
+      if (title.length < 3 || title.length > 100) {
+        throw new HttpsError(
+          "invalid-argument",
+          "Title must be between 3 and 100 characters."
+        );
+      }
+    }
+
     const updateData: Record<string, unknown> = {
-      updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+      updatedAt: new Date().toISOString(),
     };
 
-    if (title) updateData.title = title;
+    if (title !== undefined) updateData.title = title;
     if (description !== undefined) updateData.description = description;
-    if (startTime) {
-      updateData.startTime =
-        admin.firestore.Timestamp.fromDate(new Date(startTime));
+    if (startTime !== undefined) updateData.startTime = startTime;
+    if (endTime !== undefined) updateData.endTime = endTime;
+    if (ownerName !== undefined) updateData.ownerName = ownerName;
+    if (status !== undefined) updateData.status = status;
+    if (priority !== undefined) updateData.priority = priority;
+    if (stakeholderIds !== undefined) {
+      updateData.stakeholderIds = stakeholderIds;
     }
-    if (endTime) {
-      updateData.endTime =
-        admin.firestore.Timestamp.fromDate(new Date(endTime));
+    if (recurrenceRule !== undefined) {
+      updateData.recurrenceRule = recurrenceRule;
     }
-    if (location !== undefined) updateData.location = location;
-    if (status) updateData.status = status;
+    if (metadata !== undefined) updateData.metadata = metadata;
+
+    // Handle location as object (matching Flutter EventLocation model)
+    if (location !== undefined) {
+      if (typeof location === "object" && location !== null) {
+        updateData.location = {
+          name: location.name || "",
+          address: location.address || null,
+          latitude: location.latitude || null,
+          longitude: location.longitude || null,
+          isVirtual: location.isVirtual || false,
+          virtualLink: location.virtualLink || null,
+        };
+      } else {
+        updateData.location = {
+          name: typeof location === "string" ? location : "",
+          address: null,
+          latitude: null,
+          longitude: null,
+          isVirtual: false,
+          virtualLink: null,
+        };
+      }
+    }
+
+    // Validate time range if both times are provided
+    const finalStart = (startTime || existingData?.startTime) as string;
+    const finalEnd = (endTime || existingData?.endTime) as string;
+    if (finalStart && finalEnd) {
+      const start = new Date(finalStart);
+      const end = new Date(finalEnd);
+      if (end <= start) {
+        throw new HttpsError(
+          "invalid-argument",
+          "End time must be after start time."
+        );
+      }
+    }
 
     await admin.firestore().collection("events").doc(id).update(updateData);
 
     logger.info(`Event updated: ${id}`);
     return {success: true};
   } catch (error) {
+    if (error instanceof HttpsError) throw error;
     logger.error("Error updating event:", error);
     throw new HttpsError("internal", "Error updating event.", error);
   }
@@ -695,11 +1030,77 @@ export const deleteEvent = onCall(async (request) => {
     throw new HttpsError("invalid-argument", "Event ID is required.");
   }
 
+  const callerUid = request.auth?.uid;
+  if (!callerUid) {
+    throw new HttpsError("unauthenticated", "Authentication required.");
+  }
+
   try {
-    await admin.firestore().collection("events").doc(id).delete();
+    // Verify ownership
+    const eventDoc = await admin
+      .firestore()
+      .collection("events")
+      .doc(id)
+      .get();
+
+    if (!eventDoc.exists) {
+      throw new HttpsError("not-found", "Event not found.");
+    }
+
+    const eventData = eventDoc.data();
+    if (eventData?.ownerId !== callerUid) {
+      throw new HttpsError(
+        "permission-denied",
+        "You do not have permission to delete this event."
+      );
+    }
+
+    const batch = admin.firestore().batch();
+
+    // Delete the event
+    batch.delete(admin.firestore().collection("events").doc(id));
+
+    // Clean up associated eventStakeholder relationships
+    const eventStakeholders = await admin
+      .firestore()
+      .collection("eventStakeholders")
+      .where("eventId", "==", id)
+      .get();
+
+    eventStakeholders.docs.forEach((doc) => {
+      batch.delete(doc.ref);
+    });
+
+    // Remove event from stakeholders' eventIds arrays
+    if (eventData?.stakeholderIds && eventData.stakeholderIds.length > 0) {
+      for (const stakeholderId of eventData.stakeholderIds) {
+        const stakeholderRef = admin
+          .firestore()
+          .collection("stakeholders")
+          .doc(stakeholderId);
+        batch.update(stakeholderRef, {
+          eventIds: admin.firestore.FieldValue.arrayRemove(id),
+        });
+      }
+    }
+
+    // Delete related notifications
+    const notifications = await admin
+      .firestore()
+      .collection("notifications")
+      .where("eventId", "==", id)
+      .get();
+
+    notifications.docs.forEach((doc) => {
+      batch.delete(doc.ref);
+    });
+
+    await batch.commit();
+
     logger.info(`Event deleted: ${id}`);
     return {success: true};
   } catch (error) {
+    if (error instanceof HttpsError) throw error;
     logger.error("Error deleting event:", error);
     throw new HttpsError("internal", "Error deleting event.", error);
   }
@@ -964,37 +1365,84 @@ export const validateInviteToken = onCall(async (request) => {
 });
 
 export const linkUserToStakeholder = onCall(async (request) => {
-  const {userId, stakeholderId, inviteToken} = request.data;
+  const {userId, token, inviteToken} = request.data;
+  // Accept both 'token' and 'inviteToken' for backwards compat
+  const resolvedToken = token || inviteToken;
 
-  if (!userId || !stakeholderId) {
+  if (!userId) {
     throw new HttpsError(
       "invalid-argument",
-      "User ID and Stakeholder ID are required."
+      "User ID is required."
+    );
+  }
+
+  if (!resolvedToken) {
+    throw new HttpsError(
+      "invalid-argument",
+      "Invite token is required."
     );
   }
 
   try {
-    const batch = admin.firestore().batch();
+    // Look up stakeholder from the invite token
+    const inviteDoc = await admin
+      .firestore()
+      .collection("invites")
+      .doc(resolvedToken)
+      .get();
 
-    // Get invite data for default role
-    let defaultRole = "member";
-    if (inviteToken) {
-      const inviteDoc = await admin
-        .firestore()
-        .collection("invites")
-        .doc(inviteToken)
-        .get();
-      if (inviteDoc.exists) {
-        const inviteData = inviteDoc.data();
-        defaultRole = inviteData?.defaultRole || "member";
-
-        // Mark invite as used
-        batch.update(inviteDoc.ref, {used: true});
-      }
+    if (!inviteDoc.exists) {
+      throw new HttpsError(
+        "not-found",
+        "Invite token not found."
+      );
     }
 
+    const inviteData = inviteDoc.data();
+    if (!inviteData) {
+      throw new HttpsError(
+        "internal",
+        "Invite data is empty."
+      );
+    }
+
+    if (inviteData.used) {
+      throw new HttpsError(
+        "already-exists",
+        "This invite has already been used."
+      );
+    }
+
+    const expiresAt = inviteData.expiresAt?.toDate();
+    if (expiresAt && new Date() > expiresAt) {
+      throw new HttpsError(
+        "deadline-exceeded",
+        "This invite has expired."
+      );
+    }
+
+    const stakeholderId = inviteData.stakeholderId;
+    const defaultRole = inviteData.defaultRole || "member";
+
+    if (!stakeholderId) {
+      throw new HttpsError(
+        "internal",
+        "Invite is missing stakeholder ID."
+      );
+    }
+
+    const batch = admin.firestore().batch();
+
+    // Mark invite as used
+    batch.update(inviteDoc.ref, {
+      used: true,
+      usedAt: admin.firestore.FieldValue.serverTimestamp(),
+      usedByUserId: userId,
+    });
+
     // Update user with stakeholder link
-    const userRef = admin.firestore().collection("users").doc(userId);
+    const userRef = admin
+      .firestore().collection("users").doc(userId);
     batch.update(userRef, {
       stakeholderId: stakeholderId,
       role: defaultRole,
@@ -1015,10 +1463,41 @@ export const linkUserToStakeholder = onCall(async (request) => {
 
     await batch.commit();
 
-    logger.info(`User ${userId} linked to stakeholder ${stakeholderId}`);
+    // Send acceptance notification to the stakeholder
+    const stakeholderDoc = await stakeholderRef.get();
+    const stakeholderData = stakeholderDoc.data();
+    if (stakeholderData) {
+      // Notify the user who sent the invite (if known)
+      const userDoc = await userRef.get();
+      const userData = userDoc.data();
+      await admin.firestore().collection("notifications").add({
+        userId: userId,
+        title: "Account Linked!",
+        body: "Your account has been linked to your " +
+          "stakeholder profile. Welcome aboard!",
+        type: "invite_accepted",
+        createdAt: admin.firestore.FieldValue.serverTimestamp(),
+        isRead: false,
+      });
+
+      // Send welcome email to newly linked user
+      if (userData?.email) {
+        await sendWelcomeEmail(
+          userData.email,
+          userData.displayName
+        );
+      }
+    }
+
+    logger.info(
+      `User ${userId} linked to stakeholder ${stakeholderId}`
+    );
     return {success: true, role: defaultRole};
   } catch (error) {
-    logger.error("Error linking user to stakeholder:", error);
+    if (error instanceof HttpsError) throw error;
+    logger.error(
+      "Error linking user to stakeholder:", error
+    );
     throw new HttpsError(
       "internal",
       "Error linking user to stakeholder.",
@@ -1117,7 +1596,148 @@ export const removeStakeholderFromEvent = onCall(async (request) => {
 
 // Notification management
 
+// =============================================================================
+// FCM PUSH NOTIFICATION HELPER
+// =============================================================================
+
+/**
+ * Send a push notification via FCM to a specific user.
+ * Looks up the user's fcmTokens array and sends to all registered devices.
+ * Also creates a Firestore notification document for in-app display.
+ *
+ * @param {string} userId - Target user ID
+ * @param {string} title - Notification title
+ * @param {string} body - Notification body text
+ * @param {string} type - Notification type (welcome, event_reminder, etc.)
+ * @param {string | null} eventId - Related event ID (for navigation)
+ * @param {Record<string, string>} extraData - Additional payload data
+ */
+async function sendPushAndInAppNotification(
+  userId: string,
+  title: string,
+  body: string,
+  type = "general",
+  eventId: string | null = null,
+  extraData: Record<string, string> = {}
+): Promise<void> {
+  // 1. Create Firestore in-app notification
+  await admin.firestore().collection("notifications").add({
+    userId,
+    title,
+    body,
+    type,
+    eventId: eventId || null,
+    createdAt: admin.firestore.FieldValue.serverTimestamp(),
+    isRead: false,
+  });
+
+  // 2. Send FCM push notification
+  try {
+    const userDoc = await admin
+      .firestore()
+      .collection("users")
+      .doc(userId)
+      .get();
+    const userData = userDoc.data();
+    const fcmTokens: string[] = userData?.fcmTokens || [];
+
+    if (fcmTokens.length === 0) {
+      logger.info(
+        `No FCM tokens for user ${userId}, ` +
+        "skipping push notification."
+      );
+      return;
+    }
+
+    // Build FCM message payload
+    const dataPayload: Record<string, string> = {
+      type,
+      ...extraData,
+    };
+    if (eventId) {
+      dataPayload.eventId = eventId;
+    }
+
+    // Send to all registered devices
+    const invalidTokens: string[] = [];
+    for (const token of fcmTokens) {
+      try {
+        await admin.messaging().send({
+          token,
+          notification: {title, body},
+          data: dataPayload,
+          android: {
+            priority: type === "event_reminder" ?
+              "high" : "normal",
+            notification: {
+              channelId: type === "event_reminder" ?
+                "ssms_reminders" : "ssms_notifications",
+              priority: type === "event_reminder" ?
+                "high" : "default",
+            },
+          },
+          apns: {
+            payload: {
+              aps: {
+                alert: {title, body},
+                badge: 1,
+                sound: "default",
+              },
+            },
+          },
+        });
+      } catch (tokenError: unknown) {
+        const errMsg = tokenError instanceof Error ?
+          tokenError.message : String(tokenError);
+        // Remove invalid tokens
+        if (
+          errMsg.includes("not-registered") ||
+          errMsg.includes("invalid-registration-token") ||
+          errMsg.includes("registration-token-not-registered")
+        ) {
+          invalidTokens.push(token);
+        }
+        logger.warn(
+          `FCM send failed for token: ${errMsg}`
+        );
+      }
+    }
+
+    // Clean up invalid tokens
+    if (invalidTokens.length > 0) {
+      await admin
+        .firestore()
+        .collection("users")
+        .doc(userId)
+        .update({
+          fcmTokens:
+            admin.firestore.FieldValue.arrayRemove(
+              invalidTokens
+            ),
+        });
+      logger.info(
+        `Removed ${invalidTokens.length} ` +
+        `invalid FCM token(s) for user ${userId}.`
+      );
+    }
+  } catch (error) {
+    logger.error(
+      `Error sending FCM to user ${userId}:`,
+      error
+    );
+    // Non-critical: in-app notification was already created
+  }
+}
+
 export const sendNotification = onCall(async (request) => {
+  // Require authentication
+  if (!request.auth) {
+    throw new HttpsError(
+      "unauthenticated",
+      "Authentication required."
+    );
+  }
+
   const {userId, title, body, type, eventId} = request.data;
 
   if (!userId || !title || !body) {
@@ -1128,15 +1748,13 @@ export const sendNotification = onCall(async (request) => {
   }
 
   try {
-    await admin.firestore().collection("notifications").add({
+    await sendPushAndInAppNotification(
       userId,
       title,
       body,
-      type: type || "general",
-      eventId: eventId || null,
-      createdAt: admin.firestore.FieldValue.serverTimestamp(),
-      isRead: false,
-    });
+      type || "general",
+      eventId || null
+    );
 
     logger.info(`Notification sent to user: ${userId}`);
     return {success: true};
@@ -1200,6 +1818,655 @@ export const markNotificationAsRead = onCall(async (request) => {
     );
   }
 });
+
+// =============================================================================
+// FCM TOKEN MANAGEMENT
+// =============================================================================
+
+/**
+ * Save an FCM token for the authenticated user.
+ * Called from the Flutter app when FCM is initialized or token refreshes.
+ */
+export const saveFcmToken = onCall(async (request) => {
+  const callerUid = request.auth?.uid;
+  if (!callerUid) {
+    throw new HttpsError(
+      "unauthenticated",
+      "Authentication required."
+    );
+  }
+
+  const {token} = request.data;
+  if (!token) {
+    throw new HttpsError(
+      "invalid-argument",
+      "FCM token is required."
+    );
+  }
+
+  try {
+    await admin
+      .firestore()
+      .collection("users")
+      .doc(callerUid)
+      .update({
+        fcmTokens:
+          admin.firestore.FieldValue.arrayUnion([token]),
+        lastTokenUpdate:
+          admin.firestore.FieldValue.serverTimestamp(),
+      });
+
+    logger.info(`FCM token saved for user: ${callerUid}`);
+    return {success: true};
+  } catch (error) {
+    logger.error("Error saving FCM token:", error);
+    throw new HttpsError(
+      "internal",
+      "Error saving FCM token.",
+      error
+    );
+  }
+});
+
+/**
+ * Remove an FCM token on logout so the user stops
+ * receiving push notifications on that device.
+ */
+export const removeFcmToken = onCall(async (request) => {
+  const callerUid = request.auth?.uid;
+  if (!callerUid) {
+    throw new HttpsError(
+      "unauthenticated",
+      "Authentication required."
+    );
+  }
+
+  const {token} = request.data;
+  if (!token) {
+    throw new HttpsError(
+      "invalid-argument",
+      "FCM token is required."
+    );
+  }
+
+  try {
+    await admin
+      .firestore()
+      .collection("users")
+      .doc(callerUid)
+      .update({
+        fcmTokens:
+          admin.firestore.FieldValue.arrayRemove([token]),
+      });
+
+    logger.info(
+      `FCM token removed for user: ${callerUid}`
+    );
+    return {success: true};
+  } catch (error) {
+    logger.error("Error removing FCM token:", error);
+    throw new HttpsError(
+      "internal",
+      "Error removing FCM token.",
+      error
+    );
+  }
+});
+
+// =============================================================================
+// SCHEDULED: EVENT REMINDERS (every 15 minutes)
+// =============================================================================
+
+/**
+ * Runs every 15 minutes to check for upcoming events
+ * and send reminder notifications to assigned stakeholders.
+ *
+ * Reminder windows:
+ *  - 24 hours before (1440 minutes)
+ *  - 1 hour before (60 minutes)
+ *  - 15 minutes before
+ *
+ * Uses a `remindersSent` map on the event doc to avoid
+ * duplicate reminders.
+ */
+export const sendEventReminders = onSchedule(
+  "every 15 minutes",
+  async () => {
+    try {
+      const now = new Date();
+
+      // Define reminder windows
+      const windows = [
+        {key: "reminder_1440", minutesBefore: 1440,
+          label: "24 hours"},
+        {key: "reminder_60", minutesBefore: 60,
+          label: "1 hour"},
+        {key: "reminder_15", minutesBefore: 15,
+          label: "15 minutes"},
+      ];
+
+      // For each window, find events that fall within
+      // the window and haven't been reminded yet
+      for (const window of windows) {
+        const targetStart = new Date(
+          now.getTime() + window.minutesBefore * 60 * 1000
+        );
+        const targetEnd = new Date(
+          targetStart.getTime() + 15 * 60 * 1000
+        );
+
+        // Query events starting within this window
+        const eventsSnapshot = await admin
+          .firestore()
+          .collection("events")
+          .where("status", "in", [
+            "scheduled", "draft",
+          ])
+          .where(
+            "startTime",
+            ">=",
+            targetStart.toISOString()
+          )
+          .where(
+            "startTime",
+            "<",
+            targetEnd.toISOString()
+          )
+          .get();
+
+        for (const eventDoc of eventsSnapshot.docs) {
+          const eventData = eventDoc.data();
+          const remindersSent =
+            eventData.remindersSent || {};
+
+          // Skip if this reminder was already sent
+          if (remindersSent[window.key]) continue;
+
+          const stakeholderIds: string[] =
+            eventData.stakeholderIds || [];
+
+          if (stakeholderIds.length === 0) continue;
+
+          // Send reminder to each stakeholder
+          for (const shId of stakeholderIds) {
+            // Look up linked user
+            const shDoc = await admin
+              .firestore()
+              .collection("stakeholders")
+              .doc(shId)
+              .get();
+            const shData = shDoc.data();
+            const linkedUserId = shData?.linkedUserId;
+
+            if (linkedUserId) {
+              await sendPushAndInAppNotification(
+                linkedUserId,
+                `Event in ${window.label}`,
+                `"${eventData.title}" starts in ` +
+                `${window.label}.`,
+                "event_reminder",
+                eventDoc.id
+              );
+            }
+          }
+
+          // Also notify the event owner
+          if (eventData.ownerId) {
+            await sendPushAndInAppNotification(
+              eventData.ownerId,
+              `Event in ${window.label}`,
+              `"${eventData.title}" starts in ` +
+              `${window.label}.`,
+              "event_reminder",
+              eventDoc.id
+            );
+          }
+
+          // Mark this reminder window as sent
+          await eventDoc.ref.update({
+            [`remindersSent.${window.key}`]: true,
+          });
+
+          logger.info(
+            `Reminder (${window.label}) sent for ` +
+            `event: ${eventDoc.id}`
+          );
+        }
+      }
+    } catch (error) {
+      logger.error(
+        "Error sending event reminders:", error
+      );
+    }
+  }
+);
+
+// =============================================================================
+// EVENT UPDATE NOTIFICATION
+// =============================================================================
+
+/**
+ * Notify all stakeholders when an event is updated
+ * (time change, reschedule, etc.).
+ */
+export const notifyEventUpdate = onCall(
+  async (request) => {
+    const callerUid = request.auth?.uid;
+    if (!callerUid) {
+      throw new HttpsError(
+        "unauthenticated",
+        "Authentication required."
+      );
+    }
+
+    const {eventId, changeDescription} = request.data;
+
+    if (!eventId) {
+      throw new HttpsError(
+        "invalid-argument",
+        "Event ID is required."
+      );
+    }
+
+    try {
+      const eventDoc = await admin
+        .firestore()
+        .collection("events")
+        .doc(eventId)
+        .get();
+
+      if (!eventDoc.exists) {
+        throw new HttpsError(
+          "not-found",
+          "Event not found."
+        );
+      }
+
+      const eventData = eventDoc.data();
+      if (!eventData) {
+        throw new HttpsError(
+          "internal",
+          "Event data is empty."
+        );
+      }
+
+      const stakeholderIds: string[] =
+        eventData.stakeholderIds || [];
+      const description = changeDescription ||
+        "Event details have been updated.";
+
+      let notified = 0;
+
+      for (const shId of stakeholderIds) {
+        const shDoc = await admin
+          .firestore()
+          .collection("stakeholders")
+          .doc(shId)
+          .get();
+        const shData = shDoc.data();
+        const linkedUserId = shData?.linkedUserId;
+
+        if (linkedUserId && linkedUserId !== callerUid) {
+          await sendPushAndInAppNotification(
+            linkedUserId,
+            `Event Updated: ${eventData.title}`,
+            description,
+            "event_update",
+            eventId
+          );
+          notified++;
+        }
+      }
+
+      // Also notify the owner if caller is not the owner
+      if (
+        eventData.ownerId &&
+        eventData.ownerId !== callerUid
+      ) {
+        await sendPushAndInAppNotification(
+          eventData.ownerId,
+          `Event Updated: ${eventData.title}`,
+          description,
+          "event_update",
+          eventId
+        );
+        notified++;
+      }
+
+      logger.info(
+        "Event update notification sent to " +
+        `${notified} user(s) for event: ${eventId}`
+      );
+      return {success: true, notifiedCount: notified};
+    } catch (error) {
+      if (error instanceof HttpsError) throw error;
+      logger.error(
+        "Error sending event update notification:",
+        error
+      );
+      throw new HttpsError(
+        "internal",
+        "Error sending event update notification.",
+        error
+      );
+    }
+  }
+);
+
+// =============================================================================
+// PASSWORD RESET (BRANDED EMAIL)
+// =============================================================================
+
+/**
+ * Send a branded password reset email using Nodemailer.
+ * Generates a Firebase Auth password reset link and wraps it
+ * in a styled HTML email. Falls back to Firebase default email
+ * if SMTP is not configured.
+ */
+export const requestPasswordReset = onCall(async (request) => {
+  const {email} = request.data;
+
+  if (!email) {
+    throw new HttpsError(
+      "invalid-argument",
+      "Email is required."
+    );
+  }
+
+  try {
+    // Generate the Firebase Auth password reset link
+    const resetLink = await admin
+      .auth()
+      .generatePasswordResetLink(email);
+
+    // Look up user display name for personalisation
+    let displayName: string | undefined;
+    try {
+      const userRecord = await admin.auth().getUserByEmail(email);
+      displayName = userRecord.displayName || undefined;
+    } catch {
+      // User may not exist — still send the email; Firebase
+      // link will handle invalid accounts gracefully.
+    }
+
+    // Attempt branded email via Nodemailer
+    const sent = await sendPasswordResetMail(
+      email,
+      resetLink,
+      displayName
+    );
+
+    if (!sent) {
+      // SMTP not configured — fall back to Firebase default
+      await admin
+        .auth()
+        .generatePasswordResetLink(email);
+      // Firebase will send its default reset email
+      // when the client calls sendPasswordResetEmail
+    }
+
+    logger.info(`Password reset requested for ${email}`);
+    return {success: true, emailSent: sent};
+  } catch (error) {
+    // Don't reveal whether the email exists
+    logger.error("Error in password reset:", error);
+    return {success: true, emailSent: false};
+  }
+});
+
+// =============================================================================
+// RESEND STAKEHOLDER INVITE
+// =============================================================================
+
+/**
+ * Resend an invitation to a stakeholder.
+ * Generates a fresh token, updates the invite, and sends
+ * a new email. Requires authentication.
+ */
+export const resendInvite = onCall(async (request) => {
+  const {stakeholderId} = request.data;
+  const callerUid = request.auth?.uid;
+
+  if (!callerUid) {
+    throw new HttpsError(
+      "unauthenticated",
+      "Authentication required."
+    );
+  }
+
+  if (!stakeholderId) {
+    throw new HttpsError(
+      "invalid-argument",
+      "Stakeholder ID is required."
+    );
+  }
+
+  try {
+    // Verify caller has invite permission
+    const canInvite = await hasPermission(
+      callerUid,
+      PERMISSIONS.inviteStakeholder
+    );
+    if (!canInvite) {
+      throw new HttpsError(
+        "permission-denied",
+        "You don't have permission to invite stakeholders."
+      );
+    }
+
+    const stakeholderRef = admin
+      .firestore()
+      .collection("stakeholders")
+      .doc(stakeholderId);
+    const stakeholderDoc = await stakeholderRef.get();
+
+    if (!stakeholderDoc.exists) {
+      throw new HttpsError(
+        "not-found",
+        "Stakeholder not found."
+      );
+    }
+
+    const stakeholderData = stakeholderDoc.data();
+    if (!stakeholderData) {
+      throw new HttpsError(
+        "internal",
+        "Stakeholder data is empty."
+      );
+    }
+
+    if (stakeholderData.linkedUserId) {
+      throw new HttpsError(
+        "already-exists",
+        "Stakeholder already has a linked account."
+      );
+    }
+
+    // Expire old invite if it exists
+    const oldToken = stakeholderData.inviteToken;
+    if (oldToken) {
+      const oldInviteRef = admin
+        .firestore()
+        .collection("invites")
+        .doc(oldToken);
+      const oldInviteDoc = await oldInviteRef.get();
+      if (oldInviteDoc.exists) {
+        await oldInviteRef.update({
+          used: true,
+          replacedAt:
+            admin.firestore.FieldValue.serverTimestamp(),
+        });
+      }
+    }
+
+    // Generate fresh invite token
+    const newToken = admin
+      .firestore().collection("_temp").doc().id;
+
+    // Update stakeholder
+    await stakeholderRef.update({
+      inviteStatus: "pending",
+      invitedAt:
+        admin.firestore.FieldValue.serverTimestamp(),
+      inviteToken: newToken,
+      updatedAt:
+        admin.firestore.FieldValue.serverTimestamp(),
+    });
+
+    // Create new invite document
+    await admin
+      .firestore()
+      .collection("invites")
+      .doc(newToken)
+      .set({
+        stakeholderId: stakeholderId,
+        email: stakeholderData.email,
+        defaultRole:
+          stakeholderData.defaultRole || "member",
+        createdAt:
+          admin.firestore.FieldValue.serverTimestamp(),
+        expiresAt: admin.firestore.Timestamp.fromDate(
+          new Date(Date.now() + 7 * 24 * 60 * 60 * 1000)
+        ),
+        used: false,
+        resentBy: callerUid,
+      });
+
+    // Send email
+    const emailSent = await sendInviteEmail(
+      stakeholderData.email,
+      newToken,
+      stakeholderData.name || stakeholderData.displayName
+    );
+
+    logger.info(
+      `Invite resent to stakeholder: ${stakeholderId}`
+    );
+    return {
+      success: true,
+      inviteToken: newToken,
+      email: stakeholderData.email,
+      emailSent,
+    };
+  } catch (error) {
+    if (error instanceof HttpsError) throw error;
+    logger.error("Error resending invite:", error);
+    throw new HttpsError(
+      "internal",
+      "Error resending invite.",
+      error
+    );
+  }
+});
+
+// =============================================================================
+// SCHEDULED: CLEANUP EXPIRED INVITES
+// =============================================================================
+
+/**
+ * Runs daily to mark expired invites.
+ * Updates invite documents and corresponding stakeholder
+ * records so the UI shows accurate status.
+ */
+export const cleanupExpiredInvites = onSchedule(
+  "every 24 hours",
+  async () => {
+    try {
+      const now = admin.firestore.Timestamp.now();
+      const snapshot = await admin
+        .firestore()
+        .collection("invites")
+        .where("used", "==", false)
+        .where("expiresAt", "<", now)
+        .get();
+
+      if (snapshot.empty) {
+        logger.info("No expired invites to clean up.");
+        return;
+      }
+
+      const batch = admin.firestore().batch();
+      let count = 0;
+
+      for (const doc of snapshot.docs) {
+        const data = doc.data();
+        // Mark invite as expired
+        batch.update(doc.ref, {
+          used: true,
+          expiredAt:
+            admin.firestore.FieldValue.serverTimestamp(),
+        });
+
+        // Update stakeholder invite status
+        if (data.stakeholderId) {
+          const stakeholderRef = admin
+            .firestore()
+            .collection("stakeholders")
+            .doc(data.stakeholderId);
+          batch.update(stakeholderRef, {
+            inviteStatus: "expired",
+            updatedAt:
+              admin.firestore.FieldValue.serverTimestamp(),
+          });
+        }
+        count++;
+      }
+
+      await batch.commit();
+      logger.info(
+        `Cleaned up ${count} expired invite(s).`
+      );
+    } catch (error) {
+      logger.error(
+        "Error cleaning up expired invites:", error
+      );
+    }
+  }
+);
+
+// =============================================================================
+// ONBOARDING COMPLETE — SEND WELCOME EMAIL
+// =============================================================================
+
+/**
+ * Callable function: triggered after completing onboarding
+ * to send a branded welcome email.
+ */
+export const onOnboardingComplete = onCall(
+  async (request) => {
+    const callerUid = request.auth?.uid;
+    if (!callerUid) {
+      throw new HttpsError(
+        "unauthenticated",
+        "Authentication required."
+      );
+    }
+
+    try {
+      const userDoc = await admin
+        .firestore()
+        .collection("users")
+        .doc(callerUid)
+        .get();
+      const userData = userDoc.data();
+
+      if (userData?.email) {
+        await sendWelcomeEmail(
+          userData.email,
+          userData.displayName
+        );
+      }
+
+      return {success: true};
+    } catch (error) {
+      logger.error(
+        "Error sending welcome email:", error
+      );
+      // Non-critical — don't throw
+      return {success: false};
+    }
+  }
+);
 
 // Helper functions
 

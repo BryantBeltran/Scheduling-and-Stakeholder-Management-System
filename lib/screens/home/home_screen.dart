@@ -37,6 +37,7 @@ import '../events/event_list_screen.dart';
 import '../stakeholders/stakeholder_list_screen.dart';
 import '../stakeholders/stakeholder_dashboard_screen.dart';
 import '../profile/profile_screen.dart';
+import '../profile/notifications_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -131,25 +132,33 @@ class _DashboardScreenState extends State<DashboardScreen> {
   bool _isLoading = true;
   List<EventModel> _events = [];
   List<StakeholderModel> _stakeholders = [];
+  final EventService _eventService = EventService();
+  final StakeholderService _stakeholderService = StakeholderService();
+  final NotificationService _notificationService = NotificationService();
   
   @override
   void initState() {
     super.initState();
     _loadData();
+    // Listen to event stream for real-time updates
+    _eventService.eventsStream.listen((events) {
+      if (mounted) {
+        setState(() {
+          _events = events;
+        });
+      }
+    });
   }
   
   Future<void> _loadData() async {
     setState(() => _isLoading = true);
     
     try {
-      final eventService = EventService();
-      final stakeholderService = StakeholderService();
-      
       // Fetch events from Firestore or mock data
-      _events = await eventService.getAllEvents();
+      _events = await _eventService.getAllEvents();
       
       // Get stakeholders from Firestore or mock data
-      _stakeholders = await stakeholderService.getAllStakeholders();
+      _stakeholders = await _stakeholderService.getAllStakeholders();
     } catch (e) {
       debugPrint('Error loading data: $e');
       // Initialize with empty lists on error
@@ -157,7 +166,9 @@ class _DashboardScreenState extends State<DashboardScreen> {
       _stakeholders = [];
     }
     
-    setState(() => _isLoading = false);
+    if (mounted) {
+      setState(() => _isLoading = false);
+    }
   }
 
   @override
@@ -181,12 +192,27 @@ class _DashboardScreenState extends State<DashboardScreen> {
         backgroundColor: Colors.white,
         foregroundColor: Colors.black,
         actions: [
-          IconButton(
-            icon: const Icon(Icons.notifications_outlined),
-            onPressed: () {
-              // TODO: Show notifications
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(content: Text('Notifications coming soon!')),
+          StreamBuilder<int>(
+            stream: _notificationService.unreadCountStream,
+            initialData: _notificationService.unreadCount,
+            builder: (context, snapshot) {
+              final unreadCount = snapshot.data ?? 0;
+              return IconButton(
+                icon: Badge(
+                  isLabelVisible: unreadCount > 0,
+                  label: Text(
+                    unreadCount > 99 ? '99+' : '$unreadCount',
+                    style: const TextStyle(fontSize: 10),
+                  ),
+                  child: const Icon(Icons.notifications_outlined),
+                ),
+                onPressed: () {
+                  Navigator.of(context).push(
+                    MaterialPageRoute(
+                      builder: (_) => const NotificationsScreen(),
+                    ),
+                  );
+                },
               );
             },
           ),
@@ -232,6 +258,16 @@ class _DashboardScreenState extends State<DashboardScreen> {
             final completedEvents = _events
                 .where((e) => e.status == EventStatus.completed)
                 .toList();
+            final inProgressEvents = _events
+                .where((e) => e.status == EventStatus.inProgress)
+                .toList();
+            final todayEvents = _events.where((e) {
+              final today = DateTime(now.year, now.month, now.day);
+              final eventDay = DateTime(
+                e.startTime.year, e.startTime.month, e.startTime.day,
+              );
+              return eventDay == today;
+            }).toList();
 
             return ListView(
                       padding: const EdgeInsets.all(20),
@@ -412,6 +448,95 @@ class _DashboardScreenState extends State<DashboardScreen> {
                           ),
                         ),
                         const SizedBox(height: 20),
+
+                        // In Progress & Today Stats Row
+                        Card(
+                          elevation: 0,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12),
+                            side: BorderSide(color: Colors.grey[200]!),
+                          ),
+                          child: Row(
+                            children: [
+                              Expanded(
+                                child: Padding(
+                                  padding: const EdgeInsets.all(20),
+                                  child: Row(
+                                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                    children: [
+                                      Column(
+                                        crossAxisAlignment: CrossAxisAlignment.start,
+                                        children: [
+                                          Text(
+                                            'In Progress',
+                                            style: TextStyle(
+                                              fontSize: 14,
+                                              color: Colors.grey[600],
+                                            ),
+                                          ),
+                                          const SizedBox(height: 8),
+                                          Text(
+                                            '${inProgressEvents.length}',
+                                            style: const TextStyle(
+                                              fontSize: 28,
+                                              fontWeight: FontWeight.bold,
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                      Icon(
+                                        Icons.play_circle_fill,
+                                        color: Colors.deepOrange,
+                                        size: 36,
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ),
+                              Container(
+                                width: 1,
+                                height: 80,
+                                color: Colors.grey[300],
+                              ),
+                              Expanded(
+                                child: Padding(
+                                  padding: const EdgeInsets.all(20),
+                                  child: Row(
+                                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                    children: [
+                                      Column(
+                                        crossAxisAlignment: CrossAxisAlignment.start,
+                                        children: [
+                                          Text(
+                                            'Today',
+                                            style: TextStyle(
+                                              fontSize: 14,
+                                              color: Colors.grey[600],
+                                            ),
+                                          ),
+                                          const SizedBox(height: 8),
+                                          Text(
+                                            '${todayEvents.length}',
+                                            style: const TextStyle(
+                                              fontSize: 28,
+                                              fontWeight: FontWeight.bold,
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                      Icon(
+                                        Icons.today,
+                                        color: Colors.teal,
+                                        size: 36,
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        const SizedBox(height: 20),
                         
                         // Stakeholder Dashboard Card (shows if user is a stakeholder)
                         if (authSnapshot.data?.isStakeholder == true)
@@ -419,6 +544,77 @@ class _DashboardScreenState extends State<DashboardScreen> {
                         if (authSnapshot.data?.isStakeholder == true)
                           const SizedBox(height: 20),
                         
+                        // Today's Events Section
+                        if (todayEvents.isNotEmpty) ...[
+                          Card(
+                            elevation: 0,
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(12),
+                              side: BorderSide(color: Colors.teal.withValues(alpha: 0.3)),
+                            ),
+                            color: Colors.teal.withValues(alpha: 0.05),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Padding(
+                                  padding: const EdgeInsets.fromLTRB(20, 20, 20, 16),
+                                  child: Row(
+                                    children: [
+                                      Icon(Icons.today, color: Colors.teal, size: 22),
+                                      const SizedBox(width: 8),
+                                      const Text(
+                                        "Today's Events",
+                                        style: TextStyle(
+                                          fontSize: 18,
+                                          fontWeight: FontWeight.bold,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                                ...todayEvents.map((event) => ListTile(
+                                  leading: CircleAvatar(
+                                    backgroundColor: _statusColor(event.status),
+                                    child: Icon(
+                                      _statusIcon(event.status),
+                                      color: Colors.white,
+                                      size: 18,
+                                    ),
+                                  ),
+                                  title: Text(
+                                    event.title,
+                                    style: const TextStyle(fontWeight: FontWeight.w600),
+                                  ),
+                                  subtitle: Text(
+                                    '${_formatTime(event.startTime)} - ${_formatTime(event.endTime)}',
+                                    style: TextStyle(color: Colors.grey[600]),
+                                  ),
+                                  trailing: Chip(
+                                    label: Text(
+                                      event.status.name[0].toUpperCase() + event.status.name.substring(1),
+                                      style: TextStyle(
+                                        fontSize: 11,
+                                        color: _statusColor(event.status),
+                                      ),
+                                    ),
+                                    backgroundColor: _statusColor(event.status).withValues(alpha: 0.1),
+                                    side: BorderSide.none,
+                                    padding: EdgeInsets.zero,
+                                    visualDensity: VisualDensity.compact,
+                                  ),
+                                  onTap: () => Navigator.pushNamed(
+                                    context,
+                                    '/event/details',
+                                    arguments: event.id,
+                                  ),
+                                )),
+                                const SizedBox(height: 8),
+                              ],
+                            ),
+                          ),
+                          const SizedBox(height: 20),
+                        ],
+
                         // Upcoming Events Section
                         Card(
                           elevation: 0,
@@ -474,6 +670,43 @@ class _DashboardScreenState extends State<DashboardScreen> {
         ),
       ),
     );
+  }
+
+  Color _statusColor(EventStatus status) {
+    switch (status) {
+      case EventStatus.draft:
+        return Colors.grey;
+      case EventStatus.scheduled:
+        return Colors.blue;
+      case EventStatus.inProgress:
+        return Colors.deepOrange;
+      case EventStatus.completed:
+        return Colors.green;
+      case EventStatus.cancelled:
+        return Colors.red;
+    }
+  }
+
+  IconData _statusIcon(EventStatus status) {
+    switch (status) {
+      case EventStatus.draft:
+        return Icons.edit_note;
+      case EventStatus.scheduled:
+        return Icons.schedule;
+      case EventStatus.inProgress:
+        return Icons.play_arrow;
+      case EventStatus.completed:
+        return Icons.check;
+      case EventStatus.cancelled:
+        return Icons.cancel;
+    }
+  }
+
+  String _formatTime(DateTime time) {
+    final hour = time.hour % 12 == 0 ? 12 : time.hour % 12;
+    final minute = time.minute.toString().padLeft(2, '0');
+    final period = time.hour < 12 ? 'AM' : 'PM';
+    return '$hour:$minute $period';
   }
 
   Widget _buildStakeholderDashboardCard(BuildContext context) {

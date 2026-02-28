@@ -101,6 +101,57 @@ class _StakeholderDetailsScreenState extends State<StakeholderDetailsScreen> {
     }
   }
 
+  /// Resend an invite by generating a fresh token and email
+  Future<void> _resendInvite() async {
+    final stakeholder = _stakeholder;
+    if (stakeholder == null) return;
+
+    setState(() => _isInviting = true);
+
+    try {
+      final result = await _inviteService.resendInvite(
+        stakeholderId: stakeholder.id,
+      );
+
+      if (!mounted) return;
+
+      if (result.success) {
+        _showInviteSuccessDialog(
+          result.inviteToken!,
+          result.email!,
+        );
+
+        setState(() {
+          _stakeholder = stakeholder.copyWith(
+            inviteStatus: InviteStatus.pending,
+            invitedAt: DateTime.now(),
+          );
+        });
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              'Failed to resend invite: ${result.error}',
+            ),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Error: $e'),
+          backgroundColor: Colors.red,
+        ),
+      );
+    } finally {
+      if (mounted) {
+        setState(() => _isInviting = false);
+      }
+    }
+  }
+
   Future<String?> _showRoleSelectionDialog() async {
     return showDialog<String>(
       context: context,
@@ -464,7 +515,7 @@ class _StakeholderDetailsScreenState extends State<StakeholderDetailsScreen> {
                             ),
                           ),
                           TextButton(
-                            onPressed: _isInviting ? null : _sendInvite,
+                            onPressed: _isInviting ? null : _resendInvite,
                             child: const Text('Resend'),
                           ),
                         ],

@@ -93,31 +93,56 @@ class _EventCreateScreenState extends State<EventCreateScreen> {
       return;
     }
 
+    // Combine date and time
+    final startDateTime = DateTime(
+      _selectedDate!.year,
+      _selectedDate!.month,
+      _selectedDate!.day,
+      _selectedTime!.hour,
+      _selectedTime!.minute,
+    );
+    
+    // Use selected end date/time or default to 1 hour after start
+    DateTime endDateTime;
+    if (_selectedEndDate != null && _selectedEndTime != null) {
+      endDateTime = DateTime(
+        _selectedEndDate!.year,
+        _selectedEndDate!.month,
+        _selectedEndDate!.day,
+        _selectedEndTime!.hour,
+        _selectedEndTime!.minute,
+      );
+    } else {
+      endDateTime = startDateTime.add(const Duration(hours: 1));
+    }
+
+    // Validate time range using EventValidators
+    final timeValidation = EventValidators.validateTimeRange(startDateTime, endDateTime);
+    if (!timeValidation.isValid) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(timeValidation.errorMessage!),
+          backgroundColor: Colors.red,
+        ),
+      );
+      return;
+    }
+
+    // Validate stakeholders
+    final stakeholderValidation = EventValidators.validateStakeholders(_selectedStakeholderIds);
+    if (!stakeholderValidation.isValid) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(stakeholderValidation.errorMessage!),
+          backgroundColor: Colors.red,
+        ),
+      );
+      return;
+    }
+
     setState(() => _isLoading = true);
 
     try {
-      // Combine date and time
-      final startDateTime = DateTime(
-        _selectedDate!.year,
-        _selectedDate!.month,
-        _selectedDate!.day,
-        _selectedTime!.hour,
-        _selectedTime!.minute,
-      );
-      
-      // Use selected end date/time or default to 1 hour after start
-      DateTime endDateTime;
-      if (_selectedEndDate != null && _selectedEndTime != null) {
-        endDateTime = DateTime(
-          _selectedEndDate!.year,
-          _selectedEndDate!.month,
-          _selectedEndDate!.day,
-          _selectedEndTime!.hour,
-          _selectedEndTime!.minute,
-        );
-      } else {
-        endDateTime = startDateTime.add(const Duration(hours: 1));
-      }
 
       // Get current user
       final currentUser = _authService.currentUser;
@@ -134,7 +159,7 @@ class _EventCreateScreenState extends State<EventCreateScreen> {
         location: EventLocation(
           name: _isVirtualLocation 
               ? _locationController.text.trim() 
-              : 'In-Person Location',
+              : _locationController.text.trim(),
           address: !_isVirtualLocation ? _locationController.text.trim() : null,
           isVirtual: _isVirtualLocation,
           virtualLink: _isVirtualLocation ? _virtualLinkController.text.trim() : null,
@@ -218,12 +243,7 @@ class _EventCreateScreenState extends State<EventCreateScreen> {
                         fillColor: Colors.white,
                         contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
                       ),
-                      validator: (value) {
-                        if (value == null || value.trim().isEmpty) {
-                          return 'Please enter a title';
-                        }
-                        return null;
-                      },
+                      validator: EventValidators.titleValidator,
                     ),
                     const SizedBox(height: 24),
                     // Event Type
@@ -284,12 +304,7 @@ class _EventCreateScreenState extends State<EventCreateScreen> {
                         contentPadding: const EdgeInsets.all(16),
                       ),
                       maxLines: 4,
-                      validator: (value) {
-                        if (value == null || value.trim().isEmpty) {
-                          return 'Please enter a description';
-                        }
-                        return null;
-                      },
+                      validator: EventValidators.descriptionValidator,
                     ),
                     const SizedBox(height: 24),
                     // Event Timing

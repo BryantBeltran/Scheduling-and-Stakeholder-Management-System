@@ -21,6 +21,7 @@
 
 import 'dart:async';
 import 'dart:io';
+import 'package:cloud_functions/cloud_functions.dart';
 import 'package:firebase_auth/firebase_auth.dart' as firebase_auth;
 import 'package:flutter/foundation.dart';
 import 'package:google_sign_in/google_sign_in.dart';
@@ -505,19 +506,34 @@ class AuthService {
   }
 
   /// Reset password
+  /// 
+  /// Calls the custom Cloud Function `requestPasswordReset`
+  /// which sends a branded email via Nodemailer. Falls back to
+  /// Firebase's built-in reset email if SMTP is not configured.
   Future<void> resetPassword(String email) async {
     if (email.isEmpty || !email.contains('@')) {
       throw AuthException('Please enter a valid email');
     }
     
     if (AppConfig.instance.useFirebase) {
-      // Production: Send Firebase password reset email
+      // Production: Use custom CF for branded email
       try {
-        await _firebaseAuth.sendPasswordResetEmail(email: email);
-      } on firebase_auth.FirebaseAuthException catch (e) {
-        throw AuthException(_getErrorMessage(e.code));
+        final callable = FirebaseFunctions.instance
+            .httpsCallable('requestPasswordReset');
+        await callable.call<Map<String, dynamic>>({
+          'email': email,
+        });
       } catch (e) {
-        throw AuthException('Failed to send reset email');
+        // If CF fails, fall back to Firebase built-in
+        try {
+          await _firebaseAuth.sendPasswordResetEmail(
+            email: email,
+          );
+        } on firebase_auth.FirebaseAuthException catch (e) {
+          throw AuthException(_getErrorMessage(e.code));
+        } catch (e) {
+          throw AuthException('Failed to send reset email');
+        }
       }
     } else {
       // Development: Mock password reset
