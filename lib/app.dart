@@ -8,6 +8,7 @@
 // ==============================================================================
 
 import 'package:flutter/material.dart';
+import 'package:app_links/app_links.dart';
 import 'config/app_config.dart';
 import 'theme/app_theme.dart';
 import 'screens/auth/login_screen.dart';
@@ -15,6 +16,7 @@ import 'screens/auth/register_screen.dart';
 import 'screens/auth/register_password_screen.dart';
 import 'screens/auth/onboarding_screen.dart';
 import 'screens/auth/forgot_password_screen.dart';
+import 'screens/auth/email_verification_screen.dart';
 import 'screens/home/home_screen.dart';
 import 'screens/dev/dev_screen_navigator.dart';
 import 'screens/events/event_create_screen.dart';
@@ -23,6 +25,7 @@ import 'screens/events/event_edit_screen.dart';
 import 'screens/stakeholders/stakeholder_details_screen.dart';
 import 'screens/admin/user_management_screen.dart';
 import 'screens/profile/notifications_screen.dart';
+import 'screens/profile/notification_preferences_screen.dart';
 import 'widgets/protected_route.dart';
 import 'services/services.dart';
 import 'models/models.dart';
@@ -54,9 +57,23 @@ class SchedulingApp extends StatelessWidget {
         '/forgot-password': (context) => const ForgotPasswordScreen(),
         '/home': (context) => const HomeScreen(),
         '/notifications': (context) => const NotificationsScreen(),
+        '/notification-preferences': (context) => const NotificationPreferencesScreen(),
         '/event/create': (context) => const EventCreateScreen(),
       },
       onGenerateRoute: (settings) {
+        if (settings.name == '/email-verification') {
+          final args = settings.arguments as Map<String, dynamic>?;
+          final email = args?['email'] as String? ?? '';
+          final nextRoute = args?['nextRoute'] as String?;
+          final nextArguments = args?['nextArguments'];
+          return MaterialPageRoute(
+            builder: (context) => EmailVerificationScreen(
+              email: email,
+              nextRoute: nextRoute,
+              nextArguments: nextArguments,
+            ),
+          );
+        }
         if (settings.name == '/register-password') {
           final args = settings.arguments as Map<String, dynamic>?;
           final email = args?['email'] ?? '';
@@ -170,12 +187,51 @@ class _AuthWrapperState extends State<AuthWrapper> {
   final _userService = UserService();
   final _notificationService = NotificationService();
   final _pushService = PushNotificationService();
+  final _appLinks = AppLinks();
+
+  /// Pending invite token from a deep link received before auth state resolved.
+  String? _pendingInviteToken;
 
   @override
   void initState() {
     super.initState();
-    // Initialize push notifications
     _pushService.initialize(navigatorKey);
+    _initDeepLinks();
+  }
+
+  void _initDeepLinks() {
+    // Handle link that cold-started the app
+    _appLinks.getInitialLink().then((uri) {
+      if (uri != null) _handleInviteLink(uri);
+    });
+
+    // Handle links while app is already running
+    _appLinks.uriLinkStream.listen((uri) {
+      _handleInviteLink(uri);
+    });
+  }
+
+  void _handleInviteLink(Uri uri) {
+    // Expected: https://managemateapp.me/invite?token=<token>
+    // Also handle custom scheme: managemateapp://invite?token=<token>
+    final validHost = uri.host == 'managemateapp.me' || uri.scheme == 'managemateapp';
+    if (!validHost) return;
+    if (!uri.path.startsWith('/invite')) return;
+    final token = uri.queryParameters['token'];
+    if (token == null || token.isEmpty) return;
+
+    final nav = navigatorKey.currentState;
+    if (nav == null) {
+      // Auth state hasn't resolved yet — stash the token so the build
+      // method can pass it through to onboarding once the user is known.
+      _pendingInviteToken = token;
+      return;
+    }
+
+    nav.pushNamed(
+      '/register',
+      arguments: {'inviteToken': token},
+    );
   }
 
   @override
@@ -212,22 +268,49 @@ class _AuthWrapperState extends State<AuthWrapper> {
             _pushService.registerToken(user.id);
           });
           
-          // Check if new user needs onboarding
+          // Check email verification for email/password users.
+          // OAuth providers (Google, Apple) are always pre-verified.
+          // Invited stakeholders (those with a stakeholderId) bypass
+          // verification because they authenticated via a trusted invite link.
           return FutureBuilder<bool>(
-            future: _userService.needsOnboarding(user.id),
-            builder: (context, onboardingSnapshot) {
-              if (onboardingSnapshot.connectionState == ConnectionState.waiting) {
+            future: _authService.checkEmailVerified(),
+            builder: (context, verifiedSnapshot) {
+              if (verifiedSnapshot.connectionState == ConnectionState.waiting) {
                 return const Scaffold(
                   body: Center(child: CircularProgressIndicator()),
                 );
               }
-              
-              if (onboardingSnapshot.data == true) {
-                // New user needs onboarding
-                return OnboardingScreen(initialUser: user);
+
+              final isVerified = verifiedSnapshot.data ?? true;
+              final isInvitedUser = user.stakeholderId != null;
+              if (!isVerified && !isInvitedUser) {
+                return EmailVerificationScreen(email: user.email);
               }
-              
-              return const HomeScreen();
+
+              // Check if new user needs onboarding
+              return FutureBuilder<bool>(
+                future: _userService.needsOnboarding(user.id),
+                builder: (context, onboardingSnapshot) {
+                  if (onboardingSnapshot.connectionState == ConnectionState.waiting) {
+                    return const Scaffold(
+                      body: Center(child: CircularProgressIndicator()),
+                    );
+                  }
+
+                  if (onboardingSnapshot.data == true) {
+                    // New user needs onboarding — pass along any pending invite token
+                    // captured from a deep link that arrived before auth resolved.
+                    final token = _pendingInviteToken;
+                    _pendingInviteToken = null;
+                    return OnboardingScreen(
+                      initialUser: user,
+                      inviteToken: token,
+                    );
+                  }
+
+                  return const HomeScreen();
+                },
+              );
             },
           );
         }

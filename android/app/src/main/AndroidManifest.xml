@@ -33,6 +33,20 @@
                 <action android:name="android.intent.action.MAIN"/>
                 <category android:name="android.intent.category.LAUNCHER"/>
             </intent-filter>
+            <!-- App Link: https://managemateapp.me/invite?token=<token> -->
+            <intent-filter android:autoVerify="true">
+                <action android:name="android.intent.action.VIEW"/>
+                <category android:name="android.intent.category.DEFAULT"/>
+                <category android:name="android.intent.category.BROWSABLE"/>
+                <data android:scheme="https" android:host="managemateapp.me" android:pathPrefix="/invite"/>
+            </intent-filter>
+            <!-- Custom scheme: managemateapp://invite?token=<token> (fallback from web page) -->
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW"/>
+                <category android:name="android.intent.category.DEFAULT"/>
+                <category android:name="android.intent.category.BROWSABLE"/>
+                <data android:scheme="managemateapp" android:host="invite"/>
+            </intent-filter>
         </activity>
         <!-- FCM default notification channel -->
         <meta-data

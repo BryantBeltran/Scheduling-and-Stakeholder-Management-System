@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import '../../models/models.dart';
 import '../../services/services.dart';
 import 'stakeholder_edit_screen.dart';
@@ -16,11 +15,12 @@ class StakeholderDetailsScreen extends StatefulWidget {
   State<StakeholderDetailsScreen> createState() => _StakeholderDetailsScreenState();
 }
 
-class _StakeholderDetailsScreenState extends State<StakeholderDetailsScreen> {
+class _StakeholderDetailsScreenState extends State<StakeholderDetailsScreen>
+    with WidgetsBindingObserver {
   final _stakeholderService = StakeholderService();
   final _inviteService = InviteService();
   final _permissionService = PermissionService();
-  
+
   bool _isInviting = false;
   bool _isLoading = true;
   StakeholderModel? _stakeholder;
@@ -28,7 +28,22 @@ class _StakeholderDetailsScreenState extends State<StakeholderDetailsScreen> {
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     _loadStakeholder();
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    // Refresh when the app comes back to the foreground
+    if (state == AppLifecycleState.resumed) {
+      _loadStakeholder();
+    }
   }
 
   Future<void> _loadStakeholder() async {
@@ -115,7 +130,9 @@ class _StakeholderDetailsScreenState extends State<StakeholderDetailsScreen> {
 
       if (!mounted) return;
 
-      if (result.success) {
+      if (result.success &&
+          result.inviteToken != null &&
+          result.email != null) {
         _showInviteSuccessDialog(
           result.inviteToken!,
           result.email!,
@@ -131,7 +148,9 @@ class _StakeholderDetailsScreenState extends State<StakeholderDetailsScreen> {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(
-              'Failed to resend invite: ${result.error}',
+              result.error != null
+                  ? 'Failed to resend invite: ${result.error}'
+                  : 'Resend failed — please try again.',
             ),
             backgroundColor: Colors.red,
           ),
@@ -198,8 +217,6 @@ class _StakeholderDetailsScreenState extends State<StakeholderDetailsScreen> {
   }
 
   void _showInviteSuccessDialog(String token, String email) {
-    final inviteLink = _inviteService.generateInviteLink(token);
-    
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
@@ -214,47 +231,11 @@ class _StakeholderDetailsScreenState extends State<StakeholderDetailsScreen> {
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Text('An invitation has been prepared for:'),
+            const Text('An invitation email has been sent to:'),
             const SizedBox(height: 8),
             Text(
               email,
               style: const TextStyle(fontWeight: FontWeight.bold),
-            ),
-            const SizedBox(height: 16),
-            const Text(
-              'Share this link with them:',
-              style: TextStyle(fontSize: 12, color: Colors.grey),
-            ),
-            const SizedBox(height: 8),
-            Container(
-              padding: const EdgeInsets.all(12),
-              decoration: BoxDecoration(
-                color: Colors.grey[100],
-                borderRadius: BorderRadius.circular(8),
-              ),
-              child: Row(
-                children: [
-                  Expanded(
-                    child: Text(
-                      inviteLink,
-                      style: const TextStyle(fontSize: 12),
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                  ),
-                  IconButton(
-                    icon: const Icon(Icons.copy, size: 20),
-                    onPressed: () {
-                      Clipboard.setData(ClipboardData(text: inviteLink));
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(
-                          content: Text('Link copied to clipboard!'),
-                          duration: Duration(seconds: 2),
-                        ),
-                      );
-                    },
-                  ),
-                ],
-              ),
             ),
             const SizedBox(height: 12),
             Text(
@@ -348,7 +329,9 @@ class _StakeholderDetailsScreenState extends State<StakeholderDetailsScreen> {
           ),
         ],
       ),
-      body: ListView(
+      body: RefreshIndicator(
+        onRefresh: _loadStakeholder,
+        child: ListView(
         padding: const EdgeInsets.all(16),
         children: [
           // Profile Card
@@ -716,6 +699,7 @@ class _StakeholderDetailsScreenState extends State<StakeholderDetailsScreen> {
             ),
           ],
         ],
+      ),
       ),
     );
   }

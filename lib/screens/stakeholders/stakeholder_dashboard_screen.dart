@@ -13,12 +13,15 @@ class StakeholderDashboardScreen extends StatefulWidget {
 
 class _StakeholderDashboardScreenState extends State<StakeholderDashboardScreen> {
   final _authService = AuthService();
+  final _stakeholderService = StakeholderService();
   final _firestore = FirebaseFirestore.instance;
-  
+
   List<EventModel> _assignedEvents = [];
   StakeholderModel? _stakeholderProfile;
   bool _isLoading = true;
   String? _error;
+  // Per-event RSVP loading state
+  final Map<String, bool> _rsvpLoading = {};
 
   @override
   void initState() {
@@ -481,6 +484,38 @@ class _StakeholderDashboardScreenState extends State<StakeholderDashboardScreen>
     );
   }
 
+  Future<void> _updateRsvp(String eventId, ParticipationStatus status) async {
+    final stakeholder = _stakeholderProfile;
+    if (stakeholder == null) return;
+
+    setState(() => _rsvpLoading[eventId] = true);
+    try {
+      await _stakeholderService.updateParticipationStatus(stakeholder.id, status);
+      setState(() {
+        _stakeholderProfile = stakeholder.copyWith(participationStatus: status);
+      });
+      if (mounted) {
+        final label = status == ParticipationStatus.accepted
+            ? 'Accepted'
+            : status == ParticipationStatus.declined
+                ? 'Declined'
+                : 'Marked as Tentative';
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('RSVP: $label')),
+        );
+        Navigator.of(context).pop(); // close bottom sheet
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Failed to update RSVP: $e'), backgroundColor: Colors.red),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _rsvpLoading.remove(eventId));
+    }
+  }
+
   void _showEventDetails(EventModel event) {
     showModalBottomSheet(
       context: context,
@@ -589,6 +624,67 @@ class _StakeholderDashboardScreenState extends State<StakeholderDashboardScreen>
                         color: Colors.grey[700],
                         height: 1.5,
                       ),
+                    ),
+                  ],
+
+                  // RSVP section — only for upcoming events
+                  if (event.startTime.isAfter(DateTime.now())) ...[
+                    const SizedBox(height: 24),
+                    const Divider(),
+                    const SizedBox(height: 12),
+                    const Text(
+                      'Your RSVP',
+                      style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      'Current status: ${_stakeholderProfile?.participationStatus.name ?? 'unknown'}',
+                      style: TextStyle(fontSize: 13, color: Colors.grey[600]),
+                    ),
+                    const SizedBox(height: 12),
+                    StatefulBuilder(
+                      builder: (context, setSheetState) {
+                        final isLoading = _rsvpLoading[event.id] ?? false;
+                        return Row(
+                          children: [
+                            Expanded(
+                              child: OutlinedButton.icon(
+                                onPressed: isLoading ? null : () => _updateRsvp(event.id, ParticipationStatus.accepted),
+                                icon: const Icon(Icons.check_circle_outline, size: 18),
+                                label: const Text('Accept'),
+                                style: OutlinedButton.styleFrom(
+                                  foregroundColor: Colors.green[700],
+                                  side: BorderSide(color: Colors.green[300]!),
+                                ),
+                              ),
+                            ),
+                            const SizedBox(width: 8),
+                            Expanded(
+                              child: OutlinedButton.icon(
+                                onPressed: isLoading ? null : () => _updateRsvp(event.id, ParticipationStatus.tentative),
+                                icon: const Icon(Icons.help_outline, size: 18),
+                                label: const Text('Maybe'),
+                                style: OutlinedButton.styleFrom(
+                                  foregroundColor: Colors.orange[700],
+                                  side: BorderSide(color: Colors.orange[300]!),
+                                ),
+                              ),
+                            ),
+                            const SizedBox(width: 8),
+                            Expanded(
+                              child: OutlinedButton.icon(
+                                onPressed: isLoading ? null : () => _updateRsvp(event.id, ParticipationStatus.declined),
+                                icon: const Icon(Icons.cancel_outlined, size: 18),
+                                label: const Text('Decline'),
+                                style: OutlinedButton.styleFrom(
+                                  foregroundColor: Colors.red[700],
+                                  side: BorderSide(color: Colors.red[300]!),
+                                ),
+                              ),
+                            ),
+                          ],
+                        );
+                      },
                     ),
                   ],
                 ],

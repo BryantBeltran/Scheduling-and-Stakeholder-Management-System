@@ -13,7 +13,11 @@ import * as nodemailer from "nodemailer";
 admin.initializeApp();
 
 // For cost control, set maximum concurrent instances
-setGlobalOptions({maxInstances: 10});
+// SMTP credentials injected from Firebase Secret Manager
+setGlobalOptions({
+  maxInstances: 10,
+  secrets: ["SMTP_HOST", "SMTP_PORT", "SMTP_USER", "SMTP_PASS", "SMTP_FROM"],
+});
 
 // =============================================================================
 // EMAIL CONFIGURATION
@@ -78,11 +82,11 @@ async function sendInviteEmail(
     return false;
   }
 
-  const inviteLink = `https://ssms.app/invite?token=${inviteToken}`;
-  const senderEmail = process.env.SMTP_USER || "noreply@ssms.app";
+  const senderEmail = process.env.SMTP_FROM || "no-reply@managemateapp.me";
   const recipientName = stakeholderName || "there";
 
   try {
+    const deepLink = `https://managemateapp.me/invite?token=${inviteToken}`;
     /* eslint-disable max-len */
     await transporter.sendMail({
       from: `"SSMS" <${senderEmail}>`,
@@ -91,37 +95,39 @@ async function sendInviteEmail(
       html: `
         <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
           <div style="background-color: #000; color: #fff; padding: 24px; text-align: center;">
-            <h1 style="margin: 0; font-size: 24px;">Scheduling & Stakeholder Management</h1>
+            <h1 style="margin: 0; font-size: 24px;">Scheduling &amp; Stakeholder Management</h1>
           </div>
           <div style="padding: 32px 24px;">
             <h2 style="color: #333;">Hi ${recipientName}!</h2>
             <p style="color: #555; font-size: 16px; line-height: 1.6;">
-              You've been invited to join the Scheduling & Stakeholder Management System.
-              Click the button below to create your account and get started.
+              You've been invited to join the Scheduling &amp; Stakeholder Management System.
+              Tap the button below to open the app and get started.
             </p>
             <div style="text-align: center; margin: 32px 0;">
-              <a href="${inviteLink}"
-                 style="background-color: #000; color: #fff; padding: 14px 32px;
-                        text-decoration: none; border-radius: 8px; font-size: 16px;
-                        font-weight: 600; display: inline-block;">
-                Accept Invitation
-              </a>
+              <table role="presentation" cellpadding="0" cellspacing="0" style="margin: 0 auto;">
+                <tr>
+                  <td style="background-color: #000; border-radius: 8px; text-align: center;">
+                    <a href="${deepLink}" target="_blank" style="display: inline-block; padding: 16px 40px; color: #ffffff; font-size: 16px; font-weight: 700; text-decoration: none; font-family: Arial, sans-serif;">Open SSMS &amp; Sign Up</a>
+                  </td>
+                </tr>
+              </table>
             </div>
-            <p style="color: #888; font-size: 13px;">
-              This invitation expires in 7 days. If you didn't expect this email,
-              you can safely ignore it.
+            <p style="color: #888; font-size: 13px; text-align: center; margin-bottom: 8px;">
+              Or copy this link into your mobile browser:
             </p>
-            <hr style="border: none; border-top: 1px solid #eee; margin: 24px 0;" />
-            <p style="color: #999; font-size: 12px;">
-              If the button doesn't work, copy and paste this link into your browser:<br/>
-              <a href="${inviteLink}" style="color: #666;">${inviteLink}</a>
+            <p style="text-align: center; margin-bottom: 24px;">
+              <a href="${deepLink}" style="color: #555; font-size: 13px; word-break: break-all;">${deepLink}</a>
+            </p>
+            <p style="color: #888; font-size: 13px; margin-top: 24px;">
+              This invite expires in 7 days. If you didn&rsquo;t expect this email,
+              you can safely ignore it.
             </p>
           </div>
         </div>
       `,
       text: `Hi ${recipientName}! You've been invited to join SSMS. ` +
-            `Click here to create your account: ${inviteLink} ` +
-            "This invitation expires in 7 days.",
+            `Tap this link to open the app: ${deepLink}\n\n` +
+            "This invite expires in 7 days.",
     });
     /* eslint-enable max-len */
 
@@ -155,7 +161,7 @@ async function sendPasswordResetMail(
     return false;
   }
 
-  const senderEmail = process.env.SMTP_USER || "noreply@ssms.app";
+  const senderEmail = process.env.SMTP_FROM || "no-reply@managemateapp.me";
   const recipientName = displayName || "there";
 
   try {
@@ -230,7 +236,7 @@ async function sendWelcomeEmail(
     return false;
   }
 
-  const senderEmail = process.env.SMTP_USER || "noreply@ssms.app";
+  const senderEmail = process.env.SMTP_FROM || "no-reply@managemateapp.me";
   const name = displayName || "there";
 
   try {
@@ -1248,12 +1254,43 @@ export const deleteStakeholder = onCall(async (request) => {
 
 export const inviteStakeholder = onCall(async (request) => {
   const {stakeholderId, defaultRole} = request.data;
+  const callerUid = request.auth?.uid;
+
+  if (!callerUid) {
+    throw new HttpsError("unauthenticated", "Authentication required.");
+  }
 
   if (!stakeholderId) {
     throw new HttpsError(
       "invalid-argument",
       "Stakeholder ID is required."
     );
+  }
+
+  // Check invite permission
+  const canInvite = await hasPermission(
+    callerUid, PERMISSIONS.inviteStakeholder
+  );
+  if (!canInvite) {
+    throw new HttpsError(
+      "permission-denied",
+      "You don't have permission to invite stakeholders."
+    );
+  }
+
+  // Non-admins (e.g. managers) may only assign member or viewer roles
+  const callerDoc = await admin
+    .firestore().collection("users").doc(callerUid).get();
+  const callerRole = callerDoc.data()?.role;
+  const resolvedRole = defaultRole || "member";
+
+  if (callerRole !== "admin") {
+    if (!["member", "viewer"].includes(resolvedRole)) {
+      throw new HttpsError(
+        "permission-denied",
+        "You can only invite stakeholders as member or viewer."
+      );
+    }
   }
 
   try {
@@ -1280,7 +1317,7 @@ export const inviteStakeholder = onCall(async (request) => {
       inviteStatus: "pending",
       invitedAt: admin.firestore.FieldValue.serverTimestamp(),
       inviteToken: inviteToken,
-      defaultRole: defaultRole || "member",
+      defaultRole: resolvedRole,
       updatedAt: admin.firestore.FieldValue.serverTimestamp(),
     });
 
@@ -1288,7 +1325,7 @@ export const inviteStakeholder = onCall(async (request) => {
     await admin.firestore().collection("invites").doc(inviteToken).set({
       stakeholderId: stakeholderId,
       email: stakeholderData.email,
-      defaultRole: defaultRole || "member",
+      defaultRole: resolvedRole,
       createdAt: admin.firestore.FieldValue.serverTimestamp(),
       expiresAt: admin.firestore.Timestamp.fromDate(
         new Date(Date.now() + 7 * 24 * 60 * 60 * 1000) // 7 days
@@ -1620,6 +1657,37 @@ async function sendPushAndInAppNotification(
   eventId: string | null = null,
   extraData: Record<string, string> = {}
 ): Promise<void> {
+  // Fetch user doc once — needed for settings checks and FCM tokens
+  const userDoc = await admin
+    .firestore()
+    .collection("users")
+    .doc(userId)
+    .get();
+  const userData = userDoc.data();
+  const userSettings =
+    (userData?.settings ?? {}) as Record<string, unknown>;
+
+  // Respect type-specific notification preferences.
+  // If a category is disabled, skip both in-app and push.
+  if (
+    type === "event_reminder" &&
+    userSettings.eventReminders === false
+  ) {
+    logger.info(
+      `Event reminders disabled for user ${userId}, skipping.`
+    );
+    return;
+  }
+  if (
+    ["event_assignment", "event_update"].includes(type) &&
+    userSettings.stakeholderUpdates === false
+  ) {
+    logger.info(
+      `Stakeholder updates disabled for user ${userId}, skipping.`
+    );
+    return;
+  }
+
   // 1. Create Firestore in-app notification
   await admin.firestore().collection("notifications").add({
     userId,
@@ -1632,13 +1700,15 @@ async function sendPushAndInAppNotification(
   });
 
   // 2. Send FCM push notification
+  // Skip FCM if the user has disabled push notifications entirely.
+  if (userSettings.pushNotifications === false) {
+    logger.info(
+      `Push notifications disabled for user ${userId}, skipping FCM.`
+    );
+    return;
+  }
+
   try {
-    const userDoc = await admin
-      .firestore()
-      .collection("users")
-      .doc(userId)
-      .get();
-    const userData = userDoc.data();
     const fcmTokens: string[] = userData?.fcmTokens || [];
 
     if (fcmTokens.length === 0) {
@@ -2282,6 +2352,22 @@ export const resendInvite = onCall(async (request) => {
       );
     }
 
+    // Non-admins (e.g. managers) may only resend invites
+    // for member or viewer roles
+    const callerDoc = await admin
+      .firestore().collection("users").doc(callerUid).get();
+    const callerRole = callerDoc.data()?.role;
+    const existingRole = stakeholderData.defaultRole || "member";
+
+    if (callerRole !== "admin") {
+      if (!["member", "viewer"].includes(existingRole)) {
+        throw new HttpsError(
+          "permission-denied",
+          "You can only resend invites for member or viewer stakeholders."
+        );
+      }
+    }
+
     // Expire old invite if it exists
     const oldToken = stakeholderData.inviteToken;
     if (oldToken) {
@@ -2579,6 +2665,16 @@ async function hasPermission(
 
     const userData = userDoc.data();
     const permissions = userData?.permissions || [];
+
+    // Admin role and root permission bypass all permission checks
+    if (
+      userData?.role === "admin" ||
+      permissions.includes(PERMISSIONS.admin) ||
+      permissions.includes(PERMISSIONS.root)
+    ) {
+      return true;
+    }
+
     return permissions.includes(permission);
   } catch (error) {
     logger.error(`Error checking permission for user ${userId}:`, error);

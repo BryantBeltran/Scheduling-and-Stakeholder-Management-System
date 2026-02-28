@@ -2,20 +2,20 @@
 
 ## Authentication
 
-- [ ] **Integrate Firebase Authentication** - Replace mock auth service with real Firebase Auth
+- [x] **Integrate Firebase Authentication** - Replace mock auth service with real Firebase Auth
   - File: `lib/services/auth_service.dart`
-  
-- [ ] **Implement Google Sign-In**
+
+- [x] **Implement Google Sign-In**
   - Add `google_sign_in` package
   - Configure OAuth credentials in Firebase Console
   - Files: `lib/screens/auth/login_screen.dart`, `register_screen.dart`
 
-- [ ] **Implement Apple Sign-In**
+- [x] **Implement Apple Sign-In**
   - Add `sign_in_with_apple` package
   - Configure Apple Developer account
   - Files: `lib/screens/auth/login_screen.dart`, `register_screen.dart`
 
-- [ ] **Add email verification flow**
+- [x] **Add email verification flow**
   - Send verification email on signup
   - Block access until email verified
 
@@ -29,7 +29,7 @@
 
 ## Cloud Functions
 
-- [ ] **Connect Flutter app to Cloud Functions**
+- [x] **Connect Flutter app to Cloud Functions**
   - Add `cloud_functions` package
   - Create service layer for function calls
   - Functions available:
@@ -48,7 +48,7 @@
 
 ## Features
 
-- [ ] **Push Notifications**
+- [x] **Push Notifications**
   - Add Firebase Cloud Messaging
   - Handle notification permissions
   - Display in-app notifications
@@ -57,7 +57,7 @@
   - Enable Firestore offline persistence
   - Queue operations when offline
 
-- [ ] **Profile Management**
+- [x] **Profile Management**
   - Profile photo upload
   - Edit profile details
 

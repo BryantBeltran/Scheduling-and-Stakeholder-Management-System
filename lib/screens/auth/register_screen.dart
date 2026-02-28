@@ -42,9 +42,9 @@ class _RegisterScreenState extends State<RegisterScreen> {
 
   Future<void> _validateInviteToken() async {
     if (_inviteToken == null) return;
-    
+
     setState(() => _isValidatingToken = true);
-    
+
     try {
       final result = await _inviteService.validateInviteToken(_inviteToken!);
       if (result.valid) {
@@ -62,8 +62,9 @@ class _RegisterScreenState extends State<RegisterScreen> {
         });
       }
     } catch (e) {
+      debugPrint('Invite token validation failed: $e');
       setState(() {
-        _errorMessage = 'Could not validate invite link.';
+        _errorMessage = 'Could not validate invite link. You can still sign up normally.';
         _inviteToken = null;
       });
     } finally {

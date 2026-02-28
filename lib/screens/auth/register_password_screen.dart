@@ -25,11 +25,34 @@ class _RegisterPasswordScreenState extends State<RegisterPasswordScreen> {
   final _passwordController = TextEditingController();
   final _confirmPasswordController = TextEditingController();
   final _authService = AuthService();
+  final _stakeholderService = StakeholderService();
 
   bool _isLoading = false;
   bool _obscurePassword = true;
   bool _obscureConfirmPassword = true;
   String? _errorMessage;
+
+  @override
+  void initState() {
+    super.initState();
+    if (widget.stakeholderId != null) {
+      _fetchStakeholderName();
+    }
+  }
+
+  Future<void> _fetchStakeholderName() async {
+    try {
+      final stakeholder =
+          await _stakeholderService.getStakeholderById(widget.stakeholderId!);
+      if (stakeholder != null && mounted && _nameController.text.isEmpty) {
+        setState(() {
+          _nameController.text = stakeholder.name;
+        });
+      }
+    } catch (e) {
+      debugPrint('Failed to fetch stakeholder name for autofill: $e');
+    }
+  }
 
   @override
   void dispose() {
@@ -48,25 +71,49 @@ class _RegisterPasswordScreenState extends State<RegisterPasswordScreen> {
     });
 
     try {
-      // Create account but don't navigate yet - go to onboarding first
+      // Create the account
       await _authService.signUpWithEmailAndPassword(
         email: widget.email,
         password: _passwordController.text,
         displayName: _nameController.text.trim(),
       );
-      
+
       if (mounted) {
-        // Navigate to onboarding to collect additional info
-        Navigator.of(context).pushNamed(
-          '/onboarding',
-          arguments: {
-            'email': widget.email,
-            'displayName': _nameController.text.trim(),
-            'inviteToken': widget.inviteToken,
-            'stakeholderId': widget.stakeholderId,
-            'defaultRole': widget.defaultRole,
-          },
-        );
+        if (widget.inviteToken != null) {
+          // Invited stakeholder: skip email verification, go directly to onboarding
+          Navigator.of(context).pushNamed(
+            '/onboarding',
+            arguments: {
+              'email': widget.email,
+              'displayName': _nameController.text.trim(),
+              'inviteToken': widget.inviteToken,
+              'stakeholderId': widget.stakeholderId,
+              'defaultRole': widget.defaultRole,
+            },
+          );
+        } else {
+          // Regular sign-up: require email verification before onboarding
+          try {
+            await _authService.sendEmailVerification();
+          } catch (e) {
+            debugPrint('Initial verification email failed: $e');
+          }
+          if (!mounted) return;
+          Navigator.of(context).pushNamed(
+            '/email-verification',
+            arguments: {
+              'email': widget.email,
+              'nextRoute': '/onboarding',
+              'nextArguments': {
+                'email': widget.email,
+                'displayName': _nameController.text.trim(),
+                'inviteToken': widget.inviteToken,
+                'stakeholderId': widget.stakeholderId,
+                'defaultRole': widget.defaultRole,
+              },
+            },
+          );
+        }
       }
     } on AuthException catch (e) {
       setState(() => _errorMessage = e.message);

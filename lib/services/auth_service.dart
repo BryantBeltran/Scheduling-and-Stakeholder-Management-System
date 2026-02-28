@@ -59,7 +59,9 @@ class AuthService {
 
   // Lazy Firebase instances - only accessed when useFirebase is true
   firebase_auth.FirebaseAuth get _firebaseAuth => firebase_auth.FirebaseAuth.instance;
-  GoogleSignIn get _googleSignIn => GoogleSignIn();
+  GoogleSignIn get _googleSignIn => GoogleSignIn(
+    serverClientId: '144390773762-6rv0ubtp9daq7buuko9plcpihifqrc96.apps.googleusercontent.com',
+  );
 
   void _initializeFirebaseAuth() {
     if (_firebaseAuthInitialized) return;
@@ -130,6 +132,16 @@ class AuthService {
   ///
   /// Shorthand for `currentUser != null`.
   bool get isAuthenticated => _currentUser != null;
+
+  /// Replace the in-memory user model and notify listeners.
+  ///
+  /// Call after an external process (e.g. a Cloud Function) has updated
+  /// the user document in Firestore and you need the app to reflect
+  /// the new role/permissions immediately.
+  void updateCurrentUser(UserModel user) {
+    _currentUser = user;
+    _authStateController.add(_currentUser);
+  }
 
   /// Authenticates a user with email and password.
   ///
@@ -538,6 +550,58 @@ class AuthService {
     } else {
       // Development: Mock password reset
       await Future.delayed(const Duration(seconds: 1));
+    }
+  }
+
+  /// Send email verification to the currently signed-in user.
+  ///
+  /// Should be called immediately after account creation.
+  /// No-op in dev mode. Throws [AuthException] on failure.
+  Future<void> sendEmailVerification() async {
+    if (!AppConfig.instance.useFirebase) return;
+    final firebaseUser = _firebaseAuth.currentUser;
+    if (firebaseUser == null) {
+      throw AuthException('No user signed in');
+    }
+    if (firebaseUser.emailVerified) return;
+    try {
+      await firebaseUser.sendEmailVerification();
+      debugPrint('Verification email sent to ${firebaseUser.email}');
+    } on firebase_auth.FirebaseAuthException catch (e) {
+      debugPrint('sendEmailVerification failed: ${e.code} – ${e.message}');
+      throw AuthException(_getErrorMessage(e.code));
+    } catch (e) {
+      debugPrint('sendEmailVerification error: $e');
+      throw AuthException('Failed to send verification email');
+    }
+  }
+
+  /// Reload the Firebase user and return whether their email is verified.
+  ///
+  /// Call this when the user taps "I've verified my email" or on a timer.
+  /// Tries `reload()` first, then falls back to a forced token refresh.
+  /// Throws [AuthException] on network failure so the caller can inform
+  /// the user instead of silently returning stale data.
+  Future<bool> checkEmailVerified() async {
+    if (!AppConfig.instance.useFirebase) return true;
+    final firebaseUser = _firebaseAuth.currentUser;
+    if (firebaseUser == null) return false;
+
+    try {
+      await firebaseUser.reload();
+      return _firebaseAuth.currentUser?.emailVerified ?? false;
+    } on firebase_auth.FirebaseAuthException catch (e) {
+      debugPrint('checkEmailVerified reload failed: ${e.code}');
+
+      // Try forcing a token refresh as an alternative
+      try {
+        await firebaseUser.getIdToken(true);
+        await firebaseUser.reload();
+        return _firebaseAuth.currentUser?.emailVerified ?? false;
+      } catch (_) {
+        // Both approaches failed — propagate the error
+        throw AuthException(_getErrorMessage(e.code));
+      }
     }
   }
 
