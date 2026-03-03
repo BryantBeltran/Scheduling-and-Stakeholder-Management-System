@@ -771,11 +771,31 @@ export const onEventCreated = onDocumentCreated(
 );
 
 export const createEvent = onCall(async (request) => {
+  const callerUid = request.auth?.uid;
+  if (!callerUid) {
+    throw new HttpsError("unauthenticated", "Authentication required.");
+  }
+
   const {
     title, description, startTime, endTime, location,
     ownerId, ownerName, status, priority, stakeholderIds,
     recurrenceRule, metadata,
   } = request.data;
+
+  if (ownerId !== callerUid) {
+    throw new HttpsError(
+      "permission-denied",
+      "You can only create events as yourself."
+    );
+  }
+
+  const canCreate = await hasPermission(callerUid, PERMISSIONS.createEvent);
+  if (!canCreate) {
+    throw new HttpsError(
+      "permission-denied",
+      "Insufficient permissions to create events."
+    );
+  }
 
   if (!title || !startTime || !ownerId) {
     throw new HttpsError(
@@ -1115,6 +1135,18 @@ export const deleteEvent = onCall(async (request) => {
 // Stakeholder management functions
 
 export const createStakeholder = onCall(async (request) => {
+  const callerUid = request.auth?.uid;
+  if (!callerUid) {
+    throw new HttpsError("unauthenticated", "Authentication required.");
+  }
+  const canCreate = await hasPermission(callerUid, PERMISSIONS.createStakeholder);
+  if (!canCreate) {
+    throw new HttpsError(
+      "permission-denied",
+      "Insufficient permissions to create stakeholders."
+    );
+  }
+
   const {name, email, phone, organization, type} = request.data;
 
   if (!name || !email) {
@@ -1154,6 +1186,11 @@ export const createStakeholder = onCall(async (request) => {
 });
 
 export const getStakeholder = onCall(async (request) => {
+  const callerUid = request.auth?.uid;
+  if (!callerUid) {
+    throw new HttpsError("unauthenticated", "Authentication required.");
+  }
+
   const {id} = request.data;
 
   if (!id) {
@@ -1177,6 +1214,18 @@ export const getStakeholder = onCall(async (request) => {
 });
 
 export const updateStakeholder = onCall(async (request) => {
+  const callerUid = request.auth?.uid;
+  if (!callerUid) {
+    throw new HttpsError("unauthenticated", "Authentication required.");
+  }
+  const canEdit = await hasPermission(callerUid, PERMISSIONS.editStakeholder);
+  if (!canEdit) {
+    throw new HttpsError(
+      "permission-denied",
+      "Insufficient permissions to edit stakeholders."
+    );
+  }
+
   const {id, name, email, phone, organization, participationStatus} =
     request.data;
 
@@ -1212,6 +1261,18 @@ export const updateStakeholder = onCall(async (request) => {
 });
 
 export const deleteStakeholder = onCall(async (request) => {
+  const callerUid = request.auth?.uid;
+  if (!callerUid) {
+    throw new HttpsError("unauthenticated", "Authentication required.");
+  }
+  const canDelete = await hasPermission(callerUid, PERMISSIONS.deleteStakeholder);
+  if (!canDelete) {
+    throw new HttpsError(
+      "permission-denied",
+      "Insufficient permissions to delete stakeholders."
+    );
+  }
+
   const {id} = request.data;
 
   if (!id) {

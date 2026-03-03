@@ -5,14 +5,21 @@ service cloud.firestore {
 
     // Helper function to check if user has admin permission
     function isAdmin() {
-      return request.auth != null && 
+      return request.auth != null &&
         get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
     }
-    
+
     // Helper function to check if user has manageUsers permission
     function canManageUsers() {
-      return request.auth != null && 
+      return request.auth != null &&
         ('manageUsers' in get(/databases/$(database)/documents/users/$(request.auth.uid)).data.permissions ||
+         'admin' in get(/databases/$(database)/documents/users/$(request.auth.uid)).data.permissions);
+    }
+
+    // Helper: check if the authenticated user has a specific permission or is admin
+    function userHasPerm(perm) {
+      return request.auth != null &&
+        (perm in get(/databases/$(database)/documents/users/$(request.auth.uid)).data.permissions ||
          'admin' in get(/databases/$(database)/documents/users/$(request.auth.uid)).data.permissions);
     }
 
@@ -36,9 +43,12 @@ service cloud.firestore {
       allow delete: if request.auth != null && resource.data.ownerId == request.auth.uid;
     }
 
-    // Stakeholders: Authenticated users can manage stakeholders.
+    // Stakeholders: Permission-gated CRUD.
     match /stakeholders/{stakeholderId} {
-      allow read, create, update, delete: if request.auth != null;
+      allow read: if userHasPerm('viewStakeholder');
+      allow create: if userHasPerm('createStakeholder');
+      allow update: if userHasPerm('editStakeholder');
+      allow delete: if userHasPerm('deleteStakeholder');
     }
 
     // EventStakeholders: Authenticated users can link/unlink stakeholders.

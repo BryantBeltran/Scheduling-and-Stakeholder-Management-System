@@ -23,6 +23,7 @@ class EventDetailsScreen extends StatefulWidget {
 class _EventDetailsScreenState extends State<EventDetailsScreen> {
   final _eventService = EventService();
   final _stakeholderService = StakeholderService();
+  final _permissionService = PermissionService();
   EventModel? _event;
   Map<String, StakeholderModel> _stakeholderCache = {};
   bool _isLoading = true;
@@ -197,12 +198,13 @@ class _EventDetailsScreenState extends State<EventDetailsScreen> {
         backgroundColor: Colors.white,
         foregroundColor: Colors.black,
         actions: [
-          if (_event != null) ...[
+          if (_event != null && _permissionService.canEditEvent)
             IconButton(
               icon: const Icon(Icons.edit),
               onPressed: _navigateToEdit,
               tooltip: 'Edit Event',
             ),
+          if (_event != null && _permissionService.canDeleteEvent)
             PopupMenuButton<String>(
               icon: const Icon(Icons.more_vert),
               onSelected: (value) {
@@ -223,7 +225,6 @@ class _EventDetailsScreenState extends State<EventDetailsScreen> {
                 ),
               ],
             ),
-          ],
         ],
       ),
       body: _buildBody(),
