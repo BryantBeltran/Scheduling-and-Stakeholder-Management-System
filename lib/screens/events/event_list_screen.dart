@@ -14,6 +14,7 @@ class EventListScreen extends StatefulWidget {
 
 class _EventListScreenState extends State<EventListScreen> {
   final _eventService = EventService();
+  final _permissionService = PermissionService();
   final _searchController = TextEditingController();
   EventStatus? _filterStatus;
   List<EventModel> _filteredEvents = [];
@@ -207,29 +208,24 @@ class _EventListScreenState extends State<EventListScreen> {
             ),
           ),
 
-          // Filter and Sort buttons with results count
+          // Inline status filter chips
+          SizedBox(
+            height: 40,
+            child: ListView(
+              scrollDirection: Axis.horizontal,
+              padding: const EdgeInsets.symmetric(horizontal: 16),
+              children: [
+                _buildFilterChip(null, 'All'),
+                ...EventStatus.values.map((s) => _buildFilterChip(s, _statusLabel(s))),
+              ],
+            ),
+          ),
+
+          // Sort button + results count
           Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16),
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
             child: Row(
               children: [
-                OutlinedButton(
-                  onPressed: _showFilterDialog,
-                  style: OutlinedButton.styleFrom(
-                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                  ),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: const [
-                      Text('Filter'),
-                      SizedBox(width: 4),
-                      Icon(Icons.keyboard_arrow_down, size: 18),
-                    ],
-                  ),
-                ),
-                const SizedBox(width: 12),
                 OutlinedButton(
                   onPressed: _showSortDialog,
                   style: OutlinedButton.styleFrom(
@@ -261,8 +257,6 @@ class _EventListScreenState extends State<EventListScreen> {
               ],
             ),
           ),
-          
-          const SizedBox(height: 8),
 
           // Events list
           Expanded(
@@ -312,27 +306,29 @@ class _EventListScreenState extends State<EventListScreen> {
                     final event = _filteredEvents[index];
                     return Padding(
                       padding: const EdgeInsets.only(bottom: 12),
-                      child: Dismissible(
-                        key: Key(event.id),
-                        direction: DismissDirection.endToStart,
-                        background: Container(
-                          alignment: Alignment.centerRight,
-                          padding: const EdgeInsets.symmetric(horizontal: 20),
-                          decoration: BoxDecoration(
-                            color: Colors.red,
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                          child: const Icon(Icons.delete, color: Colors.white),
-                        ),
-                        confirmDismiss: (direction) async {
-                          _deleteEvent(event.id);
-                          return false; // Don't auto-dismiss; dialog handles it
-                        },
-                        child: _EventListItem(
-                          event: event,
-                          onDelete: () => _deleteEvent(event.id),
-                        ),
-                      ),
+                      child: _permissionService.canDeleteEvent
+                          ? Dismissible(
+                              key: Key(event.id),
+                              direction: DismissDirection.endToStart,
+                              background: Container(
+                                alignment: Alignment.centerRight,
+                                padding: const EdgeInsets.symmetric(horizontal: 20),
+                                decoration: BoxDecoration(
+                                  color: Colors.red,
+                                  borderRadius: BorderRadius.circular(12),
+                                ),
+                                child: const Icon(Icons.delete, color: Colors.white),
+                              ),
+                              confirmDismiss: (direction) async {
+                                _deleteEvent(event.id);
+                                return false;
+                              },
+                              child: _EventListItem(
+                                event: event,
+                                onDelete: () => _deleteEvent(event.id),
+                              ),
+                            )
+                          : _EventListItem(event: event, onDelete: null),
                     );
                   },
                 );
@@ -341,57 +337,64 @@ class _EventListScreenState extends State<EventListScreen> {
           ),
         ],
       ),
-      floatingActionButton: Container(
-        margin: const EdgeInsets.only(bottom: 16, right: 16),
-        child: FloatingActionButton.extended(
-          onPressed: () {
-            Navigator.of(context).pushNamed('/event/create');
-          },
-          backgroundColor: Colors.black,
-          icon: const Icon(Icons.add, color: Colors.white),
-          label: const Text(
-            'New Event',
-            style: TextStyle(color: Colors.white),
-          ),
+      floatingActionButton: _permissionService.canCreateEvent
+          ? Container(
+              margin: const EdgeInsets.only(bottom: 16, right: 16),
+              child: FloatingActionButton.extended(
+                onPressed: () {
+                  Navigator.of(context).pushNamed('/event/create');
+                },
+                backgroundColor: Colors.black,
+                icon: const Icon(Icons.add, color: Colors.white),
+                label: const Text(
+                  'New Event',
+                  style: TextStyle(color: Colors.white),
+                ),
+              ),
+            )
+          : null,
+    );
+  }
+
+  Widget _buildFilterChip(EventStatus? status, String label) {
+    final isSelected = _filterStatus == status;
+    return Padding(
+      padding: const EdgeInsets.only(right: 8),
+      child: FilterChip(
+        label: Text(label),
+        selected: isSelected,
+        onSelected: (_) => setState(() => _filterStatus = status),
+        selectedColor: _filterChipColor(status),
+        checkmarkColor: Colors.white,
+        labelStyle: TextStyle(
+          color: isSelected ? Colors.white : Colors.black87,
+          fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
         ),
+        backgroundColor: Colors.grey[100],
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
       ),
     );
   }
 
-  void _showFilterDialog() {
-    showDialog(
-      context: context,
-      builder: (context) {
-        return AlertDialog(
-          title: const Text('Filter Events'),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              RadioListTile<EventStatus?>(
-                title: const Text('All Events'),
-                value: null,
-                groupValue: _filterStatus,
-                onChanged: (value) {
-                  setState(() => _filterStatus = value);
-                  Navigator.pop(context);
-                },
-              ),
-              ...EventStatus.values.map((status) {
-                return RadioListTile<EventStatus?>(
-                  title: Text(status.name),
-                  value: status,
-                  groupValue: _filterStatus,
-                  onChanged: (value) {
-                    setState(() => _filterStatus = value);
-                    Navigator.pop(context);
-                  },
-                );
-              }),
-            ],
-          ),
-        );
-      },
-    );
+  Color _filterChipColor(EventStatus? status) {
+    switch (status) {
+      case EventStatus.draft: return Colors.grey;
+      case EventStatus.scheduled: return Colors.blue;
+      case EventStatus.inProgress: return Colors.orange;
+      case EventStatus.completed: return Colors.green;
+      case EventStatus.cancelled: return Colors.red;
+      default: return Colors.black87;
+    }
+  }
+
+  String _statusLabel(EventStatus status) {
+    switch (status) {
+      case EventStatus.draft: return 'Draft';
+      case EventStatus.scheduled: return 'Scheduled';
+      case EventStatus.inProgress: return 'In Progress';
+      case EventStatus.completed: return 'Completed';
+      case EventStatus.cancelled: return 'Cancelled';
+    }
   }
 
   void _showSortDialog() {

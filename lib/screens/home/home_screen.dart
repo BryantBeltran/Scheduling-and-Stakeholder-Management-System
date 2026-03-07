@@ -135,37 +135,33 @@ class _DashboardScreenState extends State<DashboardScreen> {
   final EventService _eventService = EventService();
   final StakeholderService _stakeholderService = StakeholderService();
   final NotificationService _notificationService = NotificationService();
-  
+
   @override
   void initState() {
     super.initState();
     _loadData();
     // Listen to event stream for real-time updates
     _eventService.eventsStream.listen((events) {
-      if (mounted) {
-        setState(() {
-          _events = events;
-        });
-      }
+      if (mounted) setState(() => _events = events);
+    });
+    // Listen to stakeholder stream for real-time count updates
+    _stakeholderService.initializeStakeholderStream();
+    _stakeholderService.stakeholdersStream.listen((stakeholders) {
+      if (mounted) setState(() => _stakeholders = stakeholders);
     });
   }
-  
+
   Future<void> _loadData() async {
     setState(() => _isLoading = true);
-    
+
     try {
-      // Fetch events from Firestore or mock data
+      // Fetch events from Firestore or mock data (initial paint)
       _events = await _eventService.getAllEvents();
-      
-      // Get stakeholders from Firestore or mock data
-      _stakeholders = await _stakeholderService.getAllStakeholders();
     } catch (e) {
       debugPrint('Error loading data: $e');
-      // Initialize with empty lists on error
       _events = [];
-      _stakeholders = [];
     }
-    
+
     if (mounted) {
       setState(() => _isLoading = false);
     }

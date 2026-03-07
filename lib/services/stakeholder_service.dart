@@ -40,6 +40,7 @@ class StakeholderService {
 
   final List<StakeholderModel> _stakeholders = [];
   final _stakeholdersController = StreamController<List<StakeholderModel>>.broadcast();
+  StreamSubscription<QuerySnapshot>? _stakeholdersSubscription;
 
   // Lazy Firestore instance
   FirebaseFirestore get _firestore => FirebaseFirestore.instance;
@@ -47,6 +48,40 @@ class StakeholderService {
 
   /// Stream of stakeholders
   Stream<List<StakeholderModel>> get stakeholdersStream => _stakeholdersController.stream;
+
+  /// Set up a real-time Firestore listener that pushes updates into [stakeholdersStream].
+  /// Call once from the dashboard (or wherever the count is displayed).
+  void initializeStakeholderStream() {
+    if (AppConfig.isInitialized && AppConfig.instance.useMockData) {
+      _stakeholdersController.add(MockDataService.getMockStakeholders());
+      return;
+    }
+
+    if (!AppConfig.instance.useFirebase) return;
+
+    _stakeholdersSubscription?.cancel();
+    _stakeholdersSubscription = _stakeholdersCollection.snapshots().listen(
+      (snapshot) {
+        final stakeholders = snapshot.docs
+            .map((doc) {
+              try {
+                final data = doc.data() as Map<String, dynamic>;
+                data['id'] = doc.id;
+                return StakeholderModel.fromJson(data);
+              } catch (e) {
+                debugPrint('[StakeholderService] Error parsing ${doc.id}: $e');
+                return null;
+              }
+            })
+            .whereType<StakeholderModel>()
+            .toList();
+        _stakeholdersController.add(stakeholders);
+      },
+      onError: (error) {
+        debugPrint('[StakeholderService] Stream error: $error');
+      },
+    );
+  }
 
   /// Get all stakeholders
   List<StakeholderModel> get stakeholders => List.unmodifiable(_stakeholders);
@@ -382,6 +417,7 @@ class StakeholderService {
 
   /// Dispose resources
   void dispose() {
+    _stakeholdersSubscription?.cancel();
     _stakeholdersController.close();
   }
 }
