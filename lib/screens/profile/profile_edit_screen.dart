@@ -385,22 +385,25 @@ class _ProfileEditScreenState extends State<ProfileEditScreen> {
                     Container(
                       padding: const EdgeInsets.all(16),
                       decoration: BoxDecoration(
-                        color: Colors.blue[50],
+                        color: Theme.of(context).colorScheme.primaryContainer.withValues(alpha: 0.18),
                         borderRadius: BorderRadius.circular(12),
-                        border: Border.all(color: Colors.blue[100]!),
+                        border: Border.all(
+                          color: Theme.of(context).colorScheme.primary.withValues(alpha: 0.35),
+                        ),
                       ),
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Row(
                             children: [
-                              Icon(Icons.info_outline, color: Colors.blue[700], size: 20),
+                              Icon(Icons.info_outline,
+                                  color: Theme.of(context).colorScheme.primary, size: 20),
                               const SizedBox(width: 8),
                               Text(
                                 'Account Information',
                                 style: TextStyle(
                                   fontWeight: FontWeight.w600,
-                                  color: Colors.blue[700],
+                                  color: Theme.of(context).colorScheme.primary,
                                   fontSize: 14,
                                 ),
                               ),

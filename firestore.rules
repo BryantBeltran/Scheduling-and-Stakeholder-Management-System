@@ -33,14 +33,19 @@ service cloud.firestore {
     }
 
     // Events: Authenticated users can read their own events and those shared with them.
-    // Only the owner can update or delete their events.
+    // The creator (ownerId) OR an assigned manager (managerId) can update or delete.
     match /events/{eventId} {
       // Allow read if user is authenticated (query filtering happens in app)
-      // The app queries with ownerId == uid, so we allow reads for authenticated users
       allow read: if request.auth != null;
       allow create: if request.auth != null && request.resource.data.ownerId == request.auth.uid;
-      allow update: if request.auth != null && resource.data.ownerId == request.auth.uid;
-      allow delete: if request.auth != null && resource.data.ownerId == request.auth.uid;
+      allow update: if request.auth != null && (
+        resource.data.ownerId == request.auth.uid ||
+        resource.data.managerId == request.auth.uid
+      );
+      allow delete: if request.auth != null && (
+        resource.data.ownerId == request.auth.uid ||
+        resource.data.managerId == request.auth.uid
+      );
     }
 
     // Stakeholders: Permission-gated CRUD.

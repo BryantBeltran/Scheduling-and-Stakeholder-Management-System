@@ -28,22 +28,41 @@ class _EventCreateScreenState extends State<EventCreateScreen> {
   List<String> _selectedStakeholderIds = [];
   Map<String, StakeholderModel> _stakeholderCache = {};
   bool _isVirtualLocation = false;
+  String? _selectedManagerId;
+  List<UserModel> _managers = [];
   
   bool _isLoading = false;
   final _eventService = EventService();
   final _authService = AuthService();
   final _stakeholderService = StakeholderService();
+  final _userService = UserService();
 
   @override
   void initState() {
     super.initState();
     _loadStakeholders();
+    _loadManagers();
   }
 
   Future<void> _loadStakeholders() async {
     final stakeholders = await _stakeholderService.getAllStakeholders();
     setState(() {
       _stakeholderCache = {for (var s in stakeholders) s.id: s};
+    });
+  }
+
+  Future<void> _loadManagers() async {
+    final currentUser = _authService.currentUser;
+    final all = await _userService.getAllUsers();
+    setState(() {
+      // Show managers and admins — exclude the current user (they are already the owner)
+      _managers = all
+          .where((u) =>
+              u.id != currentUser?.id &&
+              u.isActive &&
+              (u.role == UserRole.manager || u.role == UserRole.admin) &&
+              u.permissions.contains(Permission.editEvent))
+          .toList();
     });
   }
 
@@ -166,6 +185,7 @@ class _EventCreateScreenState extends State<EventCreateScreen> {
         ),
         ownerId: currentUser.id,
         ownerName: currentUser.displayName,
+        managerId: _selectedManagerId,
         status: _selectedStatus,
         priority: _selectedPriority,
         stakeholderIds: _selectedStakeholderIds,
@@ -477,6 +497,55 @@ class _EventCreateScreenState extends State<EventCreateScreen> {
                       ),
                     ),
                     const SizedBox(height: 24),
+                    // Assigned Manager (optional)
+                    Text(
+                      'Assign to Manager',
+                      style: TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w500,
+                        color: Theme.of(context).colorScheme.onSurface,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      'Optionally delegate management rights to a manager',
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: Theme.of(context).colorScheme.onSurfaceVariant,
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    DropdownButtonFormField<String?>(
+                      initialValue: _selectedManagerId,
+                      decoration: InputDecoration(
+                        hintText: 'None (only you can edit)',
+                        hintStyle: TextStyle(color: Theme.of(context).hintColor),
+                        prefixIcon: Icon(Icons.manage_accounts,
+                            color: Theme.of(context).colorScheme.onSurfaceVariant),
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12),
+                          borderSide:
+                              BorderSide(color: Theme.of(context).dividerColor),
+                        ),
+                        filled: true,
+                        fillColor: Theme.of(context).colorScheme.surface,
+                        contentPadding: const EdgeInsets.symmetric(
+                            horizontal: 16, vertical: 12),
+                      ),
+                      items: [
+                        const DropdownMenuItem<String?>(
+                          value: null,
+                          child: Text('None'),
+                        ),
+                        ..._managers.map((u) => DropdownMenuItem<String?>(
+                              value: u.id,
+                              child: Text(u.displayName),
+                            )),
+                      ],
+                      onChanged: (value) =>
+                          setState(() => _selectedManagerId = value),
+                    ),
+                    const SizedBox(height: 24),
                     // Stakeholders
                     Text(
                       'Stakeholders',
@@ -704,11 +773,13 @@ class _EventCreateScreenState extends State<EventCreateScreen> {
         padding: const EdgeInsets.symmetric(vertical: 12),
         decoration: BoxDecoration(
           border: Border.all(
-            color: isSelected ? Colors.blue : Theme.of(context).dividerColor,
+            color: isSelected ? Theme.of(context).colorScheme.primary : Theme.of(context).colorScheme.outline,
             width: isSelected ? 2 : 1,
           ),
           borderRadius: BorderRadius.circular(12),
-          color: isSelected ? Colors.blue.withOpacity(0.1) : Theme.of(context).colorScheme.surface,
+          color: isSelected
+              ? Theme.of(context).colorScheme.primary.withValues(alpha: 0.12)
+              : Theme.of(context).colorScheme.surface,
         ),
         child: Row(
           mainAxisAlignment: MainAxisAlignment.center,
@@ -716,14 +787,18 @@ class _EventCreateScreenState extends State<EventCreateScreen> {
             Icon(
               icon,
               size: 20,
-              color: isSelected ? Colors.blue : Theme.of(context).colorScheme.onSurfaceVariant,
+              color: isSelected
+                  ? Theme.of(context).colorScheme.primary
+                  : Theme.of(context).colorScheme.onSurfaceVariant,
             ),
             const SizedBox(width: 8),
             Text(
               label,
               style: TextStyle(
                 fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
-                color: isSelected ? Colors.blue : Theme.of(context).colorScheme.onSurfaceVariant,
+                color: isSelected
+                    ? Theme.of(context).colorScheme.primary
+                    : Theme.of(context).colorScheme.onSurfaceVariant,
               ),
             ),
           ],

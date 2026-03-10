@@ -156,6 +156,10 @@ class EventModel {
   
   /// Display name of the event owner (for UI convenience)
   final String? ownerName;
+
+  /// Optional manager the owner has delegated this event to.
+  /// When set, this user also has edit/delete rights on the event.
+  final String? managerId;
   
   /// Current status of the event
   final EventStatus status;
@@ -187,6 +191,7 @@ class EventModel {
     required this.location,
     required this.ownerId,
     this.ownerName,
+    this.managerId,
     required this.status,
     required this.priority,
     required this.stakeholderIds,
@@ -238,6 +243,7 @@ class EventModel {
     EventLocation? location,
     String? ownerId,
     String? ownerName,
+    String? managerId,
     EventStatus? status,
     EventPriority? priority,
     List<String>? stakeholderIds,
@@ -255,6 +261,7 @@ class EventModel {
       location: location ?? this.location,
       ownerId: ownerId ?? this.ownerId,
       ownerName: ownerName ?? this.ownerName,
+      managerId: managerId ?? this.managerId,
       status: status ?? this.status,
       priority: priority ?? this.priority,
       stakeholderIds: stakeholderIds ?? this.stakeholderIds,
@@ -277,6 +284,7 @@ class EventModel {
       'location': location.toJson(),
       'ownerId': ownerId,
       'ownerName': ownerName,
+      'managerId': managerId,
       'status': status.name,
       'priority': priority.name,
       'stakeholderIds': stakeholderIds,
@@ -307,6 +315,7 @@ class EventModel {
           : const EventLocation(name: ''),
       ownerId: json['ownerId'] as String? ?? '',
       ownerName: json['ownerName'] as String?,
+      managerId: json['managerId'] as String?,
       status: EventStatus.values.firstWhere(
         (s) => s.name == json['status'],
         orElse: () => EventStatus.draft,
