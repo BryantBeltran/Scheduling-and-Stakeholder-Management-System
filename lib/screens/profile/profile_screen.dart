@@ -247,33 +247,34 @@ class ProfileScreen extends StatelessWidget {
   }
 
   Color _getRoleColor(UserRole? role, List<Permission>? permissions) {
-    // Use permissions-based color
+    // Prefer explicit role for color
+    if (role != null) {
+      switch (role) {
+        case UserRole.admin:
+          return const Color(0xFFFFCDD2); // Light red
+        case UserRole.manager:
+          return const Color(0xFFBBDEFB); // Light blue
+        case UserRole.member:
+          return const Color(0xFF80CBC4); // Teal
+        case UserRole.viewer:
+          return const Color(0xFFE0E0E0); // Grey
+      }
+    }
+    // Fallback: infer from permissions
     if (permissions != null) {
       if (permissions.contains(Permission.root)) {
         return const Color(0xFFFFD700); // Gold for root
       }
       if (permissions.contains(Permission.admin)) {
-        return const Color(0xFFFFCDD2); // Light red for admin
-      }
-      if (permissions.contains(Permission.manageUsers)) {
-        return const Color(0xFFBBDEFB); // Light blue for manager-level
-      }
-      if (permissions.any((p) => [
-        Permission.createEvent,
-        Permission.editEvent,
-        Permission.createStakeholder,
-        Permission.editStakeholder,
-      ].contains(p))) {
-        return const Color(0xFF80CBC4); // Teal for member-level
+        return const Color(0xFFFFCDD2);
       }
     }
-    return const Color(0xFFE0E0E0); // Grey for viewer
+    return const Color(0xFFE0E0E0);
   }
 
   String _getRoleDisplayName(UserRole? role, List<Permission>? permissions) {
-    // Use permissions-based display role
     if (permissions != null) {
-      return PermissionService.getDisplayRole(permissions);
+      return PermissionService.getDisplayRole(permissions, role);
     }
     return 'User';
   }

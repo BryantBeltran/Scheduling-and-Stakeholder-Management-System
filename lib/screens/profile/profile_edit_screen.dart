@@ -156,7 +156,7 @@ class _ProfileEditScreenState extends State<ProfileEditScreen> {
   /// Get role display name based on permissions
   String _getRoleDisplayName(UserModel? user) {
     if (user == null) return 'USER';
-    return PermissionService.getDisplayRole(user.permissions).toUpperCase();
+    return PermissionService.getDisplayRole(user.permissions, user.role).toUpperCase();
   }
 
   Future<void> _saveProfile() async {

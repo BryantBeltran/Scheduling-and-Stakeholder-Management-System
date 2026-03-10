@@ -43,13 +43,16 @@ class SchedulingApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final config = AppConfig.instance;
-    
-    return MaterialApp(
+    final settingsService = SettingsService();
+
+    return ListenableBuilder(
+      listenable: settingsService,
+      builder: (context, _) => MaterialApp(
       title: config.appName,
       debugShowCheckedModeBanner: config.showDebugBanner,
       theme: AppTheme.lightTheme,
       darkTheme: AppTheme.darkTheme,
-      themeMode: ThemeMode.light,
+      themeMode: settingsService.themeMode,
       navigatorKey: navigatorKey,
       home: const AuthWrapper(),
       routes: {
@@ -167,6 +170,7 @@ class SchedulingApp extends StatelessWidget {
         }
         return child!;
       },
+    ),
     );
   }
 }
@@ -214,11 +218,16 @@ class _AuthWrapperState extends State<AuthWrapper> {
   void _handleInviteLink(Uri uri) {
     // Expected: https://managemateapp.me/invite?token=<token>
     // Also handle custom scheme: managemateapp://invite?token=<token>
-    final validHost = uri.host == 'managemateapp.me' || uri.scheme == 'managemateapp';
+    final validHost = uri.host == 'managemateapp.me' ||
+        uri.scheme == 'managemateapp';
     if (!validHost) return;
     if (!uri.path.startsWith('/invite')) return;
     final token = uri.queryParameters['token'];
     if (token == null || token.isEmpty) return;
+
+    // If the user is already signed in, ignore the invite link —
+    // their account is already set up.
+    if (_authService.currentUser != null) return;
 
     final nav = navigatorKey.currentState;
     if (nav == null) {
