@@ -470,6 +470,8 @@ class PushNotificationService {
     required String userId,
     bool? pushEnabled,
     bool? emailEnabled,
+    bool? eventRemindersEnabled,
+    bool? inviteNotificationsEnabled,
     int? defaultReminderMinutes,
     List<String>? mutedEventIds,
   }) async {
@@ -479,6 +481,12 @@ class PushNotificationService {
       final prefs = <String, dynamic>{};
       if (pushEnabled != null) prefs['pushEnabled'] = pushEnabled;
       if (emailEnabled != null) prefs['emailEnabled'] = emailEnabled;
+      if (eventRemindersEnabled != null) {
+        prefs['eventRemindersEnabled'] = eventRemindersEnabled;
+      }
+      if (inviteNotificationsEnabled != null) {
+        prefs['inviteNotificationsEnabled'] = inviteNotificationsEnabled;
+      }
       if (defaultReminderMinutes != null) {
         prefs['defaultReminderMinutes'] = defaultReminderMinutes;
       }

@@ -16,6 +16,8 @@ class _NotificationPreferencesScreenState
 
   bool _pushEnabled = true;
   bool _emailEnabled = true;
+  bool _eventRemindersEnabled = true;
+  bool _inviteNotificationsEnabled = true;
   int _defaultReminderMinutes = 30;
   bool _isLoading = true;
   bool _isSaving = false;
@@ -45,7 +47,12 @@ class _NotificationPreferencesScreenState
       setState(() {
         _pushEnabled = prefs['pushEnabled'] as bool? ?? true;
         _emailEnabled = prefs['emailEnabled'] as bool? ?? true;
-        _defaultReminderMinutes = prefs['defaultReminderMinutes'] as int? ?? 30;
+        _eventRemindersEnabled =
+            prefs['eventRemindersEnabled'] as bool? ?? true;
+        _inviteNotificationsEnabled =
+            prefs['inviteNotificationsEnabled'] as bool? ?? true;
+        _defaultReminderMinutes =
+            prefs['defaultReminderMinutes'] as int? ?? 30;
         _isLoading = false;
       });
     } catch (e) {
@@ -63,6 +70,8 @@ class _NotificationPreferencesScreenState
         userId: userId,
         pushEnabled: _pushEnabled,
         emailEnabled: _emailEnabled,
+        eventRemindersEnabled: _eventRemindersEnabled,
+        inviteNotificationsEnabled: _inviteNotificationsEnabled,
         defaultReminderMinutes: _defaultReminderMinutes,
       );
       if (mounted) {
@@ -137,6 +146,40 @@ class _NotificationPreferencesScreenState
                 ),
                 const SizedBox(height: 16),
 
+                // Notification types section
+                _SectionHeader(title: 'Notification Types'),
+                Card(
+                  elevation: 0,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    side: BorderSide(color: Colors.grey[200]!),
+                  ),
+                  child: Column(
+                    children: [
+                      SwitchListTile(
+                        title: const Text('Event reminders'),
+                        subtitle: const Text(
+                          'Reminders before events you manage or are invited to',
+                        ),
+                        value: _eventRemindersEnabled,
+                        onChanged: (v) =>
+                            setState(() => _eventRemindersEnabled = v),
+                      ),
+                      Divider(height: 1, color: Colors.grey[200]),
+                      SwitchListTile(
+                        title: const Text('Invites & event updates'),
+                        subtitle: const Text(
+                          'Notify when you are invited to an event or event details change',
+                        ),
+                        value: _inviteNotificationsEnabled,
+                        onChanged: (v) =>
+                            setState(() => _inviteNotificationsEnabled = v),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 16),
+
                 // Default reminder time section
                 _SectionHeader(title: 'Event Reminders'),
                 Card(
@@ -160,13 +203,20 @@ class _NotificationPreferencesScreenState
                       ),
                       RadioGroup<int>(
                         groupValue: _defaultReminderMinutes,
-                        onChanged: (v) {
-                          if (v != null) setState(() => _defaultReminderMinutes = v);
-                        },
+                        onChanged: _eventRemindersEnabled
+                            ? (v) => setState(() => _defaultReminderMinutes = v ?? _defaultReminderMinutes)
+                            : (_) {},
                         child: Column(
                           children: _reminderOptions.map((opt) {
                             return RadioListTile<int>(
-                              title: Text(opt.label),
+                              title: Text(
+                                opt.label,
+                                style: TextStyle(
+                                  color: _eventRemindersEnabled
+                                      ? null
+                                      : Colors.grey[400],
+                                ),
+                              ),
                               value: opt.minutes,
                               dense: true,
                             );
@@ -203,7 +253,8 @@ class _NotificationPreferencesScreenState
                           )
                         : const Text(
                             'Save Preferences',
-                            style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+                            style: TextStyle(
+                                fontSize: 16, fontWeight: FontWeight.w600),
                           ),
                   ),
                 ),

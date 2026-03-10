@@ -1747,14 +1747,17 @@ async function sendPushAndInAppNotification(
     .doc(userId)
     .get();
   const userData = userDoc.data();
-  const userSettings =
-    (userData?.settings ?? {}) as Record<string, unknown>;
+  // Preferences are stored under `notificationPreferences` by the Flutter app
+  const prefs =
+    (userData?.notificationPreferences ?? {}) as Record<string, unknown>;
 
   // Respect type-specific notification preferences.
   // If a category is disabled, skip both in-app and push.
+  // event_reminder  → only for event owner + invited stakeholders; gated by eventRemindersEnabled
+  // event_assignment / event_update → only for invited stakeholders + owner; gated by inviteNotificationsEnabled
   if (
     type === "event_reminder" &&
-    userSettings.eventReminders === false
+    prefs.eventRemindersEnabled === false
   ) {
     logger.info(
       `Event reminders disabled for user ${userId}, skipping.`
@@ -1763,10 +1766,10 @@ async function sendPushAndInAppNotification(
   }
   if (
     ["event_assignment", "event_update"].includes(type) &&
-    userSettings.stakeholderUpdates === false
+    prefs.inviteNotificationsEnabled === false
   ) {
     logger.info(
-      `Stakeholder updates disabled for user ${userId}, skipping.`
+      `Invite/event notifications disabled for user ${userId}, skipping.`
     );
     return;
   }
@@ -1784,7 +1787,7 @@ async function sendPushAndInAppNotification(
 
   // 2. Send FCM push notification
   // Skip FCM if the user has disabled push notifications entirely.
-  if (userSettings.pushNotifications === false) {
+  if (prefs.pushEnabled === false) {
     logger.info(
       `Push notifications disabled for user ${userId}, skipping FCM.`
     );
