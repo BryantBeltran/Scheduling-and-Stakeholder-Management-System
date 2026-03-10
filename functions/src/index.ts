@@ -2237,12 +2237,14 @@ export const sendEventReminders = onSchedule(
     try {
       const now = new Date();
 
-      // Define reminder windows
+      // All possible reminder windows that users can choose
       const windows = [
         {key: "reminder_1440", minutesBefore: 1440,
           label: "24 hours"},
         {key: "reminder_60", minutesBefore: 60,
           label: "1 hour"},
+        {key: "reminder_30", minutesBefore: 30,
+          label: "30 minutes"},
         {key: "reminder_15", minutesBefore: 15,
           label: "15 minutes"},
       ];
@@ -2281,58 +2283,79 @@ export const sendEventReminders = onSchedule(
           const remindersSent =
             eventData.remindersSent || {};
 
-          // Skip if this reminder was already sent
-          if (remindersSent[window.key]) continue;
-
           const stakeholderIds: string[] =
             eventData.stakeholderIds || [];
 
-          if (stakeholderIds.length === 0) continue;
+          // Collect all user IDs to notify for this event
+          // (stakeholder linked users + owner)
+          const userIdsToNotify: string[] = [];
 
-          // Send reminder to each stakeholder
           for (const shId of stakeholderIds) {
-            // Look up linked user
             const shDoc = await admin
               .firestore()
               .collection("stakeholders")
               .doc(shId)
               .get();
             const shData = shDoc.data();
-            const linkedUserId = shData?.linkedUserId;
-
-            if (linkedUserId) {
-              await sendPushAndInAppNotification(
-                linkedUserId,
-                `Event in ${window.label}`,
-                `"${eventData.title}" starts in ` +
-                `${window.label}.`,
-                "event_reminder",
-                eventDoc.id
-              );
+            if (shData?.linkedUserId) {
+              userIdsToNotify.push(shData.linkedUserId);
             }
           }
 
-          // Also notify the event owner
           if (eventData.ownerId) {
+            userIdsToNotify.push(eventData.ownerId);
+          }
+
+          // Deduplicate user IDs
+          const uniqueUserIds = [...new Set(userIdsToNotify)];
+
+          // Send reminder to each user only if their
+          // preferred reminder time matches this window
+          for (const userId of uniqueUserIds) {
+            // Per-user dedup key
+            const userReminderKey =
+              `${window.key}_${userId}`;
+            if (remindersSent[userReminderKey]) continue;
+
+            // Fetch user's notification preferences
+            const userDoc = await admin
+              .firestore()
+              .collection("users")
+              .doc(userId)
+              .get();
+            const userData = userDoc.data();
+            const prefs =
+              (userData?.notificationPreferences ?? {}) as
+              Record<string, unknown>;
+            const preferredMinutes =
+              (prefs.defaultReminderMinutes as number) ??
+              30;
+
+            // Only send if this window matches the user's
+            // preferred reminder time
+            if (preferredMinutes !== window.minutesBefore) {
+              continue;
+            }
+
             await sendPushAndInAppNotification(
-              eventData.ownerId,
+              userId,
               `Event in ${window.label}`,
               `"${eventData.title}" starts in ` +
               `${window.label}.`,
               "event_reminder",
               eventDoc.id
             );
+
+            // Mark this user+window as sent
+            await eventDoc.ref.update({
+              [`remindersSent.${userReminderKey}`]: true,
+            });
+
+            logger.info(
+              `Reminder (${window.label}) sent for ` +
+              `event ${eventDoc.id} to user ${userId}`
+            );
           }
-
-          // Mark this reminder window as sent
-          await eventDoc.ref.update({
-            [`remindersSent.${window.key}`]: true,
-          });
-
-          logger.info(
-            `Reminder (${window.label}) sent for ` +
-            `event: ${eventDoc.id}`
-          );
         }
       }
     } catch (error) {
