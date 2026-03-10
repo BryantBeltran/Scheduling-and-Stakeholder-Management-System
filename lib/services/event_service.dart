@@ -40,7 +40,10 @@ class EventService {
   final FirebaseFunctions _functions = FirebaseFunctions.instance;
   final _eventsController = StreamController<List<EventModel>>.broadcast();
   StreamSubscription<QuerySnapshot>? _eventsSubscription;
+  StreamSubscription<QuerySnapshot>? _assignedSubscription;
   String? _streamUserId; // tracks which user the active subscription belongs to
+  List<EventModel> _ownedEvents = const [];
+  List<EventModel> _assignedEvents = const [];
   // ignore: prefer_final_fields
   List<EventModel> _cachedEvents = const []; // last emitted value for late subscribers
 
@@ -97,38 +100,75 @@ class EventService {
 
     // Production: Listen to Firestore changes for user's events
     _eventsSubscription?.cancel();
+    _assignedSubscription?.cancel();
     _streamUserId = currentUser.id;
+
+    // Query 1: events the user owns
     _eventsSubscription = _eventsCollection
         .where('ownerId', isEqualTo: currentUser.id)
         .snapshots()
         .listen(
       (snapshot) {
-        final events = snapshot.docs
-            .map((doc) {
-              try {
-                final data = doc.data() as Map<String, dynamic>;
-                data['id'] = doc.id;
-                return EventModel.fromJson(data);
-              } catch (e) {
-                debugPrint('Error parsing event ${doc.id}: $e');
-                return null;
-              }
-            })
-            .whereType<EventModel>()
-            .toList();
-        _emitEvents(events);
+        _ownedEvents = _parseEventSnapshot(snapshot);
+        _emitEvents(_mergeEvents());
       },
       onError: (error) {
-        debugPrint('[EventService] Stream error: $error');
-        // If we get a permission error, the user likely signed out
+        debugPrint('[EventService] Owned stream error: $error');
         if (error.toString().contains('PERMISSION_DENIED')) {
           _eventsSubscription?.cancel();
           _eventsSubscription = null;
+          _assignedSubscription?.cancel();
+          _assignedSubscription = null;
           _streamUserId = null;
           _emitEvents([]);
         }
       },
     );
+
+    // Query 2: events the user is assigned to as a stakeholder
+    final stakeholderId = currentUser.stakeholderId;
+    if (stakeholderId != null) {
+      _assignedSubscription = _eventsCollection
+          .where('stakeholderIds', arrayContains: stakeholderId)
+          .snapshots()
+          .listen(
+        (snapshot) {
+          _assignedEvents = _parseEventSnapshot(snapshot);
+          _emitEvents(_mergeEvents());
+        },
+        onError: (error) {
+          debugPrint('[EventService] Assigned stream error: $error');
+        },
+      );
+    }
+  }
+
+  List<EventModel> _parseEventSnapshot(QuerySnapshot snapshot) {
+    return snapshot.docs
+        .map((doc) {
+          try {
+            final data = doc.data() as Map<String, dynamic>;
+            data['id'] = doc.id;
+            return EventModel.fromJson(data);
+          } catch (e) {
+            debugPrint('Error parsing event ${doc.id}: $e');
+            return null;
+          }
+        })
+        .whereType<EventModel>()
+        .toList();
+  }
+
+  /// Merge owned and assigned events, deduplicating by id.
+  List<EventModel> _mergeEvents() {
+    final map = <String, EventModel>{};
+    for (final e in _ownedEvents) {
+      map[e.id] = e;
+    }
+    for (final e in _assignedEvents) {
+      map.putIfAbsent(e.id, () => e);
+    }
+    return map.values.toList();
   }
 
   /// Get all events for the current user
@@ -143,24 +183,41 @@ class EventService {
       return MockDataService.getMockEvents(currentUser.id);
     }
 
-    // Production: Fetch from Firestore
-    final snapshot = await _eventsCollection
+    // Production: Fetch from Firestore (owned + assigned)
+    final ownedSnapshot = await _eventsCollection
         .where('ownerId', isEqualTo: currentUser.id)
         .get();
 
-    return snapshot.docs
-        .map((doc) {
-          try {
-            final data = doc.data() as Map<String, dynamic>;
-            data['id'] = doc.id;
-            return EventModel.fromJson(data);
-          } catch (e) {
-            debugPrint('Error parsing event ${doc.id}: $e');
-            return null;
-          }
-        })
-        .whereType<EventModel>()
-        .toList();
+    final map = <String, EventModel>{};
+    for (final doc in ownedSnapshot.docs) {
+      try {
+        final data = doc.data() as Map<String, dynamic>;
+        data['id'] = doc.id;
+        map[doc.id] = EventModel.fromJson(data);
+      } catch (e) {
+        debugPrint('Error parsing event ${doc.id}: $e');
+      }
+    }
+
+    // Also fetch events where user is an assigned stakeholder
+    final stakeholderId = currentUser.stakeholderId;
+    if (stakeholderId != null) {
+      final assignedSnapshot = await _eventsCollection
+          .where('stakeholderIds', arrayContains: stakeholderId)
+          .get();
+      for (final doc in assignedSnapshot.docs) {
+        if (map.containsKey(doc.id)) continue;
+        try {
+          final data = doc.data() as Map<String, dynamic>;
+          data['id'] = doc.id;
+          map[doc.id] = EventModel.fromJson(data);
+        } catch (e) {
+          debugPrint('Error parsing event ${doc.id}: $e');
+        }
+      }
+    }
+
+    return map.values.toList();
   }
 
   /// Get event by ID
@@ -421,6 +478,7 @@ class EventService {
   /// Dispose resources
   void dispose() {
     _eventsSubscription?.cancel();
+    _assignedSubscription?.cancel();
     _eventsController.close();
   }
 }

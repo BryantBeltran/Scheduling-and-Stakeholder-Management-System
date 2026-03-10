@@ -191,6 +191,7 @@ class _AuthWrapperState extends State<AuthWrapper> {
   final _userService = UserService();
   final _notificationService = NotificationService();
   final _pushService = PushNotificationService();
+  final _settingsService = SettingsService();
   final _appLinks = AppLinks();
 
   /// Pending invite token from a deep link received before auth state resolved.
@@ -268,6 +269,9 @@ class _AuthWrapperState extends State<AuthWrapper> {
         // Show home if authenticated, otherwise show login
         if (snapshot.hasData && snapshot.data != null) {
           final user = snapshot.data!;
+
+          // Load user's theme/language preferences
+          _settingsService.loadUserSettings(user.id);
 
           // Start listening to in-app notifications
           _notificationService.startListening(user.id);
