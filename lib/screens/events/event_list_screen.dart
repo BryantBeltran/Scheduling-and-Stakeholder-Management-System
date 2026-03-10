@@ -3,7 +3,6 @@
 import 'package:flutter/material.dart';
 import '../../models/models.dart';
 import '../../services/services.dart';
-import 'event_details_screen.dart';
 
 class EventListScreen extends StatefulWidget {
   const EventListScreen({super.key});
