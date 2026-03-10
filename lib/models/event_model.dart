@@ -100,10 +100,10 @@ class EventLocation {
 
   factory EventLocation.fromJson(Map<String, dynamic> json) {
     return EventLocation(
-      name: json['name'] as String,
+      name: json['name'] as String? ?? '',
       address: json['address'] as String?,
-      latitude: json['latitude'] as double?,
-      longitude: json['longitude'] as double?,
+      latitude: (json['latitude'] as num?)?.toDouble(),
+      longitude: (json['longitude'] as num?)?.toDouble(),
       isVirtual: json['isVirtual'] as bool? ?? false,
       virtualLink: json['virtualLink'] as String?,
     );
@@ -265,10 +265,11 @@ class EventModel {
     );
   }
 
-  /// Convert to JSON map
+  /// Convert to JSON map for Firestore/Cloud Function.
+  /// `id` is intentionally excluded — it is the Firestore document key,
+  /// not a stored field.
   Map<String, dynamic> toJson() {
     return {
-      'id': id,
       'title': title,
       'description': description,
       'startTime': startTime.toIso8601String(),
@@ -286,22 +287,43 @@ class EventModel {
     };
   }
 
-  /// Create from JSON map
+  /// Create from JSON map (Firestore document data).
+  /// Caller must inject `data['id'] = doc.id` before calling this.
   factory EventModel.fromJson(Map<String, dynamic> json) {
+    final endTimeRaw = json['endTime'] as String?;
+    final startTimeRaw = json['startTime'] as String?;
+    final now = DateTime.now();
+
     return EventModel(
-      id: json['id'] as String,
-      title: json['title'] as String,
+      id: json['id'] as String? ?? '',
+      title: json['title'] as String? ?? '',
       description: json['description'] as String?,
-      startTime: DateTime.parse(json['startTime'] as String),
-      endTime: DateTime.parse(json['endTime'] as String),
-      location: EventLocation.fromJson(json['location'] as Map<String, dynamic>),
-      ownerId: json['ownerId'] as String,
+      startTime: startTimeRaw != null ? DateTime.parse(startTimeRaw) : now,
+      endTime: endTimeRaw != null
+          ? DateTime.parse(endTimeRaw)
+          : (startTimeRaw != null ? DateTime.parse(startTimeRaw).add(const Duration(hours: 1)) : now.add(const Duration(hours: 1))),
+      location: json['location'] != null
+          ? EventLocation.fromJson(json['location'] as Map<String, dynamic>)
+          : const EventLocation(name: ''),
+      ownerId: json['ownerId'] as String? ?? '',
       ownerName: json['ownerName'] as String?,
-      status: EventStatus.values.firstWhere((s) => s.name == json['status']),
-      priority: EventPriority.values.firstWhere((p) => p.name == json['priority']),
-      stakeholderIds: List<String>.from(json['stakeholderIds'] as List<dynamic>),
-      createdAt: DateTime.parse(json['createdAt'] as String),
-      updatedAt: DateTime.parse(json['updatedAt'] as String),
+      status: EventStatus.values.firstWhere(
+        (s) => s.name == json['status'],
+        orElse: () => EventStatus.draft,
+      ),
+      priority: EventPriority.values.firstWhere(
+        (p) => p.name == json['priority'],
+        orElse: () => EventPriority.medium,
+      ),
+      stakeholderIds: json['stakeholderIds'] != null
+          ? List<String>.from(json['stakeholderIds'] as List<dynamic>)
+          : [],
+      createdAt: json['createdAt'] != null
+          ? DateTime.parse(json['createdAt'] as String)
+          : now,
+      updatedAt: json['updatedAt'] != null
+          ? DateTime.parse(json['updatedAt'] as String)
+          : now,
       recurrenceRule: json['recurrenceRule'] as String?,
       metadata: json['metadata'] as Map<String, dynamic>?,
     );

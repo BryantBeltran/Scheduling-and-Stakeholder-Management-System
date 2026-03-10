@@ -40,6 +40,18 @@ class EventService {
   final FirebaseFunctions _functions = FirebaseFunctions.instance;
   final _eventsController = StreamController<List<EventModel>>.broadcast();
   StreamSubscription<QuerySnapshot>? _eventsSubscription;
+  String? _streamUserId; // tracks which user the active subscription belongs to
+  // ignore: prefer_final_fields
+  List<EventModel> _cachedEvents = const []; // last emitted value for late subscribers
+
+  /// The last successfully emitted list of events.
+  /// Use as StreamBuilder initialData so late subscribers don't wait for next emission.
+  List<EventModel> get cachedEvents => _cachedEvents;
+
+  void _emitEvents(List<EventModel> events) {
+    _cachedEvents = events;
+    _eventsController.add(events);
+  }
 
   // Lazy Firestore instance - only accessed when useFirebase is true
   FirebaseFirestore get _firestore => FirebaseFirestore.instance;
@@ -67,19 +79,25 @@ class EventService {
       // Cancel any existing subscription when user is not authenticated
       _eventsSubscription?.cancel();
       _eventsSubscription = null;
-      _eventsController.add([]);
+      _streamUserId = null;
+      _emitEvents([]);
       return;
     }
 
+    // Already listening for this user — no-op to avoid resetting the stream
+    if (_eventsSubscription != null && _streamUserId == currentUser.id) return;
+
     if (AppConfig.isInitialized && AppConfig.instance.useMockData) {
       // Development: Use mock data
+      _streamUserId = currentUser.id;
       final mockEvents = MockDataService.getMockEvents(currentUser.id);
-      _eventsController.add(mockEvents);
+      _emitEvents(mockEvents);
       return;
     }
 
     // Production: Listen to Firestore changes for user's events
     _eventsSubscription?.cancel();
+    _streamUserId = currentUser.id;
     _eventsSubscription = _eventsCollection
         .where('ownerId', isEqualTo: currentUser.id)
         .snapshots()
@@ -98,7 +116,7 @@ class EventService {
             })
             .whereType<EventModel>()
             .toList();
-        _eventsController.add(events);
+        _emitEvents(events);
       },
       onError: (error) {
         debugPrint('[EventService] Stream error: $error');
@@ -106,7 +124,8 @@ class EventService {
         if (error.toString().contains('PERMISSION_DENIED')) {
           _eventsSubscription?.cancel();
           _eventsSubscription = null;
-          _eventsController.add([]);
+          _streamUserId = null;
+          _emitEvents([]);
         }
       },
     );

@@ -26,6 +26,24 @@ NotificationType parseNotificationType(String? type) {
   }
 }
 
+/// Convert NotificationType enum to the snake_case string used by Firestore/Cloud Functions
+String _notificationTypeToString(NotificationType type) {
+  switch (type) {
+    case NotificationType.welcome:
+      return 'welcome';
+    case NotificationType.eventAssignment:
+      return 'event_assignment';
+    case NotificationType.eventReminder:
+      return 'event_reminder';
+    case NotificationType.eventUpdate:
+      return 'event_update';
+    case NotificationType.inviteAccepted:
+      return 'invite_accepted';
+    case NotificationType.general:
+      return 'general';
+  }
+}
+
 class Notification {
   final String id;
   final String title;
@@ -77,7 +95,7 @@ class Notification {
       'userId': userId,
       'createdAt': createdAt.toIso8601String(),
       'isRead': isRead,
-      'type': type.name,
+      'type': _notificationTypeToString(type),
       'eventId': eventId,
       'data': data,
     };

@@ -23,6 +23,7 @@ class _EventListScreenState extends State<EventListScreen> {
   @override
   void initState() {
     super.initState();
+    _eventService.initializeEventStream();
   }
 
   @override
@@ -124,6 +125,7 @@ class _EventListScreenState extends State<EventListScreen> {
       // If we can't fetch the event, proceed with delete dialog anyway
     }
 
+    if (!mounted) return;
     final confirm = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
@@ -219,49 +221,14 @@ class _EventListScreenState extends State<EventListScreen> {
             ),
           ),
 
-          // Sort button + results count
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
-            child: Row(
-              children: [
-                OutlinedButton(
-                  onPressed: _showSortDialog,
-                  style: OutlinedButton.styleFrom(
-                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                  ),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Text(_getSortLabel()),
-                      const SizedBox(width: 4),
-                      Icon(
-                        _sortAscending ? Icons.arrow_upward : Icons.arrow_downward,
-                        size: 16,
-                      ),
-                    ],
-                  ),
-                ),
-                const Spacer(),
-                Text(
-                  '${_filteredEvents.length} results',
-                  style: TextStyle(
-                    color: Colors.grey[600],
-                    fontWeight: FontWeight.w500,
-                  ),
-                ),
-              ],
-            ),
-          ),
-
-          // Events list
+          // Events list (includes sort row + results count inside StreamBuilder)
           Expanded(
             child: StreamBuilder<List<EventModel>>(
               stream: _eventService.eventsStream,
+              initialData: _eventService.cachedEvents,
               builder: (context, snapshot) {
-                if (snapshot.connectionState == ConnectionState.waiting) {
+                if (snapshot.connectionState == ConnectionState.waiting &&
+                    (snapshot.data?.isEmpty ?? true)) {
                   return const Center(child: CircularProgressIndicator());
                 }
 
@@ -274,33 +241,67 @@ class _EventListScreenState extends State<EventListScreen> {
                 final events = snapshot.data ?? [];
                 _filteredEvents = _filterEvents(events);
 
-                if (_filteredEvents.isEmpty) {
-                  return Center(
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Icon(
-                          Icons.event_busy,
-                          size: 64,
-                          color: Colors.grey[400],
-                        ),
-                        const SizedBox(height: 16),
-                        Text(
-                          'No events found',
-                          style: TextStyle(
-                            fontSize: 16,
-                            color: Colors.grey[600],
+                return Column(
+                  children: [
+                    // Sort button + results count
+                    Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+                      child: Row(
+                        children: [
+                          OutlinedButton(
+                            onPressed: _showSortDialog,
+                            style: OutlinedButton.styleFrom(
+                              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(8),
+                              ),
+                            ),
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Text(_getSortLabel()),
+                                const SizedBox(width: 4),
+                                Icon(
+                                  _sortAscending ? Icons.arrow_upward : Icons.arrow_downward,
+                                  size: 16,
+                                ),
+                              ],
+                            ),
+                          ),
+                          const Spacer(),
+                          Text(
+                            '${_filteredEvents.length} results',
+                            style: TextStyle(
+                              color: Colors.grey[600],
+                              fontWeight: FontWeight.w500,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+
+                    if (_filteredEvents.isEmpty)
+                      Expanded(
+                        child: Center(
+                          child: Column(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Icon(Icons.event_busy, size: 64, color: Colors.grey[400]),
+                              const SizedBox(height: 16),
+                              Text(
+                                'No events found',
+                                style: TextStyle(fontSize: 16, color: Colors.grey[600]),
+                              ),
+                            ],
                           ),
                         ),
-                      ],
-                    ),
-                  );
-                }
-
-                return ListView.builder(
-                  padding: const EdgeInsets.all(16),
-                  itemCount: _filteredEvents.length,
-                  itemBuilder: (context, index) {
+                      )
+                    else
+                      Expanded(
+                        child: ListView.builder(
+                          padding: const EdgeInsets.all(16),
+                          itemCount: _filteredEvents.length,
+                          itemBuilder: (context, index) {
                     final event = _filteredEvents[index];
                     return Padding(
                       padding: const EdgeInsets.only(bottom: 12),
@@ -329,10 +330,13 @@ class _EventListScreenState extends State<EventListScreen> {
                           : _EventListItem(event: event, onDelete: null),
                     );
                   },
-                );
-              },
-            ),
-          ),
+                ),
+              ),
+            ],
+          );
+        },
+      ),
+    ),
         ],
       ),
       floatingActionButton: _permissionService.canCreateEvent
