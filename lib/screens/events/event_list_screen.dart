@@ -23,7 +23,6 @@ class _EventListScreenState extends State<EventListScreen> {
   @override
   void initState() {
     super.initState();
-    _eventService.initializeEventStream();
   }
 
   @override

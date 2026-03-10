@@ -30,6 +30,8 @@
 // - Dashboard patterns: https://material.io/design/layout/understanding-layout.html
 // ==============================================================================
 
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import '../../models/models.dart';
 import '../../services/services.dart';
@@ -135,20 +137,31 @@ class _DashboardScreenState extends State<DashboardScreen> {
   final EventService _eventService = EventService();
   final StakeholderService _stakeholderService = StakeholderService();
   final NotificationService _notificationService = NotificationService();
+  final AuthService _authService = AuthService();
+
+  StreamSubscription<List<EventModel>>? _eventSub;
+  StreamSubscription<List<StakeholderModel>>? _stakeholderSub;
 
   @override
   void initState() {
     super.initState();
     _loadData();
     // Listen to event stream for real-time updates
-    _eventService.eventsStream.listen((events) {
+    _eventSub = _eventService.eventsStream.listen((events) {
       if (mounted) setState(() => _events = events);
     });
     // Listen to stakeholder stream for real-time count updates
     _stakeholderService.initializeStakeholderStream();
-    _stakeholderService.stakeholdersStream.listen((stakeholders) {
+    _stakeholderSub = _stakeholderService.stakeholdersStream.listen((stakeholders) {
       if (mounted) setState(() => _stakeholders = stakeholders);
     });
+  }
+
+  @override
+  void dispose() {
+    _eventSub?.cancel();
+    _stakeholderSub?.cancel();
+    super.dispose();
   }
 
   Future<void> _loadData() async {
@@ -169,7 +182,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final authService = AuthService();
+    final authService = _authService;
 
     return Scaffold(
       appBar: AppBar(

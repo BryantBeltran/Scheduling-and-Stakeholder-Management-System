@@ -230,10 +230,16 @@ class PushNotificationService {
       }
 
       // Listen for token refreshes
-      _messaging.onTokenRefresh.listen((newToken) {
-        _saveToken(userId, newToken);
-        debugPrint('FCM token refreshed for user: $userId');
-      });
+      _messaging.onTokenRefresh.listen(
+        (newToken) async {
+          try {
+            await _saveToken(userId, newToken);
+            debugPrint('FCM token refreshed for user: $userId');
+          } catch (e) {
+            debugPrint('Error saving refreshed FCM token: $e');
+          }
+        },
+      );
     } catch (e) {
       debugPrint('Error registering FCM token: $e');
     }
