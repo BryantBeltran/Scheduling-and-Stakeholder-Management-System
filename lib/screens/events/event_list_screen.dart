@@ -736,19 +736,32 @@ class _EventListItem extends StatelessWidget {
                       children: [
                         Icon(Icons.access_time, size: 14, color: Theme.of(context).colorScheme.onSurfaceVariant),
                         const SizedBox(width: 4),
-                        Text(
-                          '${event.startTime.hour.toString().padLeft(2, '0')}:${event.startTime.minute.toString().padLeft(2, '0')}',
-                          style: TextStyle(
-                            fontSize: 12,
-                            color: Theme.of(context).colorScheme.onSurfaceVariant,
+                        Flexible(
+                          child: Text(
+                            () {
+                              final s = event.startTime;
+                              final sh = s.hour == 0 ? 12 : (s.hour > 12 ? s.hour - 12 : s.hour);
+                              final sm = s.minute.toString().padLeft(2, '0');
+                              final sp = s.hour >= 12 ? 'PM' : 'AM';
+                              final e = event.endTime;
+                              final eh = e.hour == 0 ? 12 : (e.hour > 12 ? e.hour - 12 : e.hour);
+                              final em = e.minute.toString().padLeft(2, '0');
+                              final ep = e.hour >= 12 ? 'PM' : 'AM';
+                              return '$sh:$sm $sp - $eh:$em $ep';
+                            }(),
+                            style: TextStyle(
+                              fontSize: 12,
+                              color: Theme.of(context).colorScheme.onSurfaceVariant,
+                            ),
+                            overflow: TextOverflow.ellipsis,
                           ),
                         ),
-                        const SizedBox(width: 16),
+                        const SizedBox(width: 8),
                         Icon(Icons.location_on, size: 14, color: Theme.of(context).colorScheme.onSurfaceVariant),
                         const SizedBox(width: 4),
                         Expanded(
                           child: Text(
-                            event.location.isVirtual 
+                            event.location.isVirtual
                                 ? (event.location.virtualLink ?? 'Virtual')
                                 : event.location.name,
                             style: TextStyle(
