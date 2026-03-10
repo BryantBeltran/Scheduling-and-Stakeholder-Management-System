@@ -275,7 +275,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
               final eventDay = DateTime(
                 e.startTime.year, e.startTime.month, e.startTime.day,
               );
-              return eventDay == today;
+              // Only include events that are today AND haven't fully ended yet
+              return eventDay == today && e.endTime.isAfter(now);
             }).toList();
 
             return ListView(

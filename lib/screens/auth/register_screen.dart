@@ -131,10 +131,15 @@ class _RegisterScreenState extends State<RegisterScreen> {
         final needsOnboarding = await _userService.needsOnboarding(user.id);
         
         if (needsOnboarding) {
-          // New user - go to onboarding
+          // New user - go to onboarding, carrying invite context
           Navigator.of(context).pushNamed(
             '/onboarding',
-            arguments: {'user': user},
+            arguments: {
+              'user': user,
+              'inviteToken': _inviteToken,
+              'stakeholderId': _inviteStakeholderId,
+              'defaultRole': _inviteDefaultRole,
+            },
           );
         } else {
           // User already completed onboarding - go to home
