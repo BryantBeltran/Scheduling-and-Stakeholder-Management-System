@@ -198,8 +198,6 @@ class _DashboardScreenState extends State<DashboardScreen> {
         ),
         centerTitle: true,
         elevation: 0,
-        backgroundColor: Colors.white,
-        foregroundColor: Colors.black,
         actions: [
           StreamBuilder<int>(
             stream: _notificationService.unreadCountStream,
@@ -231,19 +229,24 @@ class _DashboardScreenState extends State<DashboardScreen> {
               stream: authService.authStateChanges,
               builder: (context, snapshot) {
                 final user = snapshot.data ?? authService.currentUser;
+                final photoUrl = user?.photoUrl;
+                final hasPhoto = photoUrl != null && photoUrl.isNotEmpty;
                 return CircleAvatar(
-                  radius: 18,
-                  backgroundColor: Colors.grey[300],
-                  child: Text(
-                    (user?.displayName.isNotEmpty ?? false) 
-                        ? user!.displayName[0].toUpperCase() 
-                        : 'U',
-                    style: const TextStyle(
-                      color: Colors.black,
-                      fontWeight: FontWeight.bold,
-                      fontSize: 14,
-                    ),
-                  ),
+                    radius: 18,
+                    backgroundColor: const Color(0xFF5B7C99),
+                    backgroundImage: hasPhoto ? NetworkImage(photoUrl) : null,
+                    child: hasPhoto
+                        ? null
+                        : Text(
+                            (user?.displayName.isNotEmpty ?? false)
+                                ? user!.displayName[0].toUpperCase()
+                                : 'U',
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontWeight: FontWeight.bold,
+                              fontSize: 14,
+                            ),
+                          ),
                 );
               },
             ),

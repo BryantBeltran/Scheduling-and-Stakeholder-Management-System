@@ -21,8 +21,6 @@ class ProfileScreen extends StatelessWidget {
         ),
         centerTitle: true,
         elevation: 0,
-        backgroundColor: Colors.white,
-        foregroundColor: Colors.black,
       ),
       body: StreamBuilder<UserModel?>(
         stream: authService.authStateChanges,

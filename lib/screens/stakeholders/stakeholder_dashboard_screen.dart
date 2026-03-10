@@ -115,8 +115,6 @@ class _StakeholderDashboardScreenState extends State<StakeholderDashboardScreen>
         ),
         centerTitle: true,
         elevation: 0,
-        backgroundColor: Colors.white,
-        foregroundColor: Colors.black,
         actions: [
           IconButton(
             icon: const Icon(Icons.refresh),

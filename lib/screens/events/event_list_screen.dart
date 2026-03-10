@@ -173,8 +173,6 @@ class _EventListScreenState extends State<EventListScreen> {
         ),
         centerTitle: true,
         elevation: 0,
-        backgroundColor: Colors.white,
-        foregroundColor: Colors.black,
       ),
       body: Column(
         children: [
@@ -227,8 +225,10 @@ class _EventListScreenState extends State<EventListScreen> {
               stream: _eventService.eventsStream,
               initialData: _eventService.cachedEvents,
               builder: (context, snapshot) {
-                if (snapshot.connectionState == ConnectionState.waiting &&
-                    (snapshot.data?.isEmpty ?? true)) {
+                // Only show spinner if we have never received any data at all.
+                // initialData provides cachedEvents, so once the stream has
+                // emitted at least once, snapshot.data will be non-null.
+                if (!snapshot.hasData && snapshot.connectionState == ConnectionState.waiting) {
                   return const Center(child: CircularProgressIndicator());
                 }
 

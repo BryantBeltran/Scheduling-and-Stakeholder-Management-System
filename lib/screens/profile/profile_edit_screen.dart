@@ -233,8 +233,6 @@ class _ProfileEditScreenState extends State<ProfileEditScreen> {
         ),
         centerTitle: true,
         elevation: 0,
-        backgroundColor: Colors.white,
-        foregroundColor: Colors.black,
         actions: [
           TextButton(
             onPressed: _isLoading ? null : _saveProfile,

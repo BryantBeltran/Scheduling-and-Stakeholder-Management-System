@@ -269,8 +269,6 @@ class _StakeholderDetailsScreenState extends State<StakeholderDetailsScreen>
           ),
           centerTitle: true,
           elevation: 0,
-          backgroundColor: Colors.white,
-          foregroundColor: Colors.black,
         ),
         body: const Center(child: CircularProgressIndicator()),
       );
@@ -291,8 +289,6 @@ class _StakeholderDetailsScreenState extends State<StakeholderDetailsScreen>
           ),
           centerTitle: true,
           elevation: 0,
-          backgroundColor: Colors.white,
-          foregroundColor: Colors.black,
         ),
         body: const Center(child: Text('Stakeholder not found')),
       );
@@ -310,8 +306,6 @@ class _StakeholderDetailsScreenState extends State<StakeholderDetailsScreen>
         ),
         centerTitle: true,
         elevation: 0,
-        backgroundColor: Colors.white,
-        foregroundColor: Colors.black,
         actions: [
           IconButton(
             icon: const Icon(Icons.edit),

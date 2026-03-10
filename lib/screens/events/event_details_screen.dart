@@ -195,8 +195,6 @@ class _EventDetailsScreenState extends State<EventDetailsScreen> {
         ),
         centerTitle: true,
         elevation: 0,
-        backgroundColor: Colors.white,
-        foregroundColor: Colors.black,
         actions: [
           if (_event != null && _permissionService.canEditEvent)
             IconButton(

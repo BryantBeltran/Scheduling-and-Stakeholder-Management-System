@@ -108,8 +108,6 @@ class _StakeholderListScreenState extends State<StakeholderListScreen> {
         ),
         centerTitle: true,
         elevation: 0,
-        backgroundColor: Colors.white,
-        foregroundColor: Colors.black,
       ),
       body: Column(
         children: [

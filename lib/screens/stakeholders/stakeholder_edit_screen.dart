@@ -161,8 +161,6 @@ class _StakeholderEditScreenState extends State<StakeholderEditScreen> {
           ),
           centerTitle: true,
           elevation: 0,
-          backgroundColor: Colors.white,
-          foregroundColor: Colors.black,
         ),
         body: Form(
           key: _formKey,

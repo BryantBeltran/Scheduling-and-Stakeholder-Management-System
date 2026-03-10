@@ -162,8 +162,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
           ),
           centerTitle: true,
           elevation: 0,
-          backgroundColor: Colors.white,
-          foregroundColor: Colors.black,
         ),
         body: const Center(child: CircularProgressIndicator()),
       );
@@ -177,8 +175,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
         ),
         centerTitle: true,
         elevation: 0,
-        backgroundColor: Colors.white,
-        foregroundColor: Colors.black,
       ),
       body: ListView(
         children: [

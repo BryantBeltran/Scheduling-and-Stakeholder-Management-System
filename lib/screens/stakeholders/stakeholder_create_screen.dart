@@ -95,8 +95,6 @@ class _StakeholderCreateScreenState extends State<StakeholderCreateScreen> {
         ),
         centerTitle: true,
         elevation: 0,
-        backgroundColor: Colors.white,
-        foregroundColor: Colors.black,
       ),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(16),
