@@ -98,7 +98,7 @@ class _HomeScreenState extends State<HomeScreen> {
         currentIndex: _currentIndex,
         onTap: _onNavTap,
         type: BottomNavigationBarType.fixed,
-        selectedItemColor: Colors.black,
+        selectedItemColor: Theme.of(context).colorScheme.onSurface,
         unselectedItemColor: Colors.grey,
         items: const [
           BottomNavigationBarItem(
@@ -290,7 +290,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                           elevation: 0,
                           shape: RoundedRectangleBorder(
                             borderRadius: BorderRadius.circular(12),
-                            side: BorderSide(color: Colors.grey[200]!),
+                            side: BorderSide(color: Theme.of(context).dividerColor),
                           ),
                           child: Row(
                             children: [
@@ -308,7 +308,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                                               'Total Events',
                                               style: TextStyle(
                                                 fontSize: 12,
-                                                color: Colors.grey[600],
+                                                color: Theme.of(context).colorScheme.onSurfaceVariant,
                                               ),
                                             ),
                                             const SizedBox(height: 8),
@@ -334,7 +334,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                               Container(
                                 width: 1,
                                 height: 80,
-                                color: Colors.grey[300],
+                                color: Theme.of(context).dividerColor,
                               ),
                               Expanded(
                                 child: Padding(
@@ -350,7 +350,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                                               'Stakeholders',
                                               style: TextStyle(
                                                 fontSize: 12,
-                                                color: Colors.grey[600],
+                                                color: Theme.of(context).colorScheme.onSurfaceVariant,
                                               ),
                                             ),
                                             const SizedBox(height: 8),
@@ -382,7 +382,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                           elevation: 0,
                           shape: RoundedRectangleBorder(
                             borderRadius: BorderRadius.circular(12),
-                            side: BorderSide(color: Colors.grey[200]!),
+                            side: BorderSide(color: Theme.of(context).dividerColor),
                           ),
                           child: Row(
                             children: [
@@ -400,7 +400,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                                               'Upcoming',
                                               style: TextStyle(
                                                 fontSize: 12,
-                                                color: Colors.grey[600],
+                                                color: Theme.of(context).colorScheme.onSurfaceVariant,
                                               ),
                                             ),
                                             const SizedBox(height: 8),
@@ -426,7 +426,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                               Container(
                                 width: 1,
                                 height: 80,
-                                color: Colors.grey[300],
+                                color: Theme.of(context).dividerColor,
                               ),
                               Expanded(
                                 child: Padding(
@@ -442,7 +442,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                                               'Completed',
                                               style: TextStyle(
                                                 fontSize: 12,
-                                                color: Colors.grey[600],
+                                                color: Theme.of(context).colorScheme.onSurfaceVariant,
                                               ),
                                             ),
                                             const SizedBox(height: 8),
@@ -475,7 +475,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                           elevation: 0,
                           shape: RoundedRectangleBorder(
                             borderRadius: BorderRadius.circular(12),
-                            side: BorderSide(color: Colors.grey[200]!),
+                            side: BorderSide(color: Theme.of(context).dividerColor),
                           ),
                           child: Row(
                             children: [
@@ -493,7 +493,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                                               'In Progress',
                                               style: TextStyle(
                                                 fontSize: 12,
-                                                color: Colors.grey[600],
+                                                color: Theme.of(context).colorScheme.onSurfaceVariant,
                                               ),
                                             ),
                                             const SizedBox(height: 8),
@@ -519,7 +519,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                               Container(
                                 width: 1,
                                 height: 80,
-                                color: Colors.grey[300],
+                                color: Theme.of(context).dividerColor,
                               ),
                               Expanded(
                                 child: Padding(
@@ -535,7 +535,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                                               'Today',
                                               style: TextStyle(
                                                 fontSize: 12,
-                                                color: Colors.grey[600],
+                                                color: Theme.of(context).colorScheme.onSurfaceVariant,
                                               ),
                                             ),
                                             const SizedBox(height: 8),
@@ -612,7 +612,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                                   ),
                                   subtitle: Text(
                                     '${_formatTime(event.startTime)} - ${_formatTime(event.endTime)}',
-                                    style: TextStyle(color: Colors.grey[600]),
+                                    style: TextStyle(color: Theme.of(context).colorScheme.onSurfaceVariant),
                                   ),
                                   trailing: Chip(
                                     label: Text(
@@ -645,7 +645,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                           elevation: 0,
                           shape: RoundedRectangleBorder(
                             borderRadius: BorderRadius.circular(12),
-                            side: BorderSide(color: Colors.grey[200]!),
+                            side: BorderSide(color: Theme.of(context).dividerColor),
                           ),
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
@@ -670,7 +670,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                                           child: Text(
                                             'No upcoming events',
                                             style: TextStyle(
-                                              color: Colors.grey[600],
+                                              color: Theme.of(context).colorScheme.onSurfaceVariant,
                                               fontSize: 16,
                                             ),
                                           ),
@@ -785,7 +785,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                       'View events you\'re assigned to as a stakeholder',
                       style: TextStyle(
                         fontSize: 13,
-                        color: Colors.grey[600],
+                        color: Theme.of(context).colorScheme.onSurfaceVariant,
                       ),
                     ),
                   ],
@@ -818,9 +818,9 @@ class _EventCard extends StatelessWidget {
       child: Container(
         padding: const EdgeInsets.all(16),
         decoration: BoxDecoration(
-          color: Colors.white,
+          color: Theme.of(context).colorScheme.surface,
           borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: Colors.grey[200]!),
+          border: Border.all(color: Theme.of(context).dividerColor),
         ),
         child: Row(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -880,13 +880,13 @@ class _EventCard extends StatelessWidget {
                   const SizedBox(height: 8),
                   Row(
                     children: [
-                      Icon(Icons.access_time, size: 14, color: Colors.grey[600]),
+                      Icon(Icons.access_time, size: 14, color: Theme.of(context).colorScheme.onSurfaceVariant),
                       const SizedBox(width: 4),
                       Text(
                         _formatTimeRange(event.startTime, event.endTime),
                         style: TextStyle(
                           fontSize: 13,
-                          color: Colors.grey[700],
+                          color: Theme.of(context).colorScheme.onSurfaceVariant,
                         ),
                       ),
                     ],
@@ -897,7 +897,7 @@ class _EventCard extends StatelessWidget {
                       Icon(
                         event.location.isVirtual ? Icons.videocam : Icons.location_on,
                         size: 14,
-                        color: Colors.grey[600],
+                        color: Theme.of(context).colorScheme.onSurfaceVariant,
                       ),
                       const SizedBox(width: 4),
                       Expanded(
@@ -905,7 +905,7 @@ class _EventCard extends StatelessWidget {
                           event.location.name,
                           style: TextStyle(
                             fontSize: 13,
-                            color: Colors.grey[700],
+                            color: Theme.of(context).colorScheme.onSurfaceVariant,
                           ),
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
@@ -917,13 +917,13 @@ class _EventCard extends StatelessWidget {
                     const SizedBox(height: 8),
                     Row(
                       children: [
-                        Icon(Icons.people, size: 14, color: Colors.grey[600]),
+                        Icon(Icons.people, size: 14, color: Theme.of(context).colorScheme.onSurfaceVariant),
                         const SizedBox(width: 4),
                         Text(
                           '${event.stakeholderIds.length} stakeholder${event.stakeholderIds.length > 1 ? 's' : ''}',
                           style: TextStyle(
                             fontSize: 12,
-                            color: Colors.grey[600],
+                            color: Theme.of(context).colorScheme.onSurfaceVariant,
                           ),
                         ),
                       ],
@@ -933,7 +933,7 @@ class _EventCard extends StatelessWidget {
               ),
             ),
             const SizedBox(width: 8),
-            Icon(Icons.chevron_right, color: Colors.grey[400]),
+            Icon(Icons.chevron_right, color: Theme.of(context).hintColor),
           ],
         ),
       ),

@@ -431,12 +431,13 @@ class EventService {
       return event;
     }
 
-    final updatedEvent = event.copyWith(
-      stakeholderIds: [...event.stakeholderIds, stakeholderId],
-      updatedAt: DateTime.now(),
-    );
+    // Use the Cloud Function directly — it handles both the Firestore
+    // writes and sends an event_assignment notification to the stakeholder.
+    final callable = _functions.httpsCallable('addStakeholderToEvent');
+    await callable.call({'eventId': eventId, 'stakeholderId': stakeholderId});
 
-    return updateEvent(updatedEvent);
+    // Return refreshed event
+    return (await getEventById(eventId))!;
   }
 
   /// Remove stakeholder from event

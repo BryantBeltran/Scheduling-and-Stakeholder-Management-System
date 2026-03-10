@@ -87,7 +87,7 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
         Text(
           'We have sent a password reset link to ${_emailController.text}',
           style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-            color: Colors.grey[600],
+            color: Theme.of(context).colorScheme.onSurfaceVariant,
           ),
           textAlign: TextAlign.center,
         ),
@@ -133,7 +133,7 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
           Text(
             'Enter your email address and we\'ll send you a link to reset your password.',
             style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-              color: Colors.grey[600],
+              color: Theme.of(context).colorScheme.onSurfaceVariant,
             ),
             textAlign: TextAlign.center,
           ),
@@ -191,12 +191,12 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
           ElevatedButton(
             onPressed: _isLoading ? null : _handleResetPassword,
             child: _isLoading
-                ? const SizedBox(
+                ? SizedBox(
                     height: 20,
                     width: 20,
                     child: CircularProgressIndicator(
                       strokeWidth: 2,
-                      valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                      valueColor: AlwaysStoppedAnimation<Color>(Theme.of(context).colorScheme.surface),
                     ),
                   )
                 : const Text('Send Reset Link'),

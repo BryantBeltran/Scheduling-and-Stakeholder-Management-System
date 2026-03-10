@@ -103,7 +103,7 @@ class _StakeholderPickerWidgetState extends State<StakeholderPickerWidget> {
                 '${_selectedIds.length} stakeholder(s) selected',
                 style: TextStyle(
                   fontSize: 14,
-                  color: Colors.grey[600],
+                  color: Theme.of(context).colorScheme.onSurfaceVariant,
                 ),
               ),
             ],
@@ -131,7 +131,7 @@ class _StakeholderPickerWidgetState extends State<StakeholderPickerWidget> {
                 borderRadius: BorderRadius.circular(12),
               ),
               filled: true,
-              fillColor: Colors.grey[100],
+              fillColor: Theme.of(context).colorScheme.surfaceContainerHighest,
             ),
             onChanged: _filterStakeholders,
           ),
@@ -151,7 +151,7 @@ class _StakeholderPickerWidgetState extends State<StakeholderPickerWidget> {
                           : 'No stakeholders found',
                       style: TextStyle(
                         fontSize: 16,
-                        color: Colors.grey[600],
+                        color: Theme.of(context).colorScheme.onSurfaceVariant,
                       ),
                     ),
                   ),
@@ -181,7 +181,7 @@ class _StakeholderPickerWidgetState extends State<StakeholderPickerWidget> {
                               '${stakeholder.organization}${stakeholder.title != null ? " • ${stakeholder.title}" : ""}',
                               style: TextStyle(
                                 fontSize: 12,
-                                color: Colors.grey[600],
+                                color: Theme.of(context).colorScheme.onSurfaceVariant,
                               ),
                             ),
                         ],
@@ -233,7 +233,7 @@ Future<List<String>?> showStakeholderPicker({
   return showModalBottomSheet<List<String>>(
     context: context,
     isScrollControlled: true,
-    backgroundColor: Colors.white,
+    backgroundColor: Theme.of(context).colorScheme.surface,
     shape: const RoundedRectangleBorder(
       borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
     ),

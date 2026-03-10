@@ -242,8 +242,8 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
                   controller: _searchController,
                   decoration: InputDecoration(
                     hintText: 'Search users...',
-                    hintStyle: TextStyle(color: Colors.grey[400]),
-                    prefixIcon: Icon(Icons.search, color: Colors.grey[600]),
+                    hintStyle: TextStyle(color: Theme.of(context).hintColor),
+                    prefixIcon: Icon(Icons.search, color: Theme.of(context).colorScheme.onSurfaceVariant),
                     suffixIcon: _searchController.text.isNotEmpty
                         ? IconButton(
                             icon: const Icon(Icons.clear),
@@ -256,7 +256,7 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
                           )
                         : null,
                     filled: true,
-                    fillColor: Colors.grey[100],
+                    fillColor: Theme.of(context).colorScheme.surfaceContainerHighest,
                     border: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(12),
                       borderSide: BorderSide.none,
@@ -304,7 +304,7 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
                 Text(
                   '${_filteredUsers.length} user${_filteredUsers.length != 1 ? 's' : ''}',
                   style: TextStyle(
-                    color: Colors.grey[600],
+                    color: Theme.of(context).colorScheme.onSurfaceVariant,
                     fontWeight: FontWeight.w500,
                   ),
                 ),
@@ -342,7 +342,7 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
       selectedColor: Colors.blue.withOpacity(0.2),
       checkmarkColor: Colors.blue,
       labelStyle: TextStyle(
-        color: isSelected ? Colors.blue : Colors.grey[700],
+        color: isSelected ? Colors.blue : Theme.of(context).colorScheme.onSurfaceVariant,
         fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
       ),
     );
@@ -365,7 +365,7 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
           '$count $label',
           style: TextStyle(
             fontSize: 12,
-            color: Colors.grey[600],
+            color: Theme.of(context).colorScheme.onSurfaceVariant,
           ),
         ),
       ],
@@ -382,11 +382,11 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(Icons.error_outline, size: 64, color: Colors.grey[400]),
+            Icon(Icons.error_outline, size: 64, color: Theme.of(context).hintColor),
             const SizedBox(height: 16),
             Text(
               _errorMessage!,
-              style: TextStyle(color: Colors.grey[600]),
+              style: TextStyle(color: Theme.of(context).colorScheme.onSurfaceVariant),
               textAlign: TextAlign.center,
             ),
             const SizedBox(height: 16),
@@ -404,13 +404,13 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(Icons.people_outline, size: 64, color: Colors.grey[400]),
+            Icon(Icons.people_outline, size: 64, color: Theme.of(context).hintColor),
             const SizedBox(height: 16),
             Text(
               _searchController.text.isNotEmpty || _filterRole != null
                   ? 'No users match your filters'
                   : 'No users found',
-              style: TextStyle(color: Colors.grey[600]),
+              style: TextStyle(color: Theme.of(context).colorScheme.onSurfaceVariant),
             ),
           ],
         ),
@@ -466,7 +466,7 @@ class _UserListItem extends StatelessWidget {
       margin: const EdgeInsets.only(bottom: 12),
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(12),
-        side: BorderSide(color: Colors.grey[200]!),
+        side: BorderSide(color: Theme.of(context).dividerColor),
       ),
       child: Padding(
         padding: const EdgeInsets.all(16),
@@ -515,7 +515,7 @@ class _UserListItem extends StatelessWidget {
                           style: TextStyle(
                             fontWeight: FontWeight.bold,
                             fontSize: 16,
-                            color: user.isActive ? Colors.black : Colors.grey,
+                            color: user.isActive ? Theme.of(context).colorScheme.onSurface : Theme.of(context).hintColor,
                           ),
                         ),
                       ),
@@ -545,7 +545,7 @@ class _UserListItem extends StatelessWidget {
                     user.email,
                     style: TextStyle(
                       fontSize: 13,
-                      color: Colors.grey[600],
+                      color: Theme.of(context).colorScheme.onSurfaceVariant,
                     ),
                   ),
                   const SizedBox(height: 8),
@@ -587,7 +587,7 @@ class _UserListItem extends StatelessWidget {
             ),
             // Actions
             PopupMenuButton<String>(
-              icon: Icon(Icons.more_vert, color: Colors.grey[600]),
+              icon: Icon(Icons.more_vert, color: Theme.of(context).colorScheme.onSurfaceVariant),
               onSelected: (value) {
                 switch (value) {
                   case 'role':

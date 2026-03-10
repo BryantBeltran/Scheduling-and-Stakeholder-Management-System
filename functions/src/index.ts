@@ -1728,6 +1728,25 @@ export const addStakeholderToEvent = onCall(async (request) => {
         updatedAt: admin.firestore.FieldValue.serverTimestamp(),
       });
 
+    // Send assignment notification to the stakeholder's linked user
+    const [stakeholderDoc, eventDoc] = await Promise.all([
+      admin.firestore().collection("stakeholders").doc(stakeholderId).get(),
+      admin.firestore().collection("events").doc(eventId).get(),
+    ]);
+
+    const linkedUserId = stakeholderDoc.data()?.linkedUserId;
+    const eventTitle = eventDoc.data()?.title ?? "an event";
+
+    if (linkedUserId) {
+      await sendPushAndInAppNotification(
+        linkedUserId,
+        `Added to Event: ${eventTitle}`,
+        `You have been assigned to "${eventTitle}".`,
+        "event_assignment",
+        eventId
+      );
+    }
+
     logger.info(`Stakeholder ${stakeholderId} added to event ${eventId}`);
     return {success: true};
   } catch (error) {

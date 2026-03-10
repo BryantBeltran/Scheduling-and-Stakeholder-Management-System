@@ -335,7 +335,7 @@ class _ProfileEditScreenState extends State<ProfileEditScreen> {
                           borderRadius: BorderRadius.circular(12),
                         ),
                         filled: true,
-                        fillColor: Colors.grey[50],
+                        fillColor: Theme.of(context).colorScheme.surfaceContainerHighest,
                       ),
                       validator: (value) {
                         if (value == null || value.trim().isEmpty) {
@@ -357,10 +357,10 @@ class _ProfileEditScreenState extends State<ProfileEditScreen> {
                           borderRadius: BorderRadius.circular(12),
                         ),
                         filled: true,
-                        fillColor: Colors.grey[100],
+                        fillColor: Theme.of(context).colorScheme.surfaceContainerHighest,
                       ),
                       enabled: false,
-                      style: TextStyle(color: Colors.grey[600]),
+                      style: TextStyle(color: Theme.of(context).colorScheme.onSurfaceVariant),
                     ),
                     const SizedBox(height: 16),
 
@@ -375,7 +375,7 @@ class _ProfileEditScreenState extends State<ProfileEditScreen> {
                           borderRadius: BorderRadius.circular(12),
                         ),
                         filled: true,
-                        fillColor: Colors.grey[50],
+                        fillColor: Theme.of(context).colorScheme.surfaceContainerHighest,
                       ),
                       keyboardType: TextInputType.phone,
                     ),
@@ -436,26 +436,26 @@ class _ProfileEditScreenState extends State<ProfileEditScreen> {
                       child: ElevatedButton(
                         onPressed: _isLoading ? null : _saveProfile,
                         style: ElevatedButton.styleFrom(
-                          backgroundColor: Colors.black,
+                          backgroundColor: Theme.of(context).colorScheme.onSurface,
                           shape: RoundedRectangleBorder(
                             borderRadius: BorderRadius.circular(12),
                           ),
                         ),
                         child: _isLoading
-                            ? const SizedBox(
+                            ? SizedBox(
                                 height: 20,
                                 width: 20,
                                 child: CircularProgressIndicator(
                                   strokeWidth: 2,
-                                  color: Colors.white,
+                                  color: Theme.of(context).colorScheme.surface,
                                 ),
                               )
-                            : const Text(
+                            : Text(
                                 'Save Changes',
                                 style: TextStyle(
                                   fontSize: 16,
                                   fontWeight: FontWeight.w600,
-                                  color: Colors.white,
+                                  color: Theme.of(context).colorScheme.surface,
                                 ),
                               ),
                       ),
@@ -487,7 +487,7 @@ class _InfoRow extends StatelessWidget {
         Text(
           label,
           style: TextStyle(
-            color: Colors.grey[700],
+            color: Theme.of(context).colorScheme.onSurfaceVariant,
             fontSize: 13,
           ),
         ),
@@ -495,7 +495,7 @@ class _InfoRow extends StatelessWidget {
           value,
           style: TextStyle(
             fontWeight: FontWeight.w600,
-            color: valueColor ?? Colors.black87,
+            color: valueColor ?? Theme.of(context).colorScheme.onSurface,
             fontSize: 13,
           ),
         ),

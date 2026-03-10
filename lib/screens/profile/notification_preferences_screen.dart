@@ -116,7 +116,7 @@ class _NotificationPreferencesScreenState
                   elevation: 0,
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(12),
-                    side: BorderSide(color: Colors.grey[200]!),
+                    side: BorderSide(color: Theme.of(context).dividerColor),
                   ),
                   child: SwitchListTile(
                     title: const Text('Push notifications'),
@@ -133,7 +133,7 @@ class _NotificationPreferencesScreenState
                   elevation: 0,
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(12),
-                    side: BorderSide(color: Colors.grey[200]!),
+                    side: BorderSide(color: Theme.of(context).dividerColor),
                   ),
                   child: SwitchListTile(
                     title: const Text('Email notifications'),
@@ -150,7 +150,7 @@ class _NotificationPreferencesScreenState
                   elevation: 0,
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(12),
-                    side: BorderSide(color: Colors.grey[200]!),
+                    side: BorderSide(color: Theme.of(context).dividerColor),
                   ),
                   child: Column(
                     children: [
@@ -163,7 +163,7 @@ class _NotificationPreferencesScreenState
                         onChanged: (v) =>
                             setState(() => _eventRemindersEnabled = v),
                       ),
-                      Divider(height: 1, color: Colors.grey[200]),
+                      Divider(height: 1, color: Theme.of(context).dividerColor),
                       SwitchListTile(
                         title: const Text('Invites & event updates'),
                         subtitle: const Text(
@@ -184,7 +184,7 @@ class _NotificationPreferencesScreenState
                   elevation: 0,
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(12),
-                    side: BorderSide(color: Colors.grey[200]!),
+                    side: BorderSide(color: Theme.of(context).dividerColor),
                   ),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
@@ -195,7 +195,7 @@ class _NotificationPreferencesScreenState
                           'Default reminder time',
                           style: TextStyle(
                             fontSize: 14,
-                            color: Colors.grey[700],
+                            color: Theme.of(context).colorScheme.onSurfaceVariant,
                           ),
                         ),
                       ),
@@ -212,7 +212,7 @@ class _NotificationPreferencesScreenState
                                 style: TextStyle(
                                   color: _eventRemindersEnabled
                                       ? null
-                                      : Colors.grey[400],
+                                      : Theme.of(context).hintColor,
                                 ),
                               ),
                               value: opt.minutes,
@@ -233,20 +233,20 @@ class _NotificationPreferencesScreenState
                   child: ElevatedButton(
                     onPressed: _isSaving ? null : _savePreferences,
                     style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.black,
-                      foregroundColor: Colors.white,
+                      backgroundColor: Theme.of(context).colorScheme.onSurface,
+                      foregroundColor: Theme.of(context).colorScheme.surface,
                       padding: const EdgeInsets.symmetric(vertical: 14),
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(10),
                       ),
                     ),
                     child: _isSaving
-                        ? const SizedBox(
+                        ? SizedBox(
                             width: 20,
                             height: 20,
                             child: CircularProgressIndicator(
                               strokeWidth: 2,
-                              color: Colors.white,
+                              color: Theme.of(context).colorScheme.surface,
                             ),
                           )
                         : const Text(
@@ -272,11 +272,11 @@ class _SectionHeader extends StatelessWidget {
       padding: const EdgeInsets.only(bottom: 8),
       child: Text(
         title,
-        style: const TextStyle(
+        style: TextStyle(
           fontSize: 13,
           fontWeight: FontWeight.w600,
           letterSpacing: 0.5,
-          color: Colors.black54,
+          color: Theme.of(context).colorScheme.onSurfaceVariant,
         ),
       ),
     );

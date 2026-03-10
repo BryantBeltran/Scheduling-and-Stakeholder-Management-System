@@ -92,7 +92,7 @@ class _LoginScreenState extends State<LoginScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.white,
+      backgroundColor: Theme.of(context).colorScheme.surface,
       body: SafeArea(
         child: Center(
           child: SingleChildScrollView(
@@ -126,7 +126,7 @@ class _LoginScreenState extends State<LoginScreen> {
                     'Scheduling & Stakeholder\nManagement',
                     style: Theme.of(context).textTheme.headlineSmall?.copyWith(
                           fontWeight: FontWeight.bold,
-                          color: Colors.black87,
+                          color: Theme.of(context).colorScheme.onSurface,
                         ),
                     textAlign: TextAlign.center,
                   ),
@@ -137,7 +137,7 @@ class _LoginScreenState extends State<LoginScreen> {
                     'Login',
                     style: Theme.of(context).textTheme.titleLarge?.copyWith(
                           fontWeight: FontWeight.w600,
-                          color: Colors.black87,
+                          color: Theme.of(context).colorScheme.onSurface,
                         ),
                     textAlign: TextAlign.center,
                   ),
@@ -146,7 +146,7 @@ class _LoginScreenState extends State<LoginScreen> {
                   Text(
                     'Enter your email to sign up for this app',
                     style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                          color: Colors.grey[600],
+                          color: Theme.of(context).colorScheme.onSurfaceVariant,
                         ),
                     textAlign: TextAlign.center,
                   ),
@@ -186,14 +186,14 @@ class _LoginScreenState extends State<LoginScreen> {
                     decoration: InputDecoration(
                       hintText: 'Username/email',
                       filled: true,
-                      fillColor: Colors.grey[50],
+                      fillColor: Theme.of(context).colorScheme.surfaceContainerHighest,
                       border: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(12),
-                        borderSide: BorderSide(color: Colors.grey[300]!),
+                        borderSide: BorderSide(color: Theme.of(context).dividerColor),
                       ),
                       enabledBorder: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(12),
-                        borderSide: BorderSide(color: Colors.grey[300]!),
+                        borderSide: BorderSide(color: Theme.of(context).dividerColor),
                       ),
                       focusedBorder: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(12),
@@ -224,14 +224,14 @@ class _LoginScreenState extends State<LoginScreen> {
                     decoration: InputDecoration(
                       hintText: 'password',
                       filled: true,
-                      fillColor: Colors.grey[50],
+                      fillColor: Theme.of(context).colorScheme.surfaceContainerHighest,
                       border: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(12),
-                        borderSide: BorderSide(color: Colors.grey[300]!),
+                        borderSide: BorderSide(color: Theme.of(context).dividerColor),
                       ),
                       enabledBorder: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(12),
-                        borderSide: BorderSide(color: Colors.grey[300]!),
+                        borderSide: BorderSide(color: Theme.of(context).dividerColor),
                       ),
                       focusedBorder: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(12),
@@ -245,7 +245,7 @@ class _LoginScreenState extends State<LoginScreen> {
                           _obscurePassword
                               ? Icons.visibility_off_outlined
                               : Icons.visibility_outlined,
-                          color: Colors.grey[600],
+                          color: Theme.of(context).colorScheme.onSurfaceVariant,
                         ),
                         onPressed: () {
                           setState(() => _obscurePassword = !_obscurePassword);
@@ -277,7 +277,7 @@ class _LoginScreenState extends State<LoginScreen> {
                       child: Text(
                         'Forgot Password?',
                         style: TextStyle(
-                          color: Colors.grey[600],
+                          color: Theme.of(context).colorScheme.onSurfaceVariant,
                           fontSize: 13,
                         ),
                       ),
@@ -291,21 +291,21 @@ class _LoginScreenState extends State<LoginScreen> {
                     child: ElevatedButton(
                       onPressed: _isLoading ? null : _handleLogin,
                       style: ElevatedButton.styleFrom(
-                        backgroundColor: Colors.black,
-                        foregroundColor: Colors.white,
+                        backgroundColor: Theme.of(context).colorScheme.onSurface,
+                        foregroundColor: Theme.of(context).colorScheme.surface,
                         shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(12),
                         ),
                         elevation: 0,
                       ),
                       child: _isLoading
-                          ? const SizedBox(
+                          ? SizedBox(
                               height: 20,
                               width: 20,
                               child: CircularProgressIndicator(
                                 strokeWidth: 2,
                                 valueColor:
-                                    AlwaysStoppedAnimation<Color>(Colors.white),
+                                    AlwaysStoppedAnimation<Color>(Theme.of(context).colorScheme.surface),
                               ),
                             )
                           : const Text(
@@ -322,18 +322,18 @@ class _LoginScreenState extends State<LoginScreen> {
                   // Divider with "or"
                   Row(
                     children: [
-                      Expanded(child: Divider(color: Colors.grey[300])),
+                      Expanded(child: Divider(color: Theme.of(context).dividerColor)),
                       Padding(
                         padding: const EdgeInsets.symmetric(horizontal: 16),
                         child: Text(
                           'or',
                           style: TextStyle(
-                            color: Colors.grey[500],
+                            color: Theme.of(context).hintColor,
                             fontSize: 14,
                           ),
                         ),
                       ),
-                      Expanded(child: Divider(color: Colors.grey[300])),
+                      Expanded(child: Divider(color: Theme.of(context).dividerColor)),
                     ],
                   ),
                   const SizedBox(height: 24),
@@ -344,7 +344,7 @@ class _LoginScreenState extends State<LoginScreen> {
                     child: OutlinedButton(
                       onPressed: _isGoogleLoading ? null : _handleGoogleSignIn,
                       style: OutlinedButton.styleFrom(
-                        side: BorderSide(color: Colors.grey[300]!),
+                        side: BorderSide(color: Theme.of(context).dividerColor),
                         shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(12),
                         ),
@@ -366,12 +366,12 @@ class _LoginScreenState extends State<LoginScreen> {
                                       const Icon(Icons.g_mobiledata, size: 24),
                                 ),
                                 const SizedBox(width: 12),
-                                const Text(
+                                Text(
                                   'Continue with Google',
                                   style: TextStyle(
                                     fontSize: 15,
                                     fontWeight: FontWeight.w500,
-                                    color: Colors.black87,
+                                    color: Theme.of(context).colorScheme.onSurface,
                                   ),
                                 ),
                               ],
@@ -387,7 +387,7 @@ class _LoginScreenState extends State<LoginScreen> {
                       Text(
                         "Dont have an account",
                         style: TextStyle(
-                          color: Colors.grey[600],
+                          color: Theme.of(context).colorScheme.onSurfaceVariant,
                           fontSize: 14,
                         ),
                       ),

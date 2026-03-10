@@ -181,7 +181,7 @@ class _EmailVerificationScreenState extends State<EmailVerificationScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.white,
+      backgroundColor: Theme.of(context).colorScheme.surface,
       body: SafeArea(
         child: Center(
           child: SingleChildScrollView(
@@ -209,7 +209,7 @@ class _EmailVerificationScreenState extends State<EmailVerificationScreen> {
                   'Verify your email',
                   style: Theme.of(context).textTheme.headlineSmall?.copyWith(
                         fontWeight: FontWeight.bold,
-                        color: Colors.black87,
+                        color: Theme.of(context).colorScheme.onSurface,
                       ),
                   textAlign: TextAlign.center,
                 ),
@@ -217,23 +217,23 @@ class _EmailVerificationScreenState extends State<EmailVerificationScreen> {
 
                 Text(
                   'We sent a verification link to',
-                  style: TextStyle(color: Colors.grey[600], fontSize: 15),
+                  style: TextStyle(color: Theme.of(context).colorScheme.onSurfaceVariant, fontSize: 15),
                   textAlign: TextAlign.center,
                 ),
                 const SizedBox(height: 4),
                 Text(
                   widget.email,
-                  style: const TextStyle(
+                  style: TextStyle(
                     fontWeight: FontWeight.w600,
                     fontSize: 15,
-                    color: Colors.black87,
+                    color: Theme.of(context).colorScheme.onSurface,
                   ),
                   textAlign: TextAlign.center,
                 ),
                 const SizedBox(height: 8),
                 Text(
                   'Click the link in the email to continue.',
-                  style: TextStyle(color: Colors.grey[600], fontSize: 14),
+                  style: TextStyle(color: Theme.of(context).colorScheme.onSurfaceVariant, fontSize: 14),
                   textAlign: TextAlign.center,
                 ),
                 const SizedBox(height: 36),
@@ -245,21 +245,21 @@ class _EmailVerificationScreenState extends State<EmailVerificationScreen> {
                   child: ElevatedButton(
                     onPressed: _isChecking ? null : _manualCheck,
                     style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.black,
-                      foregroundColor: Colors.white,
+                      backgroundColor: Theme.of(context).colorScheme.onSurface,
+                      foregroundColor: Theme.of(context).colorScheme.surface,
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(12),
                       ),
                       elevation: 0,
                     ),
                     child: _isChecking
-                        ? const SizedBox(
+                        ? SizedBox(
                             height: 20,
                             width: 20,
                             child: CircularProgressIndicator(
                               strokeWidth: 2,
                               valueColor:
-                                  AlwaysStoppedAnimation<Color>(Colors.white),
+                                  AlwaysStoppedAnimation<Color>(Theme.of(context).colorScheme.surface),
                             ),
                           )
                         : const Text(
@@ -278,7 +278,7 @@ class _EmailVerificationScreenState extends State<EmailVerificationScreen> {
                   child: OutlinedButton(
                     onPressed: _isResending ? null : _resendVerification,
                     style: OutlinedButton.styleFrom(
-                      side: BorderSide(color: Colors.grey[300]!),
+                      side: BorderSide(color: Theme.of(context).dividerColor),
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(12),
                       ),
@@ -289,12 +289,12 @@ class _EmailVerificationScreenState extends State<EmailVerificationScreen> {
                             width: 20,
                             child: CircularProgressIndicator(strokeWidth: 2),
                           )
-                        : const Text(
+                        : Text(
                             'Resend verification email',
                             style: TextStyle(
                                 fontSize: 15,
                                 fontWeight: FontWeight.w500,
-                                color: Colors.black87),
+                                color: Theme.of(context).colorScheme.onSurface),
                           ),
                   ),
                 ),
@@ -319,7 +319,7 @@ class _EmailVerificationScreenState extends State<EmailVerificationScreen> {
                   onPressed: _signOut,
                   child: Text(
                     'Use a different account',
-                    style: TextStyle(color: Colors.grey[600], fontSize: 13),
+                    style: TextStyle(color: Theme.of(context).colorScheme.onSurfaceVariant, fontSize: 13),
                   ),
                 ),
               ],

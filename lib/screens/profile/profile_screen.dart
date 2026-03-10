@@ -68,10 +68,10 @@ class ProfileScreen extends StatelessWidget {
                     // Username
                     Text(
                       user?.displayName ?? 'Username',
-                      style: const TextStyle(
+                      style: TextStyle(
                         fontSize: 24,
                         fontWeight: FontWeight.bold,
-                        color: Colors.black,
+                        color: Theme.of(context).colorScheme.onSurface,
                       ),
                     ),
                     const SizedBox(height: 12),
@@ -84,8 +84,8 @@ class ProfileScreen extends StatelessWidget {
                       ),
                       child: Text(
                         _getRoleDisplayName(user?.role, user?.permissions),
-                        style: const TextStyle(
-                          color: Colors.black,
+                        style: TextStyle(
+                          color: Theme.of(context).colorScheme.onSurface,
                           fontWeight: FontWeight.w600,
                           fontSize: 16,
                         ),
@@ -109,7 +109,7 @@ class ProfileScreen extends StatelessWidget {
                   );
                 },
               ),
-              Divider(height: 1, color: Colors.grey[300]),
+              Divider(height: 1, color: Theme.of(context).dividerColor),
               _ProfileMenuItem(
                 icon: Icons.settings_outlined,
                 title: 'Settings',
@@ -121,7 +121,7 @@ class ProfileScreen extends StatelessWidget {
                   );
                 },
               ),
-              Divider(height: 1, color: Colors.grey[300]),
+              Divider(height: 1, color: Theme.of(context).dividerColor),
               _ProfileMenuItem(
                 icon: Icons.notifications_outlined,
                 title: 'Notifications',
@@ -156,7 +156,7 @@ class ProfileScreen extends StatelessWidget {
                   );
                 },
               ),
-              Divider(height: 1, color: Colors.grey[300]),
+              Divider(height: 1, color: Theme.of(context).dividerColor),
               _ProfileMenuItem(
                 icon: Icons.shield_outlined,
                 title: 'Privacy & Security',
@@ -171,7 +171,7 @@ class ProfileScreen extends StatelessWidget {
               if (user != null && _canManageUsers(user))
                 Column(
                   children: [
-                    Divider(height: 1, color: Colors.grey[300]),
+                    Divider(height: 1, color: Theme.of(context).dividerColor),
                     _ProfileMenuItem(
                       icon: Icons.admin_panel_settings_outlined,
                       title: 'User Management',
@@ -182,7 +182,7 @@ class ProfileScreen extends StatelessWidget {
                   ],
                 ),
               
-              Divider(height: 1, color: Colors.grey[300]),
+              Divider(height: 1, color: Theme.of(context).dividerColor),
               _ProfileMenuItem(
                 icon: Icons.info_outline,
                 title: 'About',
@@ -301,7 +301,7 @@ class _ProfileMenuItem extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final color = isDestructive ? Colors.red : Colors.black87;
+    final color = isDestructive ? Colors.red : Theme.of(context).colorScheme.onSurface;
     
     return InkWell(
       onTap: onTap,
@@ -325,7 +325,7 @@ class _ProfileMenuItem extends StatelessWidget {
               trailing!,
               const SizedBox(width: 8),
             ],
-            Icon(Icons.chevron_right, color: Colors.grey[400], size: 24),
+            Icon(Icons.chevron_right, color: Theme.of(context).hintColor, size: 24),
           ],
         ),
       ),

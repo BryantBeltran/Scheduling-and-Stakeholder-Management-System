@@ -218,7 +218,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.white,
+      backgroundColor: Theme.of(context).colorScheme.surface,
       body: SafeArea(
         child: Center(
           child: SingleChildScrollView(
@@ -237,7 +237,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                     const SizedBox(height: 16),
                     Text(
                       'Validating your invitation...',
-                      style: TextStyle(color: Colors.grey[600]),
+                      style: TextStyle(color: Theme.of(context).colorScheme.onSurfaceVariant),
                       textAlign: TextAlign.center,
                     ),
                     const SizedBox(height: 24),
@@ -256,10 +256,10 @@ class _RegisterScreenState extends State<RegisterScreen> {
                         children: [
                           Icon(Icons.mail, color: Colors.green[700], size: 20),
                           const SizedBox(width: 8),
-                          const Expanded(
+                          Expanded(
                             child: Text(
                               'You\'ve been invited! Create your account to get started.',
-                              style: TextStyle(color: Colors.black87, fontSize: 13),
+                              style: TextStyle(color: Theme.of(context).colorScheme.onSurface, fontSize: 13),
                             ),
                           ),
                         ],
@@ -292,7 +292,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                         style:
                             Theme.of(context).textTheme.headlineSmall?.copyWith(
                                   fontWeight: FontWeight.bold,
-                                  color: Colors.black87,
+                                  color: Theme.of(context).colorScheme.onSurface,
                                   decoration: TextDecoration.underline,
                                 ),
                         textAlign: TextAlign.center,
@@ -302,7 +302,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                         style:
                             Theme.of(context).textTheme.headlineSmall?.copyWith(
                                   fontWeight: FontWeight.bold,
-                                  color: Colors.black87,
+                                  color: Theme.of(context).colorScheme.onSurface,
                                   decoration: TextDecoration.underline,
                                 ),
                         textAlign: TextAlign.center,
@@ -316,7 +316,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                     'Create an account',
                     style: Theme.of(context).textTheme.titleLarge?.copyWith(
                           fontWeight: FontWeight.w600,
-                          color: Colors.black87,
+                          color: Theme.of(context).colorScheme.onSurface,
                         ),
                     textAlign: TextAlign.center,
                   ),
@@ -325,7 +325,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                   Text(
                     'Enter your email to sign up for this app',
                     style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                          color: Colors.grey[600],
+                          color: Theme.of(context).colorScheme.onSurfaceVariant,
                         ),
                     textAlign: TextAlign.center,
                   ),
@@ -366,14 +366,14 @@ class _RegisterScreenState extends State<RegisterScreen> {
                     decoration: InputDecoration(
                       hintText: 'email@domain.com',
                       filled: true,
-                      fillColor: Colors.grey[50],
+                      fillColor: Theme.of(context).colorScheme.surfaceContainerHighest,
                       border: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(12),
-                        borderSide: BorderSide(color: Colors.grey[300]!),
+                        borderSide: BorderSide(color: Theme.of(context).dividerColor),
                       ),
                       enabledBorder: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(12),
-                        borderSide: BorderSide(color: Colors.grey[300]!),
+                        borderSide: BorderSide(color: Theme.of(context).dividerColor),
                       ),
                       focusedBorder: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(12),
@@ -401,21 +401,21 @@ class _RegisterScreenState extends State<RegisterScreen> {
                     child: ElevatedButton(
                       onPressed: _isLoading ? null : _handleContinue,
                       style: ElevatedButton.styleFrom(
-                        backgroundColor: Colors.black,
-                        foregroundColor: Colors.white,
+                        backgroundColor: Theme.of(context).colorScheme.onSurface,
+                        foregroundColor: Theme.of(context).colorScheme.surface,
                         shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(12),
                         ),
                         elevation: 0,
                       ),
                       child: _isLoading
-                          ? const SizedBox(
+                          ? SizedBox(
                               height: 20,
                               width: 20,
                               child: CircularProgressIndicator(
                                 strokeWidth: 2,
                                 valueColor:
-                                    AlwaysStoppedAnimation<Color>(Colors.white),
+                                    AlwaysStoppedAnimation<Color>(Theme.of(context).colorScheme.surface),
                               ),
                             )
                           : const Text(
@@ -432,18 +432,18 @@ class _RegisterScreenState extends State<RegisterScreen> {
                   // Divider with "or"
                   Row(
                     children: [
-                      Expanded(child: Divider(color: Colors.grey[300])),
+                      Expanded(child: Divider(color: Theme.of(context).dividerColor)),
                       Padding(
                         padding: const EdgeInsets.symmetric(horizontal: 16),
                         child: Text(
                           'or',
                           style: TextStyle(
-                            color: Colors.grey[500],
+                            color: Theme.of(context).hintColor,
                             fontSize: 14,
                           ),
                         ),
                       ),
-                      Expanded(child: Divider(color: Colors.grey[300])),
+                      Expanded(child: Divider(color: Theme.of(context).dividerColor)),
                     ],
                   ),
                   const SizedBox(height: 24),
@@ -454,7 +454,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                     child: OutlinedButton(
                       onPressed: _isGoogleLoading ? null : _handleGoogleSignUp,
                       style: OutlinedButton.styleFrom(
-                        side: BorderSide(color: Colors.grey[300]!),
+                        side: BorderSide(color: Theme.of(context).dividerColor),
                         shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(12),
                         ),
@@ -476,12 +476,12 @@ class _RegisterScreenState extends State<RegisterScreen> {
                                       const Icon(Icons.g_mobiledata, size: 24),
                                 ),
                                 const SizedBox(width: 12),
-                                const Text(
+                                Text(
                                   'Sign Up with Google',
                                   style: TextStyle(
                                     fontSize: 15,
                                     fontWeight: FontWeight.w500,
-                                    color: Colors.black87,
+                                    color: Theme.of(context).colorScheme.onSurface,
                                   ),
                                 ),
                               ],
@@ -497,7 +497,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                       child: OutlinedButton(
                         onPressed: _isAppleLoading ? null : _handleAppleSignUp,
                         style: OutlinedButton.styleFrom(
-                          side: BorderSide(color: Colors.grey[300]!),
+                          side: BorderSide(color: Theme.of(context).dividerColor),
                           shape: RoundedRectangleBorder(
                             borderRadius: BorderRadius.circular(12),
                           ),
@@ -508,17 +508,17 @@ class _RegisterScreenState extends State<RegisterScreen> {
                                 width: 20,
                                 child: CircularProgressIndicator(strokeWidth: 2),
                               )
-                            : const Row(
+                            : Row(
                                 mainAxisAlignment: MainAxisAlignment.center,
                                 children: [
-                                  Icon(Icons.apple, size: 24, color: Colors.black),
-                                  SizedBox(width: 12),
+                                  Icon(Icons.apple, size: 24, color: Theme.of(context).colorScheme.onSurface),
+                                  const SizedBox(width: 12),
                                   Text(
                                     'Sign Up with Apple',
                                     style: TextStyle(
                                       fontSize: 15,
                                       fontWeight: FontWeight.w500,
-                                      color: Colors.black87,
+                                      color: Theme.of(context).colorScheme.onSurface,
                                     ),
                                   ),
                                 ],
@@ -532,7 +532,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                     textAlign: TextAlign.center,
                     text: TextSpan(
                       style: TextStyle(
-                        color: Colors.grey[600],
+                        color: Theme.of(context).colorScheme.onSurfaceVariant,
                         fontSize: 13,
                         height: 1.5,
                       ),
@@ -540,8 +540,8 @@ class _RegisterScreenState extends State<RegisterScreen> {
                         const TextSpan(text: 'By clicking continue, you agree to our '),
                         TextSpan(
                           text: 'Terms of Service',
-                          style: const TextStyle(
-                            color: Colors.black87,
+                          style: TextStyle(
+                            color: Theme.of(context).colorScheme.onSurface,
                             fontWeight: FontWeight.w500,
                           ),
                           recognizer: TapGestureRecognizer()
@@ -550,8 +550,8 @@ class _RegisterScreenState extends State<RegisterScreen> {
                         const TextSpan(text: '\nand '),
                         TextSpan(
                           text: 'Privacy Policy',
-                          style: const TextStyle(
-                            color: Colors.black87,
+                          style: TextStyle(
+                            color: Theme.of(context).colorScheme.onSurface,
                             fontWeight: FontWeight.w500,
                           ),
                           recognizer: TapGestureRecognizer()

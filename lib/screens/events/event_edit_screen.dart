@@ -469,9 +469,9 @@ class _EventEditScreenState extends State<EventEditScreen> {
                             child: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
-                                const Text(
+                                Text(
                                   'Start Date',
-                                  style: TextStyle(fontSize: 12, color: Colors.black87),
+                                  style: TextStyle(fontSize: 12, color: Theme.of(context).colorScheme.onSurface),
                                 ),
                                 const SizedBox(height: 8),
                                 _buildDatePicker(_selectedStartDate, _selectStartDate),
@@ -483,9 +483,9 @@ class _EventEditScreenState extends State<EventEditScreen> {
                             child: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
-                                const Text(
+                                Text(
                                   'Start Time',
-                                  style: TextStyle(fontSize: 12, color: Colors.black87),
+                                  style: TextStyle(fontSize: 12, color: Theme.of(context).colorScheme.onSurface),
                                 ),
                                 const SizedBox(height: 8),
                                 _buildTimePicker(_selectedStartTime, _selectStartTime),
@@ -503,9 +503,9 @@ class _EventEditScreenState extends State<EventEditScreen> {
                             child: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
-                                const Text(
+                                Text(
                                   'End Date',
-                                  style: TextStyle(fontSize: 12, color: Colors.black87),
+                                  style: TextStyle(fontSize: 12, color: Theme.of(context).colorScheme.onSurface),
                                 ),
                                 const SizedBox(height: 8),
                                 _buildDatePicker(_selectedEndDate, _selectEndDate),
@@ -517,9 +517,9 @@ class _EventEditScreenState extends State<EventEditScreen> {
                             child: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
-                                const Text(
+                                Text(
                                   'End Time',
-                                  style: TextStyle(fontSize: 12, color: Colors.black87),
+                                  style: TextStyle(fontSize: 12, color: Theme.of(context).colorScheme.onSurface),
                                 ),
                                 const SizedBox(height: 8),
                                 _buildTimePicker(_selectedEndTime, _selectEndTime),
@@ -635,8 +635,8 @@ class _EventEditScreenState extends State<EventEditScreen> {
                         child: ElevatedButton(
                           onPressed: _isLoading ? null : _saveEvent,
                           style: ElevatedButton.styleFrom(
-                            backgroundColor: Colors.black,
-                            foregroundColor: Colors.white,
+                            backgroundColor: Theme.of(context).colorScheme.onSurface,
+                            foregroundColor: Theme.of(context).colorScheme.surface,
                             padding: const EdgeInsets.symmetric(vertical: 16),
                             shape: RoundedRectangleBorder(
                               borderRadius: BorderRadius.circular(12),
@@ -663,10 +663,10 @@ class _EventEditScreenState extends State<EventEditScreen> {
   Widget _buildSectionLabel(String label) {
     return Text(
       label,
-      style: const TextStyle(
+      style: TextStyle(
         fontSize: 14,
         fontWeight: FontWeight.w500,
-        color: Colors.black87,
+        color: Theme.of(context).colorScheme.onSurface,
       ),
     );
   }
@@ -674,15 +674,15 @@ class _EventEditScreenState extends State<EventEditScreen> {
   InputDecoration _buildInputDecoration(String hint, {IconData? prefixIcon}) {
     return InputDecoration(
       hintText: hint,
-      hintStyle: TextStyle(color: Colors.grey[400]),
-      prefixIcon: prefixIcon != null ? Icon(prefixIcon, color: Colors.grey[600]) : null,
+      hintStyle: TextStyle(color: Theme.of(context).hintColor),
+      prefixIcon: prefixIcon != null ? Icon(prefixIcon, color: Theme.of(context).colorScheme.onSurfaceVariant) : null,
       border: OutlineInputBorder(
         borderRadius: BorderRadius.circular(12),
-        borderSide: BorderSide(color: Colors.grey[300]!),
+        borderSide: BorderSide(color: Theme.of(context).dividerColor),
       ),
       enabledBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(12),
-        borderSide: BorderSide(color: Colors.grey[300]!),
+        borderSide: BorderSide(color: Theme.of(context).dividerColor),
       ),
       focusedBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(12),
@@ -693,7 +693,7 @@ class _EventEditScreenState extends State<EventEditScreen> {
         borderSide: const BorderSide(color: Colors.red),
       ),
       filled: true,
-      fillColor: Colors.white,
+      fillColor: Theme.of(context).colorScheme.surface,
       contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
     );
   }
@@ -704,13 +704,13 @@ class _EventEditScreenState extends State<EventEditScreen> {
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
         decoration: BoxDecoration(
-          border: Border.all(color: Colors.grey[300]!),
+          border: Border.all(color: Theme.of(context).dividerColor),
           borderRadius: BorderRadius.circular(12),
-          color: Colors.white,
+          color: Theme.of(context).colorScheme.surface,
         ),
         child: Row(
           children: [
-            Icon(Icons.calendar_today, size: 18, color: Colors.grey[600]),
+            Icon(Icons.calendar_today, size: 18, color: Theme.of(context).colorScheme.onSurfaceVariant),
             const SizedBox(width: 8),
             Text(
               '${date.day.toString().padLeft(2, '0')}/${date.month.toString().padLeft(2, '0')}/${date.year}',
@@ -732,13 +732,13 @@ class _EventEditScreenState extends State<EventEditScreen> {
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
         decoration: BoxDecoration(
-          border: Border.all(color: Colors.grey[300]!),
+          border: Border.all(color: Theme.of(context).dividerColor),
           borderRadius: BorderRadius.circular(12),
-          color: Colors.white,
+          color: Theme.of(context).colorScheme.surface,
         ),
         child: Row(
           children: [
-            Icon(Icons.access_time, size: 18, color: Colors.grey[600]),
+            Icon(Icons.access_time, size: 18, color: Theme.of(context).colorScheme.onSurfaceVariant),
             const SizedBox(width: 8),
             Text(
               '$hour:$minute $period',
@@ -770,13 +770,13 @@ class _EventEditScreenState extends State<EventEditScreen> {
           child: Container(
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
             decoration: BoxDecoration(
-              border: Border.all(color: Colors.grey[300]!),
+              border: Border.all(color: Theme.of(context).dividerColor),
               borderRadius: BorderRadius.circular(12),
-              color: Colors.white,
+              color: Theme.of(context).colorScheme.surface,
             ),
             child: Row(
               children: [
-                Icon(Icons.people, size: 20, color: Colors.grey[600]),
+                Icon(Icons.people, size: 20, color: Theme.of(context).colorScheme.onSurfaceVariant),
                 const SizedBox(width: 12),
                 Expanded(
                   child: Text(
@@ -785,12 +785,12 @@ class _EventEditScreenState extends State<EventEditScreen> {
                         : '${_selectedStakeholderIds.length} stakeholder(s) selected',
                     style: TextStyle(
                       color: _selectedStakeholderIds.isEmpty
-                          ? Colors.grey[400]
-                          : Colors.black87,
+                          ? Theme.of(context).hintColor
+                          : Theme.of(context).colorScheme.onSurface,
                     ),
                   ),
                 ),
-                Icon(Icons.arrow_forward_ios, size: 16, color: Colors.grey[400]),
+                Icon(Icons.arrow_forward_ios, size: 16, color: Theme.of(context).hintColor),
               ],
             ),
           ),
@@ -831,11 +831,11 @@ class _EventEditScreenState extends State<EventEditScreen> {
         padding: const EdgeInsets.symmetric(vertical: 12),
         decoration: BoxDecoration(
           border: Border.all(
-            color: isSelected ? Colors.blue : Colors.grey[300]!,
+            color: isSelected ? Colors.blue : Theme.of(context).dividerColor,
             width: isSelected ? 2 : 1,
           ),
           borderRadius: BorderRadius.circular(12),
-          color: isSelected ? Colors.blue.withOpacity(0.1) : Colors.white,
+          color: isSelected ? Colors.blue.withOpacity(0.1) : Theme.of(context).colorScheme.surface,
         ),
         child: Row(
           mainAxisAlignment: MainAxisAlignment.center,
@@ -843,14 +843,14 @@ class _EventEditScreenState extends State<EventEditScreen> {
             Icon(
               icon,
               size: 20,
-              color: isSelected ? Colors.blue : Colors.grey[600],
+              color: isSelected ? Colors.blue : Theme.of(context).colorScheme.onSurfaceVariant,
             ),
             const SizedBox(width: 8),
             Text(
               label,
               style: TextStyle(
                 fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
-                color: isSelected ? Colors.blue : Colors.grey[700],
+                color: isSelected ? Colors.blue : Theme.of(context).colorScheme.onSurfaceVariant,
               ),
             ),
           ],

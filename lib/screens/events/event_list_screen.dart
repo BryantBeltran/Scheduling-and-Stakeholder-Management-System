@@ -183,8 +183,8 @@ class _EventListScreenState extends State<EventListScreen> {
               controller: _searchController,
               decoration: InputDecoration(
                 hintText: 'Search Events...',
-                hintStyle: TextStyle(color: Colors.grey[400]),
-                prefixIcon: Icon(Icons.search, color: Colors.grey[600]),
+                hintStyle: TextStyle(color: Theme.of(context).hintColor),
+                prefixIcon: Icon(Icons.search, color: Theme.of(context).colorScheme.onSurfaceVariant),
                 suffixIcon: _searchController.text.isNotEmpty
                     ? IconButton(
                         icon: const Icon(Icons.clear),
@@ -195,7 +195,7 @@ class _EventListScreenState extends State<EventListScreen> {
                       )
                     : null,
                 filled: true,
-                fillColor: Colors.grey[100],
+                fillColor: Theme.of(context).colorScheme.surfaceContainerHighest,
                 border: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(12),
                   borderSide: BorderSide.none,
@@ -272,7 +272,7 @@ class _EventListScreenState extends State<EventListScreen> {
                           Text(
                             '${_filteredEvents.length} results',
                             style: TextStyle(
-                              color: Colors.grey[600],
+                              color: Theme.of(context).colorScheme.onSurfaceVariant,
                               fontWeight: FontWeight.w500,
                             ),
                           ),
@@ -286,11 +286,11 @@ class _EventListScreenState extends State<EventListScreen> {
                           child: Column(
                             mainAxisAlignment: MainAxisAlignment.center,
                             children: [
-                              Icon(Icons.event_busy, size: 64, color: Colors.grey[400]),
+                              Icon(Icons.event_busy, size: 64, color: Theme.of(context).hintColor),
                               const SizedBox(height: 16),
                               Text(
                                 'No events found',
-                                style: TextStyle(fontSize: 16, color: Colors.grey[600]),
+                                style: TextStyle(fontSize: 16, color: Theme.of(context).colorScheme.onSurfaceVariant),
                               ),
                             ],
                           ),
@@ -346,11 +346,11 @@ class _EventListScreenState extends State<EventListScreen> {
                 onPressed: () {
                   Navigator.of(context).pushNamed('/event/create');
                 },
-                backgroundColor: Colors.black,
-                icon: const Icon(Icons.add, color: Colors.white),
-                label: const Text(
+                backgroundColor: Theme.of(context).colorScheme.onSurface,
+                icon: Icon(Icons.add, color: Theme.of(context).colorScheme.surface),
+                label: Text(
                   'New Event',
-                  style: TextStyle(color: Colors.white),
+                  style: TextStyle(color: Theme.of(context).colorScheme.surface),
                 ),
               ),
             )
@@ -369,10 +369,10 @@ class _EventListScreenState extends State<EventListScreen> {
         selectedColor: _filterChipColor(status),
         checkmarkColor: Colors.white,
         labelStyle: TextStyle(
-          color: isSelected ? Colors.white : Colors.black87,
+          color: isSelected ? Colors.white : Theme.of(context).colorScheme.onSurface,
           fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
         ),
-        backgroundColor: Colors.grey[100],
+        backgroundColor: Theme.of(context).colorScheme.surfaceContainerHighest,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
       ),
     );
@@ -385,7 +385,7 @@ class _EventListScreenState extends State<EventListScreen> {
       case EventStatus.inProgress: return Colors.orange;
       case EventStatus.completed: return Colors.green;
       case EventStatus.cancelled: return Colors.red;
-      default: return Colors.black87;
+      default: return Theme.of(context).colorScheme.onSurface;
     }
   }
 
@@ -432,12 +432,12 @@ class _EventListScreenState extends State<EventListScreen> {
                   ),
                   const Divider(),
                   const SizedBox(height: 8),
-                  const Text(
+                  Text(
                     'Sort by',
                     style: TextStyle(
                       fontSize: 14,
                       fontWeight: FontWeight.w500,
-                      color: Colors.grey,
+                      color: Theme.of(context).colorScheme.onSurfaceVariant,
                     ),
                   ),
                   const SizedBox(height: 8),
@@ -446,12 +446,12 @@ class _EventListScreenState extends State<EventListScreen> {
                   _buildSortOption('priority', 'Priority', Icons.flag, setModalState),
                   _buildSortOption('status', 'Status', Icons.info_outline, setModalState),
                   const SizedBox(height: 16),
-                  const Text(
+                  Text(
                     'Order',
                     style: TextStyle(
                       fontSize: 14,
                       fontWeight: FontWeight.w500,
-                      color: Colors.grey,
+                      color: Theme.of(context).colorScheme.onSurfaceVariant,
                     ),
                   ),
                   const SizedBox(height: 8),
@@ -490,18 +490,18 @@ class _EventListScreenState extends State<EventListScreen> {
           color: isSelected ? Colors.blue.withOpacity(0.1) : Colors.transparent,
           borderRadius: BorderRadius.circular(8),
           border: Border.all(
-            color: isSelected ? Colors.blue : Colors.grey[300]!,
+            color: isSelected ? Colors.blue : Theme.of(context).dividerColor,
           ),
         ),
         child: Row(
           children: [
-            Icon(icon, size: 20, color: isSelected ? Colors.blue : Colors.grey[600]),
+            Icon(icon, size: 20, color: isSelected ? Colors.blue : Theme.of(context).colorScheme.onSurfaceVariant),
             const SizedBox(width: 12),
             Text(
               label,
               style: TextStyle(
                 fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
-                color: isSelected ? Colors.blue : Colors.black87,
+                color: isSelected ? Colors.blue : Theme.of(context).colorScheme.onSurface,
               ),
             ),
             const Spacer(),
@@ -526,7 +526,7 @@ class _EventListScreenState extends State<EventListScreen> {
           color: isSelected ? Colors.blue.withOpacity(0.1) : Colors.transparent,
           borderRadius: BorderRadius.circular(8),
           border: Border.all(
-            color: isSelected ? Colors.blue : Colors.grey[300]!,
+            color: isSelected ? Colors.blue : Theme.of(context).dividerColor,
           ),
         ),
         child: Row(
@@ -535,14 +535,14 @@ class _EventListScreenState extends State<EventListScreen> {
             Icon(
               ascending ? Icons.arrow_upward : Icons.arrow_downward,
               size: 18,
-              color: isSelected ? Colors.blue : Colors.grey[600],
+              color: isSelected ? Colors.blue : Theme.of(context).colorScheme.onSurfaceVariant,
             ),
             const SizedBox(width: 8),
             Text(
               ascending ? 'Ascending' : 'Descending',
               style: TextStyle(
                 fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
-                color: isSelected ? Colors.blue : Colors.black87,
+                color: isSelected ? Colors.blue : Theme.of(context).colorScheme.onSurface,
               ),
             ),
           ],
@@ -582,7 +582,7 @@ class _EventListItem extends StatelessWidget {
       elevation: 0,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(12),
-        side: BorderSide(color: Colors.grey[200]!),
+        side: BorderSide(color: Theme.of(context).dividerColor),
       ),
       child: InkWell(
         borderRadius: BorderRadius.circular(12),
@@ -660,7 +660,7 @@ class _EventListItem extends StatelessWidget {
                       event.location.isVirtual ? 'Virtual Meeting' : 'Physical Meeting',
                       style: TextStyle(
                         fontSize: 14,
-                        color: Colors.grey[600],
+                        color: Theme.of(context).colorScheme.onSurfaceVariant,
                       ),
                     ),
                     if (isUrgent) ...[
@@ -668,14 +668,14 @@ class _EventListItem extends StatelessWidget {
                       Container(
                         padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                         decoration: BoxDecoration(
-                          color: Colors.grey[200],
+                          color: Theme.of(context).colorScheme.surfaceContainerHighest,
                           borderRadius: BorderRadius.circular(12),
                         ),
                         child: Text(
                           'Urgent',
                           style: TextStyle(
                             fontSize: 11,
-                            color: Colors.grey[700],
+                            color: Theme.of(context).colorScheme.onSurfaceVariant,
                           ),
                         ),
                       ),
@@ -683,17 +683,17 @@ class _EventListItem extends StatelessWidget {
                     const SizedBox(height: 8),
                     Row(
                       children: [
-                        Icon(Icons.access_time, size: 14, color: Colors.grey[600]),
+                        Icon(Icons.access_time, size: 14, color: Theme.of(context).colorScheme.onSurfaceVariant),
                         const SizedBox(width: 4),
                         Text(
                           '${event.startTime.hour.toString().padLeft(2, '0')}:${event.startTime.minute.toString().padLeft(2, '0')}',
                           style: TextStyle(
                             fontSize: 12,
-                            color: Colors.grey[600],
+                            color: Theme.of(context).colorScheme.onSurfaceVariant,
                           ),
                         ),
                         const SizedBox(width: 16),
-                        Icon(Icons.location_on, size: 14, color: Colors.grey[600]),
+                        Icon(Icons.location_on, size: 14, color: Theme.of(context).colorScheme.onSurfaceVariant),
                         const SizedBox(width: 4),
                         Expanded(
                           child: Text(
@@ -702,7 +702,7 @@ class _EventListItem extends StatelessWidget {
                                 : event.location.name,
                             style: TextStyle(
                               fontSize: 12,
-                              color: Colors.grey[600],
+                              color: Theme.of(context).colorScheme.onSurfaceVariant,
                             ),
                             overflow: TextOverflow.ellipsis,
                           ),
@@ -714,9 +714,9 @@ class _EventListItem extends StatelessWidget {
               ),
             ),
             // Centered chevron arrow
-            const Padding(
-              padding: EdgeInsets.only(right: 12),
-              child: Icon(Icons.chevron_right, color: Colors.grey),
+            Padding(
+              padding: const EdgeInsets.only(right: 12),
+              child: Icon(Icons.chevron_right, color: Theme.of(context).colorScheme.onSurfaceVariant),
             ),
           ],
         ),

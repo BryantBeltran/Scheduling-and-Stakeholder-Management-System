@@ -118,8 +118,8 @@ class _StakeholderListScreenState extends State<StakeholderListScreen> {
               controller: _searchController,
               decoration: InputDecoration(
                 hintText: 'Search Stakeholders',
-                hintStyle: TextStyle(color: Colors.grey[400]),
-                prefixIcon: Icon(Icons.search, color: Colors.grey[600]),
+                hintStyle: TextStyle(color: Theme.of(context).hintColor),
+                prefixIcon: Icon(Icons.search, color: Theme.of(context).colorScheme.onSurfaceVariant),
                 suffixIcon: _searchController.text.isNotEmpty
                     ? IconButton(
                         icon: const Icon(Icons.clear),
@@ -130,7 +130,7 @@ class _StakeholderListScreenState extends State<StakeholderListScreen> {
                       )
                     : null,
                 filled: true,
-                fillColor: Colors.grey[100],
+                fillColor: Theme.of(context).colorScheme.surfaceContainerHighest,
                 border: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(12),
                   borderSide: BorderSide.none,
@@ -185,7 +185,7 @@ class _StakeholderListScreenState extends State<StakeholderListScreen> {
                 Text(
                   '${_filteredStakeholders.length} results',
                   style: TextStyle(
-                    color: Colors.grey[600],
+                    color: Theme.of(context).colorScheme.onSurfaceVariant,
                     fontWeight: FontWeight.w500,
                   ),
                 ),
@@ -224,14 +224,14 @@ class _StakeholderListScreenState extends State<StakeholderListScreen> {
                             Icon(
                               Icons.people_outline,
                               size: 64,
-                              color: Colors.grey[400],
+                              color: Theme.of(context).hintColor,
                             ),
                             const SizedBox(height: 16),
                             Text(
                               'No stakeholders found',
                               style: TextStyle(
                                 fontSize: 16,
-                                color: Colors.grey[600],
+                                color: Theme.of(context).colorScheme.onSurfaceVariant,
                               ),
                             ),
                           ],
@@ -261,8 +261,8 @@ class _StakeholderListScreenState extends State<StakeholderListScreen> {
                   _filterStakeholders();
                 }
               },
-              backgroundColor: Colors.black,
-              child: const Icon(Icons.add, color: Colors.white),
+              backgroundColor: Theme.of(context).colorScheme.onSurface,
+              child: Icon(Icons.add, color: Theme.of(context).colorScheme.surface),
             )
           : null,
     );
@@ -352,7 +352,7 @@ class _StakeholderListItem extends StatelessWidget {
       elevation: 0,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(12),
-        side: BorderSide(color: Colors.grey[200]!),
+        side: BorderSide(color: Theme.of(context).dividerColor),
       ),
       child: InkWell(
         borderRadius: BorderRadius.circular(12),
@@ -392,14 +392,14 @@ class _StakeholderListItem extends StatelessWidget {
                         stakeholder.organization!,
                         style: TextStyle(
                           fontSize: 14,
-                          color: Colors.grey[700],
+                          color: Theme.of(context).colorScheme.onSurfaceVariant,
                         ),
                       ),
                     const SizedBox(height: 6),
                     Container(
                       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                       decoration: BoxDecoration(
-                        color: Colors.grey[200],
+                        color: Theme.of(context).dividerColor,
                         borderRadius: BorderRadius.circular(12),
                       ),
                       child: Text(
@@ -407,7 +407,7 @@ class _StakeholderListItem extends StatelessWidget {
                         style: TextStyle(
                           fontSize: 11,
                           fontWeight: FontWeight.w600,
-                          color: Colors.grey[700],
+                          color: Theme.of(context).colorScheme.onSurfaceVariant,
                         ),
                       ),
                     ),
@@ -415,7 +415,7 @@ class _StakeholderListItem extends StatelessWidget {
                 ),
               ),
               // Chevron icon
-              Icon(Icons.chevron_right, color: Colors.grey[400]),
+              Icon(Icons.chevron_right, color: Theme.of(context).hintColor),
             ],
           ),
         ),
