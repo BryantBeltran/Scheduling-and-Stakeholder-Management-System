@@ -1183,6 +1183,35 @@ export const deleteEvent = onCall(async (request) => {
       batch.delete(doc.ref);
     });
 
+    // Notify all assigned stakeholders before deletion
+    if (eventData?.stakeholderIds && eventData.stakeholderIds.length > 0) {
+      for (const stakeholderId of eventData.stakeholderIds) {
+        try {
+          const shDoc = await admin
+            .firestore()
+            .collection("stakeholders")
+            .doc(stakeholderId)
+            .get();
+          const linkedUserId = shDoc.data()?.linkedUserId;
+          if (linkedUserId && linkedUserId !== callerUid) {
+            await sendPushAndInAppNotification(
+              linkedUserId,
+              `Event Cancelled: ${eventData.title}`,
+              `"${eventData.title}" has been cancelled and removed.`,
+              "event_update",
+              null
+            );
+          }
+        } catch (err) {
+          logger.warn(
+            `Could not notify stakeholder ${stakeholderId} ` +
+            "of event deletion",
+            err
+          );
+        }
+      }
+    }
+
     // Remove event from stakeholders' eventIds arrays
     if (eventData?.stakeholderIds && eventData.stakeholderIds.length > 0) {
       for (const stakeholderId of eventData.stakeholderIds) {
@@ -1655,18 +1684,18 @@ export const linkUserToStakeholder = onCall(async (request) => {
     const stakeholderDoc = await stakeholderRef.get();
     const stakeholderData = stakeholderDoc.data();
     if (stakeholderData) {
-      // Notify the user who sent the invite (if known)
       const userDoc = await userRef.get();
       const userData = userDoc.data();
-      await admin.firestore().collection("notifications").add({
-        userId: userId,
-        title: "Account Linked!",
-        body: "Your account has been linked to your " +
+
+      // Send push + in-app notification so it appears on the device
+      await sendPushAndInAppNotification(
+        userId,
+        "Account Linked!",
+        "Your account has been linked to your " +
           "stakeholder profile. Welcome aboard!",
-        type: "invite_accepted",
-        createdAt: admin.firestore.FieldValue.serverTimestamp(),
-        isRead: false,
-      });
+        "invite_accepted",
+        null
+      );
 
       // Send account-linked confirmation email (distinct from generic welcome)
       if (userData?.email) {
@@ -1789,6 +1818,33 @@ export const removeStakeholderFromEvent = onCall(async (request) => {
         eventIds: admin.firestore.FieldValue.arrayRemove(eventId),
         updatedAt: admin.firestore.FieldValue.serverTimestamp(),
       });
+
+    // Notify the removed stakeholder
+    try {
+      const [shDoc, evDoc] = await Promise.all([
+        admin.firestore().collection("stakeholders")
+          .doc(stakeholderId).get(),
+        admin.firestore().collection("events")
+          .doc(eventId).get(),
+      ]);
+      const linkedUserId = shDoc.data()?.linkedUserId;
+      const eventTitle = evDoc.data()?.title ?? "an event";
+      if (linkedUserId) {
+        await sendPushAndInAppNotification(
+          linkedUserId,
+          `Removed from Event: ${eventTitle}`,
+          `You have been removed from "${eventTitle}".`,
+          "event_update",
+          null
+        );
+      }
+    } catch (err) {
+      logger.warn(
+        "Could not send removal notification for " +
+        `stakeholder ${stakeholderId}`,
+        err
+      );
+    }
 
     logger.info(`Stakeholder ${stakeholderId} removed from event ${eventId}`);
     return {success: true};
@@ -2720,6 +2776,18 @@ export const onOnboardingComplete = onCall(
           userData.displayName
         );
       }
+
+      // Send in-app + push welcome notification to all new users
+      const firstName = (userData?.displayName ?? "there")
+        .split(" ")[0];
+      await sendPushAndInAppNotification(
+        callerUid,
+        `Welcome to SSMS, ${firstName}!`,
+        "You're all set. Explore your events and " +
+          "stakeholders to get started.",
+        "welcome",
+        null
+      );
 
       return {success: true};
     } catch (error) {

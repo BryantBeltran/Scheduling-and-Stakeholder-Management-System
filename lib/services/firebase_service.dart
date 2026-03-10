@@ -1,3 +1,4 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_app_check/firebase_app_check.dart';
 import 'package:flutter/foundation.dart';
@@ -45,6 +46,14 @@ class FirebaseService {
       }
 
       _initialized = true;
+
+      // Enable Firestore offline persistence so data is available
+      // even when the device has no network connection.
+      FirebaseFirestore.instance.settings = const Settings(
+        persistenceEnabled: true,
+        cacheSizeBytes: Settings.CACHE_SIZE_UNLIMITED,
+      );
+
       debugPrint('_______Firebase initialized successfully_____');
     } catch (e) {
       debugPrint(' Firebase initialization error: $e');

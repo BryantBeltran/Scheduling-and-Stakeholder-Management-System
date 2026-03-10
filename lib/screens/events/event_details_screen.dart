@@ -46,6 +46,7 @@ class _EventDetailsScreenState extends State<EventDetailsScreen> {
   }
 
   Future<void> _loadEvent() async {
+    if (!mounted) return;
     setState(() {
       _isLoading = true;
       _errorMessage = null;
@@ -53,6 +54,7 @@ class _EventDetailsScreenState extends State<EventDetailsScreen> {
 
     try {
       final event = await _eventService.getEventById(widget.eventId);
+      if (!mounted) return;
       if (event == null) {
         setState(() {
           _errorMessage = 'Event not found';
@@ -65,6 +67,7 @@ class _EventDetailsScreenState extends State<EventDetailsScreen> {
         _isLoading = false;
       });
     } catch (e) {
+      if (!mounted) return;
       setState(() {
         _errorMessage = 'Error loading event: $e';
         _isLoading = false;
@@ -95,12 +98,11 @@ class _EventDetailsScreenState extends State<EventDetailsScreen> {
     try {
       final updatedEvent = _event!.copyWith(status: newStatus);
       await _eventService.updateEvent(updatedEvent);
+      if (!mounted) return;
       setState(() => _event = updatedEvent);
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Status updated to ${newStatus.name}')),
-        );
-      }
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Status updated to ${newStatus.name}')),
+      );
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -176,6 +178,7 @@ class _EventDetailsScreenState extends State<EventDetailsScreen> {
       ),
     );
 
+    if (!mounted) return;
     if (result != null) {
       setState(() => _event = result);
     }
@@ -722,7 +725,7 @@ class _EventDetailsScreenState extends State<EventDetailsScreen> {
                       _updateStatus(status);
                     }
                   },
-                  selectedColor: _getStatusColor(status).withOpacity(0.3),
+                  selectedColor: _getStatusColor(status).withValues(alpha: 0.3),
                   labelStyle: TextStyle(
                     color: isSelected ? _getStatusColor(status) : Theme.of(context).colorScheme.onSurfaceVariant,
                     fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
@@ -807,7 +810,7 @@ class _EventDetailsScreenState extends State<EventDetailsScreen> {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
       decoration: BoxDecoration(
-        color: _getStatusColor(status).withOpacity(0.15),
+        color: _getStatusColor(status).withValues(alpha: 0.15),
         borderRadius: BorderRadius.circular(20),
       ),
       child: Text(
@@ -825,7 +828,7 @@ class _EventDetailsScreenState extends State<EventDetailsScreen> {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
       decoration: BoxDecoration(
-        color: _getPriorityColor(priority).withOpacity(0.15),
+        color: _getPriorityColor(priority).withValues(alpha: 0.15),
         borderRadius: BorderRadius.circular(20),
       ),
       child: Row(

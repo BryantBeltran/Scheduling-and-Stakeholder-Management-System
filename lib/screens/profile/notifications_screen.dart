@@ -1,3 +1,4 @@
+import 'package:cloud_functions/cloud_functions.dart';
 import 'package:flutter/material.dart';
 import '../../models/notification_model.dart' as app;
 import '../../services/services.dart';
@@ -15,6 +16,35 @@ enum _NotifFilter { all, events, reminders, invites, general }
 class _NotificationsScreenState extends State<NotificationsScreen> {
   final _notificationService = NotificationService();
   _NotifFilter _activeFilter = _NotifFilter.all;
+  bool _sendingTest = false;
+
+  Future<void> _sendTestNotification() async {
+    setState(() => _sendingTest = true);
+    try {
+      final callable = FirebaseFunctions.instance
+          .httpsCallable('sendTestNotification');
+      await callable.call();
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Test notification sent — check your device!'),
+            backgroundColor: Colors.green,
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Failed to send test: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _sendingTest = false);
+    }
+  }
 
   List<app.Notification> _applyFilter(List<app.Notification> all) {
     switch (_activeFilter) {
@@ -50,6 +80,17 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
         centerTitle: true,
         elevation: 0,
         actions: [
+          IconButton(
+            icon: _sendingTest
+                ? const SizedBox(
+                    width: 20,
+                    height: 20,
+                    child: CircularProgressIndicator(strokeWidth: 2),
+                  )
+                : const Icon(Icons.notifications_active_outlined),
+            tooltip: 'Send test notification',
+            onPressed: _sendingTest ? null : _sendTestNotification,
+          ),
           IconButton(
             icon: const Icon(Icons.settings_outlined),
             tooltip: 'Notification settings',
@@ -252,7 +293,9 @@ class _NotificationTile extends StatelessWidget {
       child: InkWell(
         onTap: onTap,
         child: Container(
-          color: notification.isRead ? Theme.of(context).colorScheme.surface : Colors.blue.shade50,
+          color: notification.isRead
+              ? Colors.transparent
+              : Theme.of(context).colorScheme.primaryContainer.withValues(alpha: 0.18),
           padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
           child: Row(
             crossAxisAlignment: CrossAxisAlignment.start,
