@@ -876,6 +876,28 @@ export const createEvent = onCall(async (request) => {
     });
 
     logger.info(`Event created: ${title}`, {id: eventRef.id});
+
+    // Notify all stakeholders assigned at creation time
+    const assignedIds: string[] = stakeholderIds || [];
+    for (const shId of assignedIds) {
+      try {
+        const shDoc = await admin.firestore()
+          .collection("stakeholders").doc(shId).get();
+        const linkedUserId = shDoc.data()?.linkedUserId;
+        if (linkedUserId && linkedUserId !== callerUid) {
+          await sendPushAndInAppNotification(
+            linkedUserId,
+            `You've been invited to: ${title}`,
+            `You have been added to the event "${title}".`,
+            "event_assignment",
+            eventRef.id
+          );
+        }
+      } catch (err) {
+        logger.warn(`Failed to notify stakeholder ${shId} for new event`, err);
+      }
+    }
+
     return {id: eventRef.id};
   } catch (error) {
     logger.error("Error creating event:", error);

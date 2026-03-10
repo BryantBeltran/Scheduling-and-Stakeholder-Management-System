@@ -23,6 +23,7 @@
 
 import 'dart:async';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:cloud_functions/cloud_functions.dart';
 import 'package:flutter/foundation.dart';
 import '../config/app_config.dart';
 import '../models/models.dart';
@@ -36,6 +37,7 @@ class EventService {
   EventService._internal();
 
   final AuthService _authService = AuthService();
+  final FirebaseFunctions _functions = FirebaseFunctions.instance;
   final _eventsController = StreamController<List<EventModel>>.broadcast();
   StreamSubscription<QuerySnapshot>? _eventsSubscription;
 
@@ -255,6 +257,7 @@ class EventService {
   }
 
   /// Create a new event
+  /// Calls the Cloud Function so stakeholders are notified on assignment.
   Future<EventModel> createEvent(EventModel event) async {
     final currentUser = _authService.currentUser;
     if (currentUser == null) {
@@ -269,8 +272,10 @@ class EventService {
       updatedAt: now,
     );
 
-    final docRef = await _eventsCollection.add(newEvent.toJson());
-    return newEvent.copyWith(id: docRef.id);
+    final callable = _functions.httpsCallable('createEvent');
+    final result = await callable.call(newEvent.toJson());
+    final eventId = result.data['id'] as String;
+    return newEvent.copyWith(id: eventId);
   }
 
   /// Update an existing event
@@ -291,6 +296,15 @@ class EventService {
 
     final updatedEvent = event.copyWith(updatedAt: DateTime.now());
     await _eventsCollection.doc(event.id).update(updatedEvent.toJson());
+
+    // Notify assigned stakeholders of the update
+    try {
+      final notifyCallable = _functions.httpsCallable('notifyEventUpdate');
+      await notifyCallable.call({'eventId': event.id});
+    } catch (e) {
+      debugPrint('Failed to send event update notifications: $e');
+    }
+
     return updatedEvent;
   }
 
