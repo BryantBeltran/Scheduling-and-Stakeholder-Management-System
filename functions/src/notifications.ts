@@ -15,7 +15,10 @@ export const sendNotification = onCall(async (request) => {
 
   const {userId, title, body, type, eventId} = request.data;
   if (!userId || !title || !body) {
-    throw new HttpsError("invalid-argument", "User ID, title, and body are required.");
+    throw new HttpsError(
+      "invalid-argument",
+      "User ID, title, and body are required."
+    );
   }
 
   try {
@@ -68,7 +71,11 @@ export const markNotificationAsRead = onCall(async (request) => {
     return {success: true};
   } catch (error) {
     logger.error("Error marking notification as read:", error);
-    throw new HttpsError("internal", "Error marking notification as read.", error);
+    throw new HttpsError(
+      "internal",
+      "Error marking notification as read.",
+      error
+    );
   }
 });
 
@@ -150,7 +157,9 @@ export const sendEventReminders = onSchedule(
       ];
 
       for (const window of windows) {
-        const targetStart = new Date(now.getTime() + window.minutesBefore * 60 * 1000);
+        const targetStart = new Date(
+          now.getTime() + window.minutesBefore * 60 * 1000
+        );
         const targetEnd = new Date(targetStart.getTime() + 15 * 60 * 1000);
 
         const eventsSnapshot = await admin
@@ -292,6 +301,8 @@ export const sendTestNotification = onCall(async (request) => {
     return {success: true, message: "Test notification sent."};
   } catch (error) {
     logger.error("Error sending test notification:", error);
-    throw new HttpsError("internal", "Failed to send test notification.", error);
+    throw new HttpsError(
+      "internal", "Failed to send test notification.", error
+    );
   }
 });

@@ -69,4 +69,9 @@ export {
 
 // Shared helpers exported for use by the Firebase Admin SDK itself
 // (e.g. in integration tests or admin tooling)
-export {hasPermission, isValidRole, getDefaultPermissions, PERMISSIONS} from "./shared";
+export {
+  hasPermission,
+  isValidRole,
+  getDefaultPermissions,
+  PERMISSIONS,
+} from "./shared";

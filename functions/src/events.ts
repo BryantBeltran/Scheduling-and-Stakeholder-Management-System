@@ -79,12 +79,18 @@ export const createEvent = onCall(async (request) => {
   } = request.data;
 
   if (ownerId !== callerUid) {
-    throw new HttpsError("permission-denied", "You can only create events as yourself.");
+    throw new HttpsError(
+      "permission-denied",
+      "You can only create events as yourself."
+    );
   }
 
   const canCreate = await hasPermission(callerUid, PERMISSIONS.createEvent);
   if (!canCreate) {
-    throw new HttpsError("permission-denied", "Insufficient permissions to create events.");
+    throw new HttpsError(
+      "permission-denied",
+      "Insufficient permissions to create events."
+    );
   }
 
   if (!title || !startTime || !ownerId) {
@@ -105,14 +111,23 @@ export const createEvent = onCall(async (request) => {
     const start = new Date(startTime);
     const end = new Date(endTime);
     if (end <= start) {
-      throw new HttpsError("invalid-argument", "End time must be after start time.");
+      throw new HttpsError(
+        "invalid-argument",
+        "End time must be after start time."
+      );
     }
     const diffMs = end.getTime() - start.getTime();
     if (diffMs < 5 * 60 * 1000) {
-      throw new HttpsError("invalid-argument", "Event must be at least 5 minutes long.");
+      throw new HttpsError(
+        "invalid-argument",
+        "Event must be at least 5 minutes long."
+      );
     }
     if (diffMs > 30 * 24 * 60 * 60 * 1000) {
-      throw new HttpsError("invalid-argument", "Event cannot be longer than 30 days.");
+      throw new HttpsError(
+        "invalid-argument",
+        "Event cannot be longer than 30 days."
+      );
     }
   }
 
@@ -159,7 +174,8 @@ export const createEvent = onCall(async (request) => {
     const assignedIds: string[] = stakeholderIds || [];
     for (const shId of assignedIds) {
       try {
-        const shDoc = await admin.firestore().collection("stakeholders").doc(shId).get();
+        const shDoc = await admin
+          .firestore().collection("stakeholders").doc(shId).get();
         const linkedUserId = shDoc.data()?.linkedUserId;
         if (linkedUserId && linkedUserId !== callerUid) {
           await sendPushAndInAppNotification(
@@ -215,7 +231,10 @@ export const getAllEvents = onCall(async (request) => {
       .get();
 
     const events = snapshot.docs.map((doc) => ({id: doc.id, ...doc.data()}));
-    logger.info(`Events retrieved for user: ${callerUid}`, {count: events.length});
+    logger.info(
+      `Events retrieved for user: ${callerUid}`,
+      {count: events.length}
+    );
     return events;
   } catch (error) {
     logger.error("Error getting all events:", error);
@@ -260,7 +279,9 @@ export const updateEvent = onCall(async (request) => {
       );
     }
 
-    const updateData: Record<string, unknown> = {updatedAt: new Date().toISOString()};
+    const updateData: Record<string, unknown> = {
+      updatedAt: new Date().toISOString(),
+    };
 
     if (title !== undefined) updateData.title = title;
     if (description !== undefined) updateData.description = description;
@@ -269,8 +290,12 @@ export const updateEvent = onCall(async (request) => {
     if (ownerName !== undefined) updateData.ownerName = ownerName;
     if (status !== undefined) updateData.status = status;
     if (priority !== undefined) updateData.priority = priority;
-    if (stakeholderIds !== undefined) updateData.stakeholderIds = stakeholderIds;
-    if (recurrenceRule !== undefined) updateData.recurrenceRule = recurrenceRule;
+    if (stakeholderIds !== undefined) {
+      updateData.stakeholderIds = stakeholderIds;
+    }
+    if (recurrenceRule !== undefined) {
+      updateData.recurrenceRule = recurrenceRule;
+    }
     if (metadata !== undefined) updateData.metadata = metadata;
 
     if (location !== undefined) {
@@ -296,7 +321,10 @@ export const updateEvent = onCall(async (request) => {
     const finalEnd = (endTime || existingData?.endTime) as string;
     if (finalStart && finalEnd) {
       if (new Date(finalEnd) <= new Date(finalStart)) {
-        throw new HttpsError("invalid-argument", "End time must be after start time.");
+        throw new HttpsError(
+          "invalid-argument",
+          "End time must be after start time."
+        );
       }
     }
 
@@ -363,11 +391,13 @@ export const deleteEvent = onCall(async (request) => {
           }
         } catch (err) {
           logger.warn(
-            `Could not notify stakeholder ${stakeholderId} of event deletion`, err
+            `Could not notify stakeholder ${stakeholderId} ` +
+            "of event deletion", err
           );
         }
 
-        const stakeholderRef = admin.firestore().collection("stakeholders").doc(stakeholderId);
+        const stakeholderRef = admin
+          .firestore().collection("stakeholders").doc(stakeholderId);
         batch.update(stakeholderRef, {
           eventIds: admin.firestore.FieldValue.arrayRemove(id),
         });
@@ -404,7 +434,8 @@ export const notifyEventUpdate = onCall(async (request) => {
   }
 
   try {
-    const eventDoc = await admin.firestore().collection("events").doc(eventId).get();
+    const eventDoc = await admin
+      .firestore().collection("events").doc(eventId).get();
     if (!eventDoc.exists) {
       throw new HttpsError("not-found", "Event not found.");
     }
@@ -419,7 +450,8 @@ export const notifyEventUpdate = onCall(async (request) => {
     let notified = 0;
 
     for (const shId of stakeholderIds) {
-      const shDoc = await admin.firestore().collection("stakeholders").doc(shId).get();
+      const shDoc = await admin
+        .firestore().collection("stakeholders").doc(shId).get();
       const linkedUserId = shDoc.data()?.linkedUserId;
       if (linkedUserId && linkedUserId !== callerUid) {
         await sendPushAndInAppNotification(
@@ -445,12 +477,17 @@ export const notifyEventUpdate = onCall(async (request) => {
     }
 
     logger.info(
-      `Event update notification sent to ${notified} user(s) for event: ${eventId}`
+      `Event update notification sent to ${notified} ` +
+      `user(s) for event: ${eventId}`
     );
     return {success: true, notifiedCount: notified};
   } catch (error) {
     if (error instanceof HttpsError) throw error;
     logger.error("Error sending event update notification:", error);
-    throw new HttpsError("internal", "Error sending event update notification.", error);
+    throw new HttpsError(
+      "internal",
+      "Error sending event update notification.",
+      error
+    );
   }
 });

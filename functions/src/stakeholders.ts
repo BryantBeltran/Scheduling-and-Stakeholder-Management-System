@@ -20,7 +20,9 @@ export const createStakeholder = onCall(async (request) => {
   if (!callerUid) {
     throw new HttpsError("unauthenticated", "Authentication required.");
   }
-  const canCreate = await hasPermission(callerUid, PERMISSIONS.createStakeholder);
+  const canCreate = await hasPermission(
+    callerUid, PERMISSIONS.createStakeholder
+  );
   if (!canCreate) {
     throw new HttpsError(
       "permission-denied",
@@ -34,22 +36,25 @@ export const createStakeholder = onCall(async (request) => {
   }
 
   try {
-    const stakeholderRef = await admin.firestore().collection("stakeholders").add({
-      name,
-      email,
-      phone: phone || "",
-      organization: organization || "",
-      type: type || "internal",
-      relationshipType: "attendee",
-      participationStatus: "pending",
-      eventIds: [],
-      linkedUserId: null,
-      inviteStatus: "notInvited",
-      invitedAt: null,
-      inviteToken: null,
-      createdAt: admin.firestore.FieldValue.serverTimestamp(),
-      updatedAt: admin.firestore.FieldValue.serverTimestamp(),
-    });
+    const stakeholderRef = await admin
+      .firestore()
+      .collection("stakeholders")
+      .add({
+        name,
+        email,
+        phone: phone || "",
+        organization: organization || "",
+        type: type || "internal",
+        relationshipType: "attendee",
+        participationStatus: "pending",
+        eventIds: [],
+        linkedUserId: null,
+        inviteStatus: "notInvited",
+        invitedAt: null,
+        inviteToken: null,
+        createdAt: admin.firestore.FieldValue.serverTimestamp(),
+        updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+      });
 
     logger.info(`Stakeholder created: ${name}`, {id: stakeholderRef.id});
     return {id: stakeholderRef.id};
@@ -97,7 +102,9 @@ export const updateStakeholder = onCall(async (request) => {
     );
   }
 
-  const {id, name, email, phone, organization, participationStatus} = request.data;
+  const {
+    id, name, email, phone, organization, participationStatus,
+  } = request.data;
   if (!id) {
     throw new HttpsError("invalid-argument", "Stakeholder ID is required.");
   }
@@ -110,9 +117,12 @@ export const updateStakeholder = onCall(async (request) => {
     if (email) updateData.email = email;
     if (phone !== undefined) updateData.phone = phone;
     if (organization !== undefined) updateData.organization = organization;
-    if (participationStatus) updateData.participationStatus = participationStatus;
+    if (participationStatus) {
+      updateData.participationStatus = participationStatus;
+    }
 
-    await admin.firestore().collection("stakeholders").doc(id).update(updateData);
+    await admin
+      .firestore().collection("stakeholders").doc(id).update(updateData);
     logger.info(`Stakeholder updated: ${id}`);
     return {success: true};
   } catch (error) {
@@ -126,7 +136,9 @@ export const deleteStakeholder = onCall(async (request) => {
   if (!callerUid) {
     throw new HttpsError("unauthenticated", "Authentication required.");
   }
-  const canDelete = await hasPermission(callerUid, PERMISSIONS.deleteStakeholder);
+  const canDelete = await hasPermission(
+    callerUid, PERMISSIONS.deleteStakeholder
+  );
   if (!canDelete) {
     throw new HttpsError(
       "permission-denied",
@@ -178,7 +190,9 @@ export const inviteStakeholder = onCall(async (request) => {
     throw new HttpsError("invalid-argument", "Stakeholder ID is required.");
   }
 
-  const canInvite = await hasPermission(callerUid, PERMISSIONS.inviteStakeholder);
+  const canInvite = await hasPermission(
+    callerUid, PERMISSIONS.inviteStakeholder
+  );
   if (!canInvite) {
     throw new HttpsError(
       "permission-denied",
@@ -186,7 +200,8 @@ export const inviteStakeholder = onCall(async (request) => {
     );
   }
 
-  const callerDoc = await admin.firestore().collection("users").doc(callerUid).get();
+  const callerDoc = await admin
+    .firestore().collection("users").doc(callerUid).get();
   const callerRole = callerDoc.data()?.role;
   const resolvedRole = defaultRole || "member";
 
@@ -198,7 +213,8 @@ export const inviteStakeholder = onCall(async (request) => {
   }
 
   try {
-    const stakeholderRef = admin.firestore().collection("stakeholders").doc(stakeholderId);
+    const stakeholderRef = admin
+      .firestore().collection("stakeholders").doc(stakeholderId);
     const stakeholderDoc = await stakeholderRef.get();
     if (!stakeholderDoc.exists) {
       throw new HttpsError("not-found", "Stakeholder not found.");
@@ -260,7 +276,8 @@ export const validateInviteToken = onCall(async (request) => {
   }
 
   try {
-    const inviteDoc = await admin.firestore().collection("invites").doc(token).get();
+    const inviteDoc = await admin
+      .firestore().collection("invites").doc(token).get();
     if (!inviteDoc.exists) {
       return {valid: false, reason: "Token not found"};
     }
@@ -307,7 +324,10 @@ export const linkUserToStakeholder = onCall(async (request) => {
     const inviteData = inviteDoc.data();
     if (!inviteData) throw new HttpsError("internal", "Invite data is empty.");
     if (inviteData.used) {
-      throw new HttpsError("already-exists", "This invite has already been used.");
+      throw new HttpsError(
+        "already-exists",
+        "This invite has already been used."
+      );
     }
 
     const expiresAt = inviteData.expiresAt?.toDate();
@@ -337,7 +357,8 @@ export const linkUserToStakeholder = onCall(async (request) => {
       updatedAt: admin.firestore.FieldValue.serverTimestamp(),
     });
 
-    const stakeholderRef = admin.firestore().collection("stakeholders").doc(stakeholderId);
+    const stakeholderRef = admin
+      .firestore().collection("stakeholders").doc(stakeholderId);
     batch.update(stakeholderRef, {
       linkedUserId: userId,
       inviteStatus: "accepted",
@@ -357,7 +378,8 @@ export const linkUserToStakeholder = onCall(async (request) => {
       await sendPushAndInAppNotification(
         userId,
         "Account Linked!",
-        "Your account has been linked to your stakeholder profile. Welcome aboard!",
+        "Your account has been linked to your " +
+        "stakeholder profile. Welcome aboard!",
         "invite_accepted",
         null
       );
@@ -376,7 +398,9 @@ export const linkUserToStakeholder = onCall(async (request) => {
   } catch (error) {
     if (error instanceof HttpsError) throw error;
     logger.error("Error linking user to stakeholder:", error);
-    throw new HttpsError("internal", "Error linking user to stakeholder.", error);
+    throw new HttpsError(
+      "internal", "Error linking user to stakeholder.", error
+    );
   }
 });
 
@@ -392,7 +416,9 @@ export const resendInvite = onCall(async (request) => {
   }
 
   try {
-    const canInvite = await hasPermission(callerUid, PERMISSIONS.inviteStakeholder);
+    const canInvite = await hasPermission(
+      callerUid, PERMISSIONS.inviteStakeholder
+    );
     if (!canInvite) {
       throw new HttpsError(
         "permission-denied",
@@ -400,7 +426,8 @@ export const resendInvite = onCall(async (request) => {
       );
     }
 
-    const stakeholderRef = admin.firestore().collection("stakeholders").doc(stakeholderId);
+    const stakeholderRef = admin
+      .firestore().collection("stakeholders").doc(stakeholderId);
     const stakeholderDoc = await stakeholderRef.get();
     if (!stakeholderDoc.exists) {
       throw new HttpsError("not-found", "Stakeholder not found.");
@@ -411,14 +438,21 @@ export const resendInvite = onCall(async (request) => {
       throw new HttpsError("internal", "Stakeholder data is empty.");
     }
     if (stakeholderData.linkedUserId) {
-      throw new HttpsError("already-exists", "Stakeholder already has a linked account.");
+      throw new HttpsError(
+        "already-exists",
+        "Stakeholder already has a linked account."
+      );
     }
 
-    const callerDoc = await admin.firestore().collection("users").doc(callerUid).get();
+    const callerDoc = await admin
+      .firestore().collection("users").doc(callerUid).get();
     const callerRole = callerDoc.data()?.role;
     const existingRole = stakeholderData.defaultRole || "member";
 
-    if (callerRole !== "admin" && !["member", "viewer"].includes(existingRole)) {
+    if (
+      callerRole !== "admin" &&
+      !["member", "viewer"].includes(existingRole)
+    ) {
       throw new HttpsError(
         "permission-denied",
         "You can only resend invites for member or viewer stakeholders."
@@ -428,7 +462,8 @@ export const resendInvite = onCall(async (request) => {
     // Expire old invite
     const oldToken = stakeholderData.inviteToken;
     if (oldToken) {
-      const oldInviteRef = admin.firestore().collection("invites").doc(oldToken);
+      const oldInviteRef = admin
+        .firestore().collection("invites").doc(oldToken);
       const oldInviteDoc = await oldInviteRef.get();
       if (oldInviteDoc.exists) {
         await oldInviteRef.update({
@@ -466,7 +501,12 @@ export const resendInvite = onCall(async (request) => {
     );
 
     logger.info(`Invite resent to stakeholder: ${stakeholderId}`);
-    return {success: true, inviteToken: newToken, email: stakeholderData.email, emailSent};
+    return {
+      success: true,
+      inviteToken: newToken,
+      email: stakeholderData.email,
+      emailSent,
+    };
   } catch (error) {
     if (error instanceof HttpsError) throw error;
     logger.error("Error resending invite:", error);
@@ -492,10 +532,11 @@ export const addStakeholderToEvent = onCall(async (request) => {
       stakeholderIds: admin.firestore.FieldValue.arrayUnion(stakeholderId),
       updatedAt: admin.firestore.FieldValue.serverTimestamp(),
     });
-    await admin.firestore().collection("stakeholders").doc(stakeholderId).update({
-      eventIds: admin.firestore.FieldValue.arrayUnion(eventId),
-      updatedAt: admin.firestore.FieldValue.serverTimestamp(),
-    });
+    await admin
+      .firestore().collection("stakeholders").doc(stakeholderId).update({
+        eventIds: admin.firestore.FieldValue.arrayUnion(eventId),
+        updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+      });
 
     const [stakeholderDoc, eventDoc] = await Promise.all([
       admin.firestore().collection("stakeholders").doc(stakeholderId).get(),
@@ -518,7 +559,9 @@ export const addStakeholderToEvent = onCall(async (request) => {
     return {success: true};
   } catch (error) {
     logger.error("Error adding stakeholder to event:", error);
-    throw new HttpsError("internal", "Error adding stakeholder to event.", error);
+    throw new HttpsError(
+      "internal", "Error adding stakeholder to event.", error
+    );
   }
 });
 
@@ -536,10 +579,11 @@ export const removeStakeholderFromEvent = onCall(async (request) => {
       stakeholderIds: admin.firestore.FieldValue.arrayRemove(stakeholderId),
       updatedAt: admin.firestore.FieldValue.serverTimestamp(),
     });
-    await admin.firestore().collection("stakeholders").doc(stakeholderId).update({
-      eventIds: admin.firestore.FieldValue.arrayRemove(eventId),
-      updatedAt: admin.firestore.FieldValue.serverTimestamp(),
-    });
+    await admin
+      .firestore().collection("stakeholders").doc(stakeholderId).update({
+        eventIds: admin.firestore.FieldValue.arrayRemove(eventId),
+        updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+      });
 
     try {
       const [shDoc, evDoc] = await Promise.all([
@@ -559,7 +603,8 @@ export const removeStakeholderFromEvent = onCall(async (request) => {
       }
     } catch (err) {
       logger.warn(
-        `Could not send removal notification for stakeholder ${stakeholderId}`, err
+        "Could not send removal notification " +
+        `for stakeholder ${stakeholderId}`, err
       );
     }
 
@@ -567,6 +612,8 @@ export const removeStakeholderFromEvent = onCall(async (request) => {
     return {success: true};
   } catch (error) {
     logger.error("Error removing stakeholder from event:", error);
-    throw new HttpsError("internal", "Error removing stakeholder from event.", error);
+    throw new HttpsError(
+      "internal", "Error removing stakeholder from event.", error
+    );
   }
 });

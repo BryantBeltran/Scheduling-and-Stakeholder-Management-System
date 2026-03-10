@@ -1,7 +1,12 @@
 import {onCall} from "firebase-functions/v2/https";
 import * as logger from "firebase-functions/logger";
 import * as admin from "firebase-admin";
-import {HttpsError, sendPushAndInAppNotification, sendWelcomeEmail, sendPasswordResetMail} from "./shared";
+import {
+  HttpsError,
+  sendPushAndInAppNotification,
+  sendWelcomeEmail,
+  sendPasswordResetMail,
+} from "./shared";
 
 // =============================================================================
 // APP CONFIGURATION

@@ -1,5 +1,8 @@
 import {onCall} from "firebase-functions/v2/https";
-import {onDocumentCreated, onDocumentDeleted} from "firebase-functions/v2/firestore";
+import {
+  onDocumentCreated,
+  onDocumentDeleted,
+} from "firebase-functions/v2/firestore";
 import * as logger from "firebase-functions/logger";
 import * as admin from "firebase-admin";
 import {
@@ -43,7 +46,10 @@ export const onUserCreated = onDocumentCreated(
   }
 );
 
-/** When a user document is deleted, clean up their notifications and unlink events. */
+/**
+ * When a user document is deleted, clean up their
+ * notifications and unlink events.
+ */
 export const onUserDeleted = onDocumentDeleted(
   "users/{userId}",
   async (event) => {
@@ -92,7 +98,9 @@ export const createUser = onCall(async (request) => {
   }
 
   try {
-    const userRecord = await admin.auth().createUser({email, password, displayName});
+    const userRecord = await admin.auth().createUser(
+      {email, password, displayName}
+    );
 
     await admin.firestore().collection("users").doc(userRecord.uid).set({
       id: userRecord.uid,
@@ -143,7 +151,8 @@ export const getAllUsers = onCall(async (request) => {
   }
 
   try {
-    const callerDoc = await admin.firestore().collection("users").doc(callerUid).get();
+    const callerDoc = await admin
+      .firestore().collection("users").doc(callerUid).get();
     const callerData = callerDoc.data();
     const callerPermissions: string[] = callerData?.permissions || [];
 
@@ -159,9 +168,14 @@ export const getAllUsers = onCall(async (request) => {
     }
 
     const usersSnapshot = await admin.firestore().collection("users").get();
-    const users = usersSnapshot.docs.map((doc) => ({id: doc.id, ...doc.data()}));
+    const users = usersSnapshot.docs.map(
+      (doc) => ({id: doc.id, ...doc.data()})
+    );
 
-    logger.info(`Users retrieved by admin: ${callerUid}`, {count: users.length});
+    logger.info(
+      `Users retrieved by admin: ${callerUid}`,
+      {count: users.length}
+    );
     return users;
   } catch (error) {
     if (error instanceof HttpsError) throw error;
@@ -183,7 +197,8 @@ export const updateUserRole = onCall(async (request) => {
   }
 
   try {
-    const callerDoc = await admin.firestore().collection("users").doc(callerUid).get();
+    const callerDoc = await admin
+      .firestore().collection("users").doc(callerUid).get();
     const callerData = callerDoc.data();
     const callerPermissions: string[] = callerData?.permissions || [];
 
@@ -199,7 +214,10 @@ export const updateUserRole = onCall(async (request) => {
     }
 
     if (callerUid === uid) {
-      throw new HttpsError("permission-denied", "You cannot change your own role.");
+      throw new HttpsError(
+        "permission-denied",
+        "You cannot change your own role."
+      );
     }
 
     if (!isValidRole(role)) {
@@ -239,7 +257,8 @@ export const setUserActiveStatus = onCall(async (request) => {
   }
 
   try {
-    const callerDoc = await admin.firestore().collection("users").doc(callerUid).get();
+    const callerDoc = await admin
+      .firestore().collection("users").doc(callerUid).get();
     const callerData = callerDoc.data();
     const callerPermissions: string[] = callerData?.permissions || [];
 
@@ -268,12 +287,16 @@ export const setUserActiveStatus = onCall(async (request) => {
 
     await admin.auth().updateUser(uid, {disabled: !isActive});
 
-    logger.info(`User ${isActive ? "activated" : "deactivated"}: ${uid} by ${callerUid}`);
+    logger.info(
+      `User ${isActive ? "activated" : "deactivated"}: ${uid} by ${callerUid}`
+    );
     return {success: true, isActive};
   } catch (error) {
     if (error instanceof HttpsError) throw error;
     logger.error("Error setting user active status:", error);
-    throw new HttpsError("internal", "Error setting user active status.", error);
+    throw new HttpsError(
+      "internal", "Error setting user active status.", error
+    );
   }
 });
 
@@ -292,7 +315,8 @@ export const updateUser = onCall(async (request) => {
     const isSelfUpdate = callerUid === uid;
 
     if (!isSelfUpdate) {
-      const callerDoc = await admin.firestore().collection("users").doc(callerUid).get();
+      const callerDoc = await admin
+        .firestore().collection("users").doc(callerUid).get();
       const callerData = callerDoc.data();
       const callerPermissions: string[] = callerData?.permissions || [];
 
