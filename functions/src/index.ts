@@ -1225,7 +1225,9 @@ export const createStakeholder = onCall(async (request) => {
   if (!callerUid) {
     throw new HttpsError("unauthenticated", "Authentication required.");
   }
-  const canCreate = await hasPermission(callerUid, PERMISSIONS.createStakeholder);
+  const canCreate = await hasPermission(
+    callerUid, PERMISSIONS.createStakeholder
+  );
   if (!canCreate) {
     throw new HttpsError(
       "permission-denied",
@@ -1351,7 +1353,9 @@ export const deleteStakeholder = onCall(async (request) => {
   if (!callerUid) {
     throw new HttpsError("unauthenticated", "Authentication required.");
   }
-  const canDelete = await hasPermission(callerUid, PERMISSIONS.deleteStakeholder);
+  const canDelete = await hasPermission(
+    callerUid, PERMISSIONS.deleteStakeholder
+  );
   if (!canDelete) {
     throw new HttpsError(
       "permission-denied",
@@ -1664,7 +1668,7 @@ export const linkUserToStakeholder = onCall(async (request) => {
         isRead: false,
       });
 
-      // Send account-linked confirmation email (distinct from the generic welcome)
+      // Send account-linked confirmation email (distinct from generic welcome)
       if (userData?.email) {
         await sendAccountLinkedEmail(
           userData.email,
@@ -1818,8 +1822,10 @@ async function sendPushAndInAppNotification(
 
   // Respect type-specific notification preferences.
   // If a category is disabled, skip both in-app and push.
-  // event_reminder  → only for event owner + invited stakeholders; gated by eventRemindersEnabled
-  // event_assignment / event_update → only for invited stakeholders + owner; gated by inviteNotificationsEnabled
+  // event_reminder → only for event owner + invited stakeholders;
+  //   gated by eventRemindersEnabled
+  // event_assignment / event_update → only for invited stakeholders + owner;
+  //   gated by inviteNotificationsEnabled
   if (
     type === "event_reminder" &&
     prefs.eventRemindersEnabled === false
