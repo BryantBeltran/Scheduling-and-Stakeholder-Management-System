@@ -181,6 +181,26 @@ class _EventDetailsScreenState extends State<EventDetailsScreen> {
     }
   }
 
+  bool _canEditThisEvent() {
+    if (_event == null) return false;
+    final uid = _permissionService.currentUser?.id;
+    if (uid == null) return false;
+    // Admins/super-admins can edit any event
+    if (_permissionService.isSuperAdmin) return true;
+    // Otherwise must have editEvent permission AND be owner or assigned manager
+    return _permissionService.canEditEvent &&
+        (_event!.ownerId == uid || _event!.managerId == uid);
+  }
+
+  bool _canDeleteThisEvent() {
+    if (_event == null) return false;
+    final uid = _permissionService.currentUser?.id;
+    if (uid == null) return false;
+    if (_permissionService.isSuperAdmin) return true;
+    return _permissionService.canDeleteEvent &&
+        (_event!.ownerId == uid || _event!.managerId == uid);
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -196,13 +216,13 @@ class _EventDetailsScreenState extends State<EventDetailsScreen> {
         centerTitle: true,
         elevation: 0,
         actions: [
-          if (_event != null && _permissionService.canEditEvent)
+          if (_canEditThisEvent())
             IconButton(
               icon: const Icon(Icons.edit),
               onPressed: _navigateToEdit,
               tooltip: 'Edit Event',
             ),
-          if (_event != null && _permissionService.canDeleteEvent)
+          if (_canDeleteThisEvent())
             PopupMenuButton<String>(
               icon: const Icon(Icons.more_vert),
               onSelected: (value) {

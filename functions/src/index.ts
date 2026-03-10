@@ -2900,3 +2900,34 @@ export const getAppConfig = onCall(
     }
   }
 );
+
+/**
+ * sendTestNotification — callable function for verifying the full notification
+ * pipeline in production. Sends a push + in-app notification back to the
+ * authenticated caller so you can confirm FCM, Firestore write, and preference
+ * gating all work end-to-end.
+ */
+export const sendTestNotification = onCall(async (request) => {
+  if (!request.auth) {
+    throw new HttpsError("unauthenticated", "Authentication required.");
+  }
+
+  const userId = request.auth.uid;
+
+  try {
+    await sendPushAndInAppNotification(
+      userId,
+      "🔔 Test Notification",
+      "Notifications are working correctly on this device.",
+      "general",
+      null
+    );
+    logger.info(`Test notification sent to user: ${userId}`);
+    return {success: true, message: "Test notification sent."};
+  } catch (error) {
+    logger.error("Error sending test notification:", error);
+    throw new HttpsError(
+      "internal", "Failed to send test notification.", error
+    );
+  }
+});
