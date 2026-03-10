@@ -23,7 +23,7 @@ class _EventCreateScreenState extends State<EventCreateScreen> {
   TimeOfDay? _selectedTime;
   DateTime? _selectedEndDate;
   TimeOfDay? _selectedEndTime;
-  final EventStatus _selectedStatus = EventStatus.draft;
+  EventStatus _selectedStatus = EventStatus.draft;
   final EventPriority _selectedPriority = EventPriority.medium;
   List<String> _selectedStakeholderIds = [];
   Map<String, StakeholderModel> _stakeholderCache = {};
@@ -359,8 +359,8 @@ class _EventCreateScreenState extends State<EventCreateScreen> {
                             const SizedBox(width: 12),
                             Text(
                               _selectedDate != null
-                                  ? '${_selectedDate!.day.toString().padLeft(2, '0')}/${_selectedDate!.month.toString().padLeft(2, '0')}/${_selectedDate!.year.toString().substring(2)}'
-                                  : 'DD/MM/YY',
+                                  ? '${_selectedDate!.month.toString().padLeft(2, '0')}/${_selectedDate!.day.toString().padLeft(2, '0')}/${_selectedDate!.year}'
+                                  : 'MM/DD/YYYY',
                               style: TextStyle(
                                 color: _selectedDate != null ? Theme.of(context).colorScheme.onSurface : Theme.of(context).hintColor,
                               ),
@@ -441,8 +441,8 @@ class _EventCreateScreenState extends State<EventCreateScreen> {
                             const SizedBox(width: 12),
                             Text(
                               _selectedEndDate != null
-                                  ? '${_selectedEndDate!.day.toString().padLeft(2, '0')}/${_selectedEndDate!.month.toString().padLeft(2, '0')}/${_selectedEndDate!.year.toString().substring(2)}'
-                                  : 'DD/MM/YY',
+                                  ? '${_selectedEndDate!.month.toString().padLeft(2, '0')}/${_selectedEndDate!.day.toString().padLeft(2, '0')}/${_selectedEndDate!.year}'
+                                  : 'MM/DD/YYYY',
                               style: TextStyle(
                                 color: _selectedEndDate != null ? Theme.of(context).colorScheme.onSurface : Theme.of(context).hintColor,
                               ),
@@ -731,6 +731,81 @@ class _EventCreateScreenState extends State<EventCreateScreen> {
                       ),
                     ],
                     
+                    const SizedBox(height: 24),
+                    // Publish Status
+                    Container(
+                      padding: const EdgeInsets.all(16),
+                      decoration: BoxDecoration(
+                        border: Border.all(
+                          color: _selectedStatus == EventStatus.scheduled
+                              ? Theme.of(context).colorScheme.primary
+                              : Theme.of(context).colorScheme.outline,
+                        ),
+                        borderRadius: BorderRadius.circular(12),
+                        color: _selectedStatus == EventStatus.scheduled
+                            ? Theme.of(context)
+                                .colorScheme
+                                .primary
+                                .withValues(alpha: 0.08)
+                            : Theme.of(context).colorScheme.surface,
+                      ),
+                      child: Row(
+                        children: [
+                          Icon(
+                            _selectedStatus == EventStatus.scheduled
+                                ? Icons.check_circle
+                                : Icons.edit_note,
+                            color: _selectedStatus == EventStatus.scheduled
+                                ? Theme.of(context).colorScheme.primary
+                                : Theme.of(context)
+                                    .colorScheme
+                                    .onSurfaceVariant,
+                          ),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  _selectedStatus == EventStatus.scheduled
+                                      ? 'Publish as Scheduled'
+                                      : 'Save as Draft',
+                                  style: TextStyle(
+                                    fontWeight: FontWeight.w600,
+                                    color: _selectedStatus ==
+                                            EventStatus.scheduled
+                                        ? Theme.of(context).colorScheme.primary
+                                        : Theme.of(context)
+                                            .colorScheme
+                                            .onSurface,
+                                  ),
+                                ),
+                                const SizedBox(height: 2),
+                                Text(
+                                  _selectedStatus == EventStatus.scheduled
+                                      ? 'Reminders will be sent to stakeholders'
+                                      : 'Only visible to you until published',
+                                  style: TextStyle(
+                                    fontSize: 12,
+                                    color: Theme.of(context)
+                                        .colorScheme
+                                        .onSurfaceVariant,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                          Switch(
+                            value: _selectedStatus == EventStatus.scheduled,
+                            onChanged: (val) => setState(() {
+                              _selectedStatus = val
+                                  ? EventStatus.scheduled
+                                  : EventStatus.draft;
+                            }),
+                          ),
+                        ],
+                      ),
+                    ),
                     const SizedBox(height: 32),
                     // Done Button
                     SizedBox(

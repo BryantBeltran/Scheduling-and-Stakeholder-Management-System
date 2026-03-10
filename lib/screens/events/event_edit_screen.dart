@@ -713,7 +713,7 @@ class _EventEditScreenState extends State<EventEditScreen> {
             Icon(Icons.calendar_today, size: 18, color: Theme.of(context).colorScheme.onSurfaceVariant),
             const SizedBox(width: 8),
             Text(
-              '${date.day.toString().padLeft(2, '0')}/${date.month.toString().padLeft(2, '0')}/${date.year}',
+              '${date.month.toString().padLeft(2, '0')}/${date.day.toString().padLeft(2, '0')}/${date.year}',
               style: const TextStyle(fontSize: 14),
             ),
           ],

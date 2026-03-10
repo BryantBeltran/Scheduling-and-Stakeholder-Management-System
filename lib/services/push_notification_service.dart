@@ -478,23 +478,31 @@ class PushNotificationService {
     if (!AppConfig.instance.useFirebase) return;
 
     try {
-      final prefs = <String, dynamic>{};
-      if (pushEnabled != null) prefs['pushEnabled'] = pushEnabled;
-      if (emailEnabled != null) prefs['emailEnabled'] = emailEnabled;
+      final updates = <String, dynamic>{};
+      if (pushEnabled != null) {
+        updates['notificationPreferences.pushEnabled'] = pushEnabled;
+      }
+      if (emailEnabled != null) {
+        updates['notificationPreferences.emailEnabled'] = emailEnabled;
+      }
       if (eventRemindersEnabled != null) {
-        prefs['eventRemindersEnabled'] = eventRemindersEnabled;
+        updates['notificationPreferences.eventRemindersEnabled'] =
+            eventRemindersEnabled;
       }
       if (inviteNotificationsEnabled != null) {
-        prefs['inviteNotificationsEnabled'] = inviteNotificationsEnabled;
+        updates['notificationPreferences.inviteNotificationsEnabled'] =
+            inviteNotificationsEnabled;
       }
       if (defaultReminderMinutes != null) {
-        prefs['defaultReminderMinutes'] = defaultReminderMinutes;
+        updates['notificationPreferences.defaultReminderMinutes'] =
+            defaultReminderMinutes;
       }
-      if (mutedEventIds != null) prefs['mutedEventIds'] = mutedEventIds;
+      if (mutedEventIds != null) {
+        updates['notificationPreferences.mutedEventIds'] = mutedEventIds;
+      }
 
-      await _firestore.collection('users').doc(userId).update({
-        'notificationPreferences': prefs,
-      });
+      if (updates.isEmpty) return;
+      await _firestore.collection('users').doc(userId).update(updates);
     } catch (e) {
       debugPrint('Error updating notification preferences: $e');
     }

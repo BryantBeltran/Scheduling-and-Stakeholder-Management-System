@@ -59,6 +59,7 @@ export {
   sendEventReminders,
   cleanupExpiredInvites,
   sendTestNotification,
+  autoTransitionEventStatus,
 } from "./notifications";
 
 export {

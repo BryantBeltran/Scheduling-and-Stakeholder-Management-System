@@ -165,7 +165,7 @@ export const sendEventReminders = onSchedule(
         const eventsSnapshot = await admin
           .firestore()
           .collection("events")
-          .where("status", "in", ["scheduled", "draft"])
+          .where("status", "==", "scheduled")
           .where("startTime", ">=", targetStart.toISOString())
           .where("startTime", "<", targetEnd.toISOString())
           .get();
@@ -275,6 +275,86 @@ export const cleanupExpiredInvites = onSchedule(
       logger.info(`Cleaned up ${count} expired invite(s).`);
     } catch (error) {
       logger.error("Error cleaning up expired invites:", error);
+    }
+  }
+);
+
+// =============================================================================
+// SCHEDULED: AUTO STATUS TRANSITIONS (every 5 minutes)
+// =============================================================================
+
+/**
+ * Runs every 5 minutes.
+ * - Marks scheduled events as inProgress when startTime has passed.
+ * - Marks inProgress events as completed when endTime has passed.
+ * Notifies the event owner in both cases.
+ */
+export const autoTransitionEventStatus = onSchedule(
+  "every 5 minutes",
+  async () => {
+    try {
+      const now = new Date().toISOString();
+
+      // --- scheduled → inProgress ---
+      const startedSnapshot = await admin
+        .firestore()
+        .collection("events")
+        .where("status", "==", "scheduled")
+        .where("startTime", "<=", now)
+        .get();
+
+      for (const doc of startedSnapshot.docs) {
+        const data = doc.data();
+        await doc.ref.update({
+          status: "inProgress",
+          updatedAt: now,
+        });
+        logger.info(`Event ${doc.id} transitioned to inProgress`);
+
+        if (data.ownerId) {
+          await sendPushAndInAppNotification(
+            data.ownerId,
+            `Event Started: ${data.title}`,
+            `"${data.title}" is now in progress.`,
+            "event_update",
+            doc.id
+          );
+        }
+      }
+
+      // --- inProgress → completed ---
+      const endedSnapshot = await admin
+        .firestore()
+        .collection("events")
+        .where("status", "==", "inProgress")
+        .where("endTime", "<=", now)
+        .get();
+
+      for (const doc of endedSnapshot.docs) {
+        const data = doc.data();
+        await doc.ref.update({
+          status: "completed",
+          updatedAt: now,
+        });
+        logger.info(`Event ${doc.id} transitioned to completed`);
+
+        if (data.ownerId) {
+          await sendPushAndInAppNotification(
+            data.ownerId,
+            `Event Completed: ${data.title}`,
+            `"${data.title}" has ended and been marked as completed.`,
+            "event_update",
+            doc.id
+          );
+        }
+      }
+
+      logger.info(
+        `autoTransitionEventStatus: ${startedSnapshot.size} started, ` +
+        `${endedSnapshot.size} completed`
+      );
+    } catch (error) {
+      logger.error("Error in autoTransitionEventStatus:", error);
     }
   }
 );
