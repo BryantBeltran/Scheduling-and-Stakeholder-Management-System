@@ -1,5 +1,7 @@
 // ignore_for_file: deprecated_member_use
 
+import 'dart:async';
+import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:flutter/material.dart';
 import '../../models/models.dart';
 import '../../services/services.dart';
@@ -19,15 +21,34 @@ class _EventListScreenState extends State<EventListScreen> {
   List<EventModel> _filteredEvents = [];
   String _sortBy = 'date'; // 'date', 'title', 'priority', 'status'
   bool _sortAscending = true;
+  bool _isOffline = false;
+  StreamSubscription<List<ConnectivityResult>>? _connectivitySub;
 
   @override
   void initState() {
     super.initState();
     _eventService.initializeEventStream();
+    _initConnectivity();
+  }
+
+  Future<void> _initConnectivity() async {
+    final results = await Connectivity().checkConnectivity();
+    _updateConnectivity(results);
+    _connectivitySub = Connectivity()
+        .onConnectivityChanged
+        .listen(_updateConnectivity);
+  }
+
+  void _updateConnectivity(List<ConnectivityResult> results) {
+    final offline = results.every((r) => r == ConnectivityResult.none);
+    if (mounted && offline != _isOffline) {
+      setState(() => _isOffline = offline);
+    }
   }
 
   @override
   void dispose() {
+    _connectivitySub?.cancel();
     _searchController.dispose();
     super.dispose();
   }
@@ -176,6 +197,27 @@ class _EventListScreenState extends State<EventListScreen> {
       ),
       body: Column(
         children: [
+          // Offline banner
+          if (_isOffline)
+            Material(
+              color: Colors.orange.shade800,
+              child: const Padding(
+                padding: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                child: Row(
+                  children: [
+                    Icon(Icons.wifi_off, color: Colors.white, size: 18),
+                    SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        'You\'re offline — showing cached events',
+                        style: TextStyle(color: Colors.white, fontSize: 13),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+
           // Search bar
           Padding(
             padding: const EdgeInsets.all(16),
