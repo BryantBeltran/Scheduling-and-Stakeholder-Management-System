@@ -286,6 +286,70 @@ async function sendWelcomeEmail(
   }
 }
 
+/**
+ * Send an "account linked" confirmation email to an invited user
+ * who has just completed onboarding via an invite link.
+ * @param {string} email - The recipient email address
+ * @param {string} displayName - User's display name
+ * @param {string} stakeholderName - Name on the stakeholder profile
+ * @return {Promise<boolean>} True if email was sent
+ */
+async function sendAccountLinkedEmail(
+  email: string,
+  displayName?: string,
+  stakeholderName?: string
+): Promise<boolean> {
+  const transporter = getMailTransporter();
+  if (!transporter) {
+    logger.info("Account linked email skipped (SMTP not configured).");
+    return false;
+  }
+
+  const senderEmail = process.env.SMTP_FROM || "no-reply@managemateapp.me";
+  const name = displayName || "there";
+  const profileName = stakeholderName || name;
+
+  try {
+    /* eslint-disable max-len */
+    await transporter.sendMail({
+      from: `"SSMS" <${senderEmail}>`,
+      to: email,
+      subject: "Your account has been linked — Welcome to SSMS!",
+      html: `
+        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+          <div style="background-color: #000; color: #fff; padding: 24px; text-align: center;">
+            <h1 style="margin: 0; font-size: 24px;">Scheduling &amp; Stakeholder Management</h1>
+          </div>
+          <div style="padding: 32px 24px;">
+            <h2 style="color: #333;">You're all set, ${name}!</h2>
+            <p style="color: #555; font-size: 16px; line-height: 1.6;">
+              Your account has been successfully linked to the stakeholder profile
+              for <strong>${profileName}</strong>.
+            </p>
+            <div style="background-color: #f0faf4; border-left: 4px solid #22c55e; border-radius: 4px; padding: 16px; margin: 24px 0;">
+              <p style="margin: 0; color: #166534; font-size: 14px;">
+                You can now receive event invitations, view your assigned events,
+                and collaborate with your team inside the app.
+              </p>
+            </div>
+            <p style="color: #888; font-size: 13px;">
+              If you didn't request this, please contact your organization admin.
+            </p>
+          </div>
+        </div>
+      `,
+      text: `Hi ${name}, your SSMS account has been linked to the stakeholder profile for ${profileName}. You can now view assigned events and receive notifications.`,
+    });
+    /* eslint-enable max-len */
+
+    logger.info(`Account linked email sent to ${email}`);
+    return true;
+  } catch (error) {
+    logger.error(`Failed to send account linked email to ${email}:`, error);
+    return false;
+  }
+}
+
 
 // User Management
 /**
@@ -1600,11 +1664,12 @@ export const linkUserToStakeholder = onCall(async (request) => {
         isRead: false,
       });
 
-      // Send welcome email to newly linked user
+      // Send account-linked confirmation email (distinct from the generic welcome)
       if (userData?.email) {
-        await sendWelcomeEmail(
+        await sendAccountLinkedEmail(
           userData.email,
-          userData.displayName
+          userData.displayName,
+          stakeholderData.name
         );
       }
     }
@@ -2622,7 +2687,9 @@ export const onOnboardingComplete = onCall(
         .get();
       const userData = userDoc.data();
 
-      if (userData?.email) {
+      // Skip the welcome email for invited users — they already received
+      // an "account linked" email from linkUserToStakeholder.
+      if (userData?.email && !userData.stakeholderId) {
         await sendWelcomeEmail(
           userData.email,
           userData.displayName
