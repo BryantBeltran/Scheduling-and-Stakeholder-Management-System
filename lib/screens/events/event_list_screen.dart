@@ -402,19 +402,28 @@ class _EventListScreenState extends State<EventListScreen> {
 
   Widget _buildFilterChip(EventStatus? status, String label) {
     final isSelected = _filterStatus == status;
+    final chipColor = _filterChipColor(status);
     return Padding(
       padding: const EdgeInsets.only(right: 8),
       child: FilterChip(
         label: Text(label),
         selected: isSelected,
         onSelected: (_) => setState(() => _filterStatus = status),
-        selectedColor: _filterChipColor(status),
+        selectedColor: chipColor,
         checkmarkColor: Colors.white,
         labelStyle: TextStyle(
-          color: isSelected ? Colors.white : Theme.of(context).colorScheme.onSurface,
+          color: isSelected
+              ? Colors.white
+              : Theme.of(context).colorScheme.onSurface,
           fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
         ),
         backgroundColor: Theme.of(context).colorScheme.surfaceContainerHighest,
+        side: isSelected
+            ? BorderSide.none
+            : BorderSide(
+                color: Theme.of(context).colorScheme.outline,
+                width: 1,
+              ),
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
       ),
     );
@@ -427,7 +436,7 @@ class _EventListScreenState extends State<EventListScreen> {
       case EventStatus.inProgress: return Colors.orange;
       case EventStatus.completed: return Colors.green;
       case EventStatus.cancelled: return Colors.red;
-      default: return Theme.of(context).colorScheme.onSurface;
+      default: return Theme.of(context).colorScheme.primary;
     }
   }
 
