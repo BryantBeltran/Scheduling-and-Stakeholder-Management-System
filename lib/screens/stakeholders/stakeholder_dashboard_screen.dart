@@ -115,8 +115,6 @@ class _StakeholderDashboardScreenState extends State<StakeholderDashboardScreen>
         ),
         centerTitle: true,
         elevation: 0,
-        backgroundColor: Colors.white,
-        foregroundColor: Colors.black,
         actions: [
           IconButton(
             icon: const Icon(Icons.refresh),
@@ -140,11 +138,11 @@ class _StakeholderDashboardScreenState extends State<StakeholderDashboardScreen>
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(Icons.error_outline, size: 64, color: Colors.grey[400]),
+            Icon(Icons.error_outline, size: 64, color: Theme.of(context).hintColor),
             const SizedBox(height: 16),
             Text(
               _error!,
-              style: TextStyle(color: Colors.grey[600]),
+              style: TextStyle(color: Theme.of(context).colorScheme.onSurfaceVariant),
               textAlign: TextAlign.center,
             ),
             const SizedBox(height: 16),
@@ -180,7 +178,7 @@ class _StakeholderDashboardScreenState extends State<StakeholderDashboardScreen>
               Text(
                 '${_assignedEvents.length} event(s)',
                 style: TextStyle(
-                  color: Colors.grey[600],
+                  color: Theme.of(context).colorScheme.onSurfaceVariant,
                 ),
               ),
             ],
@@ -203,7 +201,7 @@ class _StakeholderDashboardScreenState extends State<StakeholderDashboardScreen>
       elevation: 0,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(12),
-        side: BorderSide(color: Colors.grey[200]!),
+        side: BorderSide(color: Theme.of(context).dividerColor),
       ),
       child: Padding(
         padding: const EdgeInsets.all(16),
@@ -237,7 +235,7 @@ class _StakeholderDashboardScreenState extends State<StakeholderDashboardScreen>
                     Text(
                       stakeholder.organization!,
                       style: TextStyle(
-                        color: Colors.grey[600],
+                        color: Theme.of(context).colorScheme.onSurfaceVariant,
                       ),
                     ),
                   const SizedBox(height: 4),
@@ -269,7 +267,7 @@ class _StakeholderDashboardScreenState extends State<StakeholderDashboardScreen>
       elevation: 0,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(12),
-        side: BorderSide(color: Colors.grey[200]!),
+        side: BorderSide(color: Theme.of(context).dividerColor),
       ),
       child: Padding(
         padding: const EdgeInsets.all(32),
@@ -278,7 +276,7 @@ class _StakeholderDashboardScreenState extends State<StakeholderDashboardScreen>
             Icon(
               Icons.event_available,
               size: 64,
-              color: Colors.grey[400],
+              color: Theme.of(context).hintColor,
             ),
             const SizedBox(height: 16),
             Text(
@@ -286,7 +284,7 @@ class _StakeholderDashboardScreenState extends State<StakeholderDashboardScreen>
               style: TextStyle(
                 fontSize: 18,
                 fontWeight: FontWeight.bold,
-                color: Colors.grey[700],
+                color: Theme.of(context).colorScheme.onSurfaceVariant,
               ),
             ),
             const SizedBox(height: 8),
@@ -294,7 +292,7 @@ class _StakeholderDashboardScreenState extends State<StakeholderDashboardScreen>
               'You haven\'t been assigned to any events yet.\nCheck back later!',
               textAlign: TextAlign.center,
               style: TextStyle(
-                color: Colors.grey[600],
+                color: Theme.of(context).colorScheme.onSurfaceVariant,
               ),
             ),
           ],
@@ -348,7 +346,7 @@ class _StakeholderDashboardScreenState extends State<StakeholderDashboardScreen>
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(12),
         side: BorderSide(
-          color: isUpcoming ? const Color(0xFF5B7C99).withValues(alpha: 0.3) : Colors.grey[200]!,
+          color: isUpcoming ? const Color(0xFF5B7C99).withValues(alpha: 0.3) : Theme.of(context).dividerColor,
         ),
       ),
       child: InkWell(
@@ -367,7 +365,7 @@ class _StakeholderDashboardScreenState extends State<StakeholderDashboardScreen>
                       style: TextStyle(
                         fontSize: 16,
                         fontWeight: FontWeight.bold,
-                        color: isUpcoming ? Colors.black : Colors.grey[600],
+                        color: isUpcoming ? Theme.of(context).colorScheme.onSurface : Theme.of(context).colorScheme.onSurfaceVariant,
                       ),
                     ),
                   ),
@@ -380,13 +378,13 @@ class _StakeholderDashboardScreenState extends State<StakeholderDashboardScreen>
                   Icon(
                     Icons.calendar_today,
                     size: 14,
-                    color: Colors.grey[600],
+                    color: Theme.of(context).colorScheme.onSurfaceVariant,
                   ),
                   const SizedBox(width: 6),
                   Text(
                     _formatDateTime(event.startTime),
                     style: TextStyle(
-                      color: Colors.grey[600],
+                      color: Theme.of(context).colorScheme.onSurfaceVariant,
                       fontSize: 13,
                     ),
                   ),
@@ -399,14 +397,14 @@ class _StakeholderDashboardScreenState extends State<StakeholderDashboardScreen>
                     Icon(
                       Icons.location_on,
                       size: 14,
-                      color: Colors.grey[600],
+                      color: Theme.of(context).colorScheme.onSurfaceVariant,
                     ),
                     const SizedBox(width: 6),
                     Expanded(
                       child: Text(
                         event.location.name,
                         style: TextStyle(
-                          color: Colors.grey[600],
+                          color: Theme.of(context).colorScheme.onSurfaceVariant,
                           fontSize: 13,
                         ),
                         overflow: TextOverflow.ellipsis,
@@ -420,7 +418,7 @@ class _StakeholderDashboardScreenState extends State<StakeholderDashboardScreen>
                 Text(
                   event.description!,
                   style: TextStyle(
-                    color: Colors.grey[700],
+                    color: Theme.of(context).colorScheme.onSurfaceVariant,
                     fontSize: 13,
                   ),
                   maxLines: 2,
@@ -451,8 +449,8 @@ class _StakeholderDashboardScreenState extends State<StakeholderDashboardScreen>
         text = 'In Progress';
         break;
       case EventStatus.completed:
-        bgColor = Colors.grey[200]!;
-        textColor = Colors.grey[700]!;
+        bgColor = Theme.of(context).dividerColor;
+        textColor = Theme.of(context).colorScheme.onSurfaceVariant;
         text = 'Completed';
         break;
       case EventStatus.cancelled:
@@ -542,7 +540,7 @@ class _StakeholderDashboardScreenState extends State<StakeholderDashboardScreen>
                       width: 40,
                       height: 4,
                       decoration: BoxDecoration(
-                        color: Colors.grey[300],
+                        color: Theme.of(context).dividerColor,
                         borderRadius: BorderRadius.circular(2),
                       ),
                     ),
@@ -621,7 +619,7 @@ class _StakeholderDashboardScreenState extends State<StakeholderDashboardScreen>
                     Text(
                       event.description!,
                       style: TextStyle(
-                        color: Colors.grey[700],
+                        color: Theme.of(context).colorScheme.onSurfaceVariant,
                         height: 1.5,
                       ),
                     ),
@@ -639,7 +637,7 @@ class _StakeholderDashboardScreenState extends State<StakeholderDashboardScreen>
                     const SizedBox(height: 4),
                     Text(
                       'Current status: ${_stakeholderProfile?.participationStatus.name ?? 'unknown'}',
-                      style: TextStyle(fontSize: 13, color: Colors.grey[600]),
+                      style: TextStyle(fontSize: 13, color: Theme.of(context).colorScheme.onSurfaceVariant),
                     ),
                     const SizedBox(height: 12),
                     StatefulBuilder(
@@ -700,7 +698,7 @@ class _StakeholderDashboardScreenState extends State<StakeholderDashboardScreen>
     return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Icon(icon, size: 20, color: Colors.grey[600]),
+        Icon(icon, size: 20, color: Theme.of(context).colorScheme.onSurfaceVariant),
         const SizedBox(width: 12),
         Expanded(
           child: Column(
@@ -710,7 +708,7 @@ class _StakeholderDashboardScreenState extends State<StakeholderDashboardScreen>
                 label,
                 style: TextStyle(
                   fontSize: 12,
-                  color: Colors.grey[600],
+                  color: Theme.of(context).colorScheme.onSurfaceVariant,
                 ),
               ),
               const SizedBox(height: 2),

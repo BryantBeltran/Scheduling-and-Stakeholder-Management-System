@@ -69,7 +69,7 @@ class _RoleAssignmentDialogState extends State<RoleAssignmentDialog> {
             Container(
               padding: const EdgeInsets.all(20),
               decoration: BoxDecoration(
-                color: Colors.grey[50],
+                color: Theme.of(context).colorScheme.surfaceContainerHighest,
                 borderRadius: const BorderRadius.vertical(
                   top: Radius.circular(16),
                 ),
@@ -77,7 +77,7 @@ class _RoleAssignmentDialogState extends State<RoleAssignmentDialog> {
               child: Row(
                 children: [
                   CircleAvatar(
-                    backgroundColor: _getRoleColor(_selectedRole).withOpacity(0.2),
+                    backgroundColor: _getRoleColor(_selectedRole).withValues(alpha: 0.2),
                     child: Text(
                       widget.user.displayName.isNotEmpty
                           ? widget.user.displayName[0].toUpperCase()
@@ -104,7 +104,7 @@ class _RoleAssignmentDialogState extends State<RoleAssignmentDialog> {
                           widget.user.email,
                           style: TextStyle(
                             fontSize: 13,
-                            color: Colors.grey[600],
+                            color: Theme.of(context).colorScheme.onSurfaceVariant,
                           ),
                         ),
                       ],
@@ -143,11 +143,11 @@ class _RoleAssignmentDialogState extends State<RoleAssignmentDialog> {
                     // Custom Permissions Toggle
                     Row(
                       children: [
-                        const Expanded(
+                        Expanded(
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              Text(
+                              const Text(
                                 'Custom Permissions',
                                 style: TextStyle(
                                   fontWeight: FontWeight.bold,
@@ -158,7 +158,7 @@ class _RoleAssignmentDialogState extends State<RoleAssignmentDialog> {
                                 'Override default role permissions',
                                 style: TextStyle(
                                   fontSize: 12,
-                                  color: Colors.grey,
+                                  color: Theme.of(context).colorScheme.onSurfaceVariant,
                                 ),
                               ),
                             ],
@@ -217,9 +217,9 @@ class _RoleAssignmentDialogState extends State<RoleAssignmentDialog> {
                       Container(
                         padding: const EdgeInsets.all(12),
                         decoration: BoxDecoration(
-                          color: Colors.blue.withOpacity(0.05),
+                          color: Colors.blue.withValues(alpha: 0.05),
                           borderRadius: BorderRadius.circular(8),
-                          border: Border.all(color: Colors.blue.withOpacity(0.2)),
+                          border: Border.all(color: Colors.blue.withValues(alpha: 0.2)),
                         ),
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
@@ -244,7 +244,7 @@ class _RoleAssignmentDialogState extends State<RoleAssignmentDialog> {
                                         materialTapTargetSize:
                                             MaterialTapTargetSize.shrinkWrap,
                                         visualDensity: VisualDensity.compact,
-                                        backgroundColor: Colors.grey[100],
+                                        backgroundColor: Theme.of(context).colorScheme.surfaceContainerHighest,
                                       ))
                                   .toList(),
                             ),
@@ -261,7 +261,7 @@ class _RoleAssignmentDialogState extends State<RoleAssignmentDialog> {
             Container(
               padding: const EdgeInsets.all(20),
               decoration: BoxDecoration(
-                border: Border(top: BorderSide(color: Colors.grey[200]!)),
+                border: Border(top: BorderSide(color: Theme.of(context).dividerColor)),
               ),
               child: Row(
                 children: [
@@ -316,11 +316,11 @@ class _RoleAssignmentDialogState extends State<RoleAssignmentDialog> {
         margin: const EdgeInsets.only(bottom: 8),
         decoration: BoxDecoration(
           border: Border.all(
-            color: isSelected ? _getRoleColor(role) : Colors.grey[300]!,
+            color: isSelected ? _getRoleColor(role) : Theme.of(context).dividerColor,
             width: isSelected ? 2 : 1,
           ),
           borderRadius: BorderRadius.circular(10),
-          color: isSelected ? _getRoleColor(role).withOpacity(0.05) : null,
+          color: isSelected ? _getRoleColor(role).withValues(alpha: 0.05) : null,
         ),
         child: Row(
           children: [
@@ -330,7 +330,7 @@ class _RoleAssignmentDialogState extends State<RoleAssignmentDialog> {
               decoration: BoxDecoration(
                 shape: BoxShape.circle,
                 border: Border.all(
-                  color: isSelected ? _getRoleColor(role) : Colors.grey[400]!,
+                  color: isSelected ? _getRoleColor(role) : Theme.of(context).hintColor,
                   width: 2,
                 ),
                 color: isSelected ? _getRoleColor(role) : null,
@@ -350,7 +350,7 @@ class _RoleAssignmentDialogState extends State<RoleAssignmentDialog> {
                         PermissionService.getRoleName(role),
                         style: TextStyle(
                           fontWeight: FontWeight.bold,
-                          color: isSelected ? _getRoleColor(role) : Colors.black87,
+                          color: isSelected ? _getRoleColor(role) : Theme.of(context).colorScheme.onSurface,
                         ),
                       ),
                       const SizedBox(width: 8),
@@ -369,7 +369,7 @@ class _RoleAssignmentDialogState extends State<RoleAssignmentDialog> {
                     PermissionService.getRoleDescription(role),
                     style: TextStyle(
                       fontSize: 12,
-                      color: Colors.grey[600],
+                      color: Theme.of(context).colorScheme.onSurfaceVariant,
                     ),
                   ),
                 ],
@@ -387,10 +387,10 @@ class _RoleAssignmentDialogState extends State<RoleAssignmentDialog> {
       children: [
         Text(
           title,
-          style: const TextStyle(
+          style: TextStyle(
             fontWeight: FontWeight.w500,
             fontSize: 13,
-            color: Colors.grey,
+            color: Theme.of(context).colorScheme.onSurfaceVariant,
           ),
         ),
         const SizedBox(height: 8),
@@ -404,7 +404,7 @@ class _RoleAssignmentDialogState extends State<RoleAssignmentDialog> {
                 PermissionService.getPermissionName(permission),
                 style: TextStyle(
                   fontSize: 12,
-                  color: isEnabled ? Colors.white : Colors.grey[700],
+                  color: isEnabled ? Colors.white : Theme.of(context).colorScheme.onSurfaceVariant,
                 ),
               ),
               selected: isEnabled,
@@ -419,7 +419,7 @@ class _RoleAssignmentDialogState extends State<RoleAssignmentDialog> {
               },
               selectedColor: Colors.blue,
               checkmarkColor: Colors.white,
-              backgroundColor: Colors.grey[100],
+              backgroundColor: Theme.of(context).colorScheme.surfaceContainerHighest,
             );
           }).toList(),
         ),

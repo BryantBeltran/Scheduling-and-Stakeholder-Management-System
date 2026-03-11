@@ -23,6 +23,7 @@
 
 import 'dart:async';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:cloud_functions/cloud_functions.dart';
 import 'package:flutter/foundation.dart';
 import '../config/app_config.dart';
 import '../models/models.dart';
@@ -36,8 +37,24 @@ class EventService {
   EventService._internal();
 
   final AuthService _authService = AuthService();
+  final FirebaseFunctions _functions = FirebaseFunctions.instance;
   final _eventsController = StreamController<List<EventModel>>.broadcast();
   StreamSubscription<QuerySnapshot>? _eventsSubscription;
+  StreamSubscription<QuerySnapshot>? _assignedSubscription;
+  String? _streamUserId; // tracks which user the active subscription belongs to
+  List<EventModel> _ownedEvents = const [];
+  List<EventModel> _assignedEvents = const [];
+  // ignore: prefer_final_fields
+  List<EventModel> _cachedEvents = const []; // last emitted value for late subscribers
+
+  /// The last successfully emitted list of events.
+  /// Use as StreamBuilder initialData so late subscribers don't wait for next emission.
+  List<EventModel> get cachedEvents => _cachedEvents;
+
+  void _emitEvents(List<EventModel> events) {
+    _cachedEvents = events;
+    _eventsController.add(events);
+  }
 
   // Lazy Firestore instance - only accessed when useFirebase is true
   FirebaseFirestore get _firestore => FirebaseFirestore.instance;
@@ -65,49 +82,93 @@ class EventService {
       // Cancel any existing subscription when user is not authenticated
       _eventsSubscription?.cancel();
       _eventsSubscription = null;
-      _eventsController.add([]);
+      _streamUserId = null;
+      _emitEvents([]);
       return;
     }
 
+    // Already listening for this user — no-op to avoid resetting the stream
+    if (_eventsSubscription != null && _streamUserId == currentUser.id) return;
+
     if (AppConfig.isInitialized && AppConfig.instance.useMockData) {
       // Development: Use mock data
+      _streamUserId = currentUser.id;
       final mockEvents = MockDataService.getMockEvents(currentUser.id);
-      _eventsController.add(mockEvents);
+      _emitEvents(mockEvents);
       return;
     }
 
     // Production: Listen to Firestore changes for user's events
     _eventsSubscription?.cancel();
+    _assignedSubscription?.cancel();
+    _streamUserId = currentUser.id;
+
+    // Query 1: events the user owns
     _eventsSubscription = _eventsCollection
         .where('ownerId', isEqualTo: currentUser.id)
         .snapshots()
         .listen(
       (snapshot) {
-        final events = snapshot.docs
-            .map((doc) {
-              try {
-                final data = doc.data() as Map<String, dynamic>;
-                data['id'] = doc.id;
-                return EventModel.fromJson(data);
-              } catch (e) {
-                debugPrint('Error parsing event ${doc.id}: $e');
-                return null;
-              }
-            })
-            .whereType<EventModel>()
-            .toList();
-        _eventsController.add(events);
+        _ownedEvents = _parseEventSnapshot(snapshot);
+        _emitEvents(_mergeEvents());
       },
       onError: (error) {
-        debugPrint('[EventService] Stream error: $error');
-        // If we get a permission error, the user likely signed out
+        debugPrint('[EventService] Owned stream error: $error');
         if (error.toString().contains('PERMISSION_DENIED')) {
           _eventsSubscription?.cancel();
           _eventsSubscription = null;
-          _eventsController.add([]);
+          _assignedSubscription?.cancel();
+          _assignedSubscription = null;
+          _streamUserId = null;
+          _emitEvents([]);
         }
       },
     );
+
+    // Query 2: events the user is assigned to as a stakeholder
+    final stakeholderId = currentUser.stakeholderId;
+    if (stakeholderId != null) {
+      _assignedSubscription = _eventsCollection
+          .where('stakeholderIds', arrayContains: stakeholderId)
+          .snapshots()
+          .listen(
+        (snapshot) {
+          _assignedEvents = _parseEventSnapshot(snapshot);
+          _emitEvents(_mergeEvents());
+        },
+        onError: (error) {
+          debugPrint('[EventService] Assigned stream error: $error');
+        },
+      );
+    }
+  }
+
+  List<EventModel> _parseEventSnapshot(QuerySnapshot snapshot) {
+    return snapshot.docs
+        .map((doc) {
+          try {
+            final data = doc.data() as Map<String, dynamic>;
+            data['id'] = doc.id;
+            return EventModel.fromJson(data);
+          } catch (e) {
+            debugPrint('Error parsing event ${doc.id}: $e');
+            return null;
+          }
+        })
+        .whereType<EventModel>()
+        .toList();
+  }
+
+  /// Merge owned and assigned events, deduplicating by id.
+  List<EventModel> _mergeEvents() {
+    final map = <String, EventModel>{};
+    for (final e in _ownedEvents) {
+      map[e.id] = e;
+    }
+    for (final e in _assignedEvents) {
+      map.putIfAbsent(e.id, () => e);
+    }
+    return map.values.toList();
   }
 
   /// Get all events for the current user
@@ -122,24 +183,41 @@ class EventService {
       return MockDataService.getMockEvents(currentUser.id);
     }
 
-    // Production: Fetch from Firestore
-    final snapshot = await _eventsCollection
+    // Production: Fetch from Firestore (owned + assigned)
+    final ownedSnapshot = await _eventsCollection
         .where('ownerId', isEqualTo: currentUser.id)
         .get();
 
-    return snapshot.docs
-        .map((doc) {
-          try {
-            final data = doc.data() as Map<String, dynamic>;
-            data['id'] = doc.id;
-            return EventModel.fromJson(data);
-          } catch (e) {
-            debugPrint('Error parsing event ${doc.id}: $e');
-            return null;
-          }
-        })
-        .whereType<EventModel>()
-        .toList();
+    final map = <String, EventModel>{};
+    for (final doc in ownedSnapshot.docs) {
+      try {
+        final data = doc.data() as Map<String, dynamic>;
+        data['id'] = doc.id;
+        map[doc.id] = EventModel.fromJson(data);
+      } catch (e) {
+        debugPrint('Error parsing event ${doc.id}: $e');
+      }
+    }
+
+    // Also fetch events where user is an assigned stakeholder
+    final stakeholderId = currentUser.stakeholderId;
+    if (stakeholderId != null) {
+      final assignedSnapshot = await _eventsCollection
+          .where('stakeholderIds', arrayContains: stakeholderId)
+          .get();
+      for (final doc in assignedSnapshot.docs) {
+        if (map.containsKey(doc.id)) continue;
+        try {
+          final data = doc.data() as Map<String, dynamic>;
+          data['id'] = doc.id;
+          map[doc.id] = EventModel.fromJson(data);
+        } catch (e) {
+          debugPrint('Error parsing event ${doc.id}: $e');
+        }
+      }
+    }
+
+    return map.values.toList();
   }
 
   /// Get event by ID
@@ -255,6 +333,7 @@ class EventService {
   }
 
   /// Create a new event
+  /// Calls the Cloud Function so stakeholders are notified on assignment.
   Future<EventModel> createEvent(EventModel event) async {
     final currentUser = _authService.currentUser;
     if (currentUser == null) {
@@ -269,8 +348,10 @@ class EventService {
       updatedAt: now,
     );
 
-    final docRef = await _eventsCollection.add(newEvent.toJson());
-    return newEvent.copyWith(id: docRef.id);
+    final callable = _functions.httpsCallable('createEvent');
+    final result = await callable.call(newEvent.toJson());
+    final eventId = result.data['id'] as String;
+    return newEvent.copyWith(id: eventId);
   }
 
   /// Update an existing event
@@ -291,6 +372,15 @@ class EventService {
 
     final updatedEvent = event.copyWith(updatedAt: DateTime.now());
     await _eventsCollection.doc(event.id).update(updatedEvent.toJson());
+
+    // Notify assigned stakeholders of the update
+    try {
+      final notifyCallable = _functions.httpsCallable('notifyEventUpdate');
+      await notifyCallable.call({'eventId': event.id});
+    } catch (e) {
+      debugPrint('Failed to send event update notifications: $e');
+    }
+
     return updatedEvent;
   }
 
@@ -341,12 +431,13 @@ class EventService {
       return event;
     }
 
-    final updatedEvent = event.copyWith(
-      stakeholderIds: [...event.stakeholderIds, stakeholderId],
-      updatedAt: DateTime.now(),
-    );
+    // Use the Cloud Function directly — it handles both the Firestore
+    // writes and sends an event_assignment notification to the stakeholder.
+    final callable = _functions.httpsCallable('addStakeholderToEvent');
+    await callable.call({'eventId': eventId, 'stakeholderId': stakeholderId});
 
-    return updateEvent(updatedEvent);
+    // Return refreshed event
+    return (await getEventById(eventId))!;
   }
 
   /// Remove stakeholder from event
@@ -388,6 +479,7 @@ class EventService {
   /// Dispose resources
   void dispose() {
     _eventsSubscription?.cancel();
+    _assignedSubscription?.cancel();
     _eventsController.close();
   }
 }

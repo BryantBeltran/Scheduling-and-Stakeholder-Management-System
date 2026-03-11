@@ -1,3 +1,4 @@
+import 'package:cloud_functions/cloud_functions.dart';
 import 'package:flutter/material.dart';
 import '../../models/notification_model.dart' as app;
 import '../../services/services.dart';
@@ -15,6 +16,35 @@ enum _NotifFilter { all, events, reminders, invites, general }
 class _NotificationsScreenState extends State<NotificationsScreen> {
   final _notificationService = NotificationService();
   _NotifFilter _activeFilter = _NotifFilter.all;
+  bool _sendingTest = false;
+
+  Future<void> _sendTestNotification() async {
+    setState(() => _sendingTest = true);
+    try {
+      final callable = FirebaseFunctions.instance
+          .httpsCallable('sendTestNotification');
+      await callable.call();
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Test notification sent — check your device!'),
+            backgroundColor: Colors.green,
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Failed to send test: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _sendingTest = false);
+    }
+  }
 
   List<app.Notification> _applyFilter(List<app.Notification> all) {
     switch (_activeFilter) {
@@ -49,9 +79,18 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
         ),
         centerTitle: true,
         elevation: 0,
-        backgroundColor: Colors.white,
-        foregroundColor: Colors.black,
         actions: [
+          IconButton(
+            icon: _sendingTest
+                ? const SizedBox(
+                    width: 20,
+                    height: 20,
+                    child: CircularProgressIndicator(strokeWidth: 2),
+                  )
+                : const Icon(Icons.notifications_active_outlined),
+            tooltip: 'Send test notification',
+            onPressed: _sendingTest ? null : _sendTestNotification,
+          ),
           IconButton(
             icon: const Icon(Icons.settings_outlined),
             tooltip: 'Notification settings',
@@ -127,16 +166,16 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
                     child: Column(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
-                        Icon(Icons.notifications_none, size: 64, color: Colors.grey[400]),
+                        Icon(Icons.notifications_none, size: 64, color: Theme.of(context).hintColor),
                         const SizedBox(height: 16),
                         Text(
                           'No notifications yet',
-                          style: TextStyle(fontSize: 16, color: Colors.grey[600]),
+                          style: TextStyle(fontSize: 16, color: Theme.of(context).colorScheme.onSurfaceVariant),
                         ),
                         const SizedBox(height: 8),
                         Text(
                           'You\'ll see updates about events and stakeholders here.',
-                          style: TextStyle(fontSize: 13, color: Colors.grey[500]),
+                          style: TextStyle(fontSize: 13, color: Theme.of(context).hintColor),
                           textAlign: TextAlign.center,
                         ),
                       ],
@@ -211,16 +250,16 @@ class _FilterChip extends StatelessWidget {
         duration: const Duration(milliseconds: 150),
         padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 4),
         decoration: BoxDecoration(
-          color: selected ? Colors.black : Colors.grey[100],
+          color: selected ? Theme.of(context).colorScheme.onSurface : Theme.of(context).colorScheme.surfaceContainerHighest,
           borderRadius: BorderRadius.circular(20),
-          border: Border.all(color: selected ? Colors.black : Colors.grey[300]!),
+          border: Border.all(color: selected ? Theme.of(context).colorScheme.onSurface : Theme.of(context).dividerColor),
         ),
         child: Text(
           label,
           style: TextStyle(
             fontSize: 13,
             fontWeight: FontWeight.w500,
-            color: selected ? Colors.white : Colors.black87,
+            color: selected ? Theme.of(context).colorScheme.surface : Theme.of(context).colorScheme.onSurface,
           ),
         ),
       ),
@@ -254,7 +293,9 @@ class _NotificationTile extends StatelessWidget {
       child: InkWell(
         onTap: onTap,
         child: Container(
-          color: notification.isRead ? Colors.white : Colors.blue.shade50,
+          color: notification.isRead
+              ? Colors.transparent
+              : Theme.of(context).colorScheme.primaryContainer.withValues(alpha: 0.18),
           padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
           child: Row(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -276,13 +317,13 @@ class _NotificationTile extends StatelessWidget {
                 width: 40,
                 height: 40,
                 decoration: BoxDecoration(
-                  color: Colors.grey[100],
+                  color: Theme.of(context).colorScheme.surfaceContainerHighest,
                   shape: BoxShape.circle,
                 ),
                 child: Icon(
                   _getNotificationIcon(notification.title),
                   size: 20,
-                  color: Colors.black87,
+                  color: Theme.of(context).colorScheme.onSurface,
                 ),
               ),
               const SizedBox(width: 12),
@@ -298,7 +339,7 @@ class _NotificationTile extends StatelessWidget {
                         fontWeight: notification.isRead
                             ? FontWeight.w400
                             : FontWeight.w600,
-                        color: Colors.black87,
+                        color: Theme.of(context).colorScheme.onSurface,
                       ),
                     ),
                     const SizedBox(height: 4),
@@ -306,7 +347,7 @@ class _NotificationTile extends StatelessWidget {
                       notification.body,
                       style: TextStyle(
                         fontSize: 13,
-                        color: Colors.grey[600],
+                        color: Theme.of(context).colorScheme.onSurfaceVariant,
                       ),
                       maxLines: 2,
                       overflow: TextOverflow.ellipsis,
@@ -316,7 +357,7 @@ class _NotificationTile extends StatelessWidget {
                       _formatTime(notification.createdAt),
                       style: TextStyle(
                         fontSize: 12,
-                        color: Colors.grey[500],
+                        color: Theme.of(context).hintColor,
                       ),
                     ),
                   ],
@@ -326,7 +367,7 @@ class _NotificationTile extends StatelessWidget {
               if (notification.hasLinkedEvent)
                 Icon(
                   Icons.chevron_right,
-                  color: Colors.grey[400],
+                  color: Theme.of(context).hintColor,
                   size: 20,
                 ),
             ],

@@ -155,14 +155,24 @@ class StakeholderService {
 
   /// Returns all stakeholders assigned to a specific event.
   ///
-  /// Filters stakeholders where their `eventIds` list contains the given event ID.
-  ///
-  /// Example:
-  /// ```dart
-  /// final attendees = stakeholderService.getStakeholdersByEventId('evt_123');
-  /// print('${attendees.length} people assigned to this event');
-  /// ```
-  List<StakeholderModel> getStakeholdersByEventId(String eventId) {
+  /// In production, queries Firestore directly. In dev mode, filters the
+  /// in-memory cache.
+  Future<List<StakeholderModel>> getStakeholdersByEventId(String eventId) async {
+    if (AppConfig.instance.useFirebase) {
+      try {
+        final snapshot = await _stakeholdersCollection
+            .where('eventIds', arrayContains: eventId)
+            .get();
+        return snapshot.docs.map((doc) {
+          final data = doc.data() as Map<String, dynamic>;
+          data['id'] = doc.id;
+          return StakeholderModel.fromJson(data);
+        }).toList();
+      } catch (e) {
+        debugPrint('[StakeholderService] Error fetching stakeholders for event $eventId: $e');
+        return [];
+      }
+    }
     return _stakeholders.where((s) => s.eventIds.contains(eventId)).toList();
   }
 

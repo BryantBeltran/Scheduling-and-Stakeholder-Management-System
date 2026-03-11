@@ -1,9 +1,10 @@
 // ignore_for_file: deprecated_member_use
 
+import 'dart:async';
+import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:flutter/material.dart';
 import '../../models/models.dart';
 import '../../services/services.dart';
-import 'event_details_screen.dart';
 
 class EventListScreen extends StatefulWidget {
   const EventListScreen({super.key});
@@ -20,15 +21,34 @@ class _EventListScreenState extends State<EventListScreen> {
   List<EventModel> _filteredEvents = [];
   String _sortBy = 'date'; // 'date', 'title', 'priority', 'status'
   bool _sortAscending = true;
+  bool _isOffline = false;
+  StreamSubscription<List<ConnectivityResult>>? _connectivitySub;
 
   @override
   void initState() {
     super.initState();
     _eventService.initializeEventStream();
+    _initConnectivity();
+  }
+
+  Future<void> _initConnectivity() async {
+    final results = await Connectivity().checkConnectivity();
+    _updateConnectivity(results);
+    _connectivitySub = Connectivity()
+        .onConnectivityChanged
+        .listen(_updateConnectivity);
+  }
+
+  void _updateConnectivity(List<ConnectivityResult> results) {
+    final offline = results.every((r) => r == ConnectivityResult.none);
+    if (mounted && offline != _isOffline) {
+      setState(() => _isOffline = offline);
+    }
   }
 
   @override
   void dispose() {
+    _connectivitySub?.cancel();
     _searchController.dispose();
     super.dispose();
   }
@@ -126,6 +146,7 @@ class _EventListScreenState extends State<EventListScreen> {
       // If we can't fetch the event, proceed with delete dialog anyway
     }
 
+    if (!mounted) return;
     final confirm = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
@@ -173,11 +194,30 @@ class _EventListScreenState extends State<EventListScreen> {
         ),
         centerTitle: true,
         elevation: 0,
-        backgroundColor: Colors.white,
-        foregroundColor: Colors.black,
       ),
       body: Column(
         children: [
+          // Offline banner
+          if (_isOffline)
+            Material(
+              color: Colors.orange.shade800,
+              child: const Padding(
+                padding: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                child: Row(
+                  children: [
+                    Icon(Icons.wifi_off, color: Colors.white, size: 18),
+                    SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        'You\'re offline — showing cached events',
+                        style: TextStyle(color: Colors.white, fontSize: 13),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+
           // Search bar
           Padding(
             padding: const EdgeInsets.all(16),
@@ -185,8 +225,8 @@ class _EventListScreenState extends State<EventListScreen> {
               controller: _searchController,
               decoration: InputDecoration(
                 hintText: 'Search Events...',
-                hintStyle: TextStyle(color: Colors.grey[400]),
-                prefixIcon: Icon(Icons.search, color: Colors.grey[600]),
+                hintStyle: TextStyle(color: Theme.of(context).hintColor),
+                prefixIcon: Icon(Icons.search, color: Theme.of(context).colorScheme.onSurfaceVariant),
                 suffixIcon: _searchController.text.isNotEmpty
                     ? IconButton(
                         icon: const Icon(Icons.clear),
@@ -197,7 +237,7 @@ class _EventListScreenState extends State<EventListScreen> {
                       )
                     : null,
                 filled: true,
-                fillColor: Colors.grey[100],
+                fillColor: Theme.of(context).colorScheme.surfaceContainerHighest,
                 border: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(12),
                   borderSide: BorderSide.none,
@@ -221,49 +261,16 @@ class _EventListScreenState extends State<EventListScreen> {
             ),
           ),
 
-          // Sort button + results count
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
-            child: Row(
-              children: [
-                OutlinedButton(
-                  onPressed: _showSortDialog,
-                  style: OutlinedButton.styleFrom(
-                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                  ),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Text(_getSortLabel()),
-                      const SizedBox(width: 4),
-                      Icon(
-                        _sortAscending ? Icons.arrow_upward : Icons.arrow_downward,
-                        size: 16,
-                      ),
-                    ],
-                  ),
-                ),
-                const Spacer(),
-                Text(
-                  '${_filteredEvents.length} results',
-                  style: TextStyle(
-                    color: Colors.grey[600],
-                    fontWeight: FontWeight.w500,
-                  ),
-                ),
-              ],
-            ),
-          ),
-
-          // Events list
+          // Events list (includes sort row + results count inside StreamBuilder)
           Expanded(
             child: StreamBuilder<List<EventModel>>(
               stream: _eventService.eventsStream,
+              initialData: _eventService.cachedEvents,
               builder: (context, snapshot) {
-                if (snapshot.connectionState == ConnectionState.waiting) {
+                // Only show spinner if we have never received any data at all.
+                // initialData provides cachedEvents, so once the stream has
+                // emitted at least once, snapshot.data will be non-null.
+                if (!snapshot.hasData && snapshot.connectionState == ConnectionState.waiting) {
                   return const Center(child: CircularProgressIndicator());
                 }
 
@@ -276,33 +283,67 @@ class _EventListScreenState extends State<EventListScreen> {
                 final events = snapshot.data ?? [];
                 _filteredEvents = _filterEvents(events);
 
-                if (_filteredEvents.isEmpty) {
-                  return Center(
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Icon(
-                          Icons.event_busy,
-                          size: 64,
-                          color: Colors.grey[400],
-                        ),
-                        const SizedBox(height: 16),
-                        Text(
-                          'No events found',
-                          style: TextStyle(
-                            fontSize: 16,
-                            color: Colors.grey[600],
+                return Column(
+                  children: [
+                    // Sort button + results count
+                    Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+                      child: Row(
+                        children: [
+                          OutlinedButton(
+                            onPressed: _showSortDialog,
+                            style: OutlinedButton.styleFrom(
+                              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(8),
+                              ),
+                            ),
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Text(_getSortLabel()),
+                                const SizedBox(width: 4),
+                                Icon(
+                                  _sortAscending ? Icons.arrow_upward : Icons.arrow_downward,
+                                  size: 16,
+                                ),
+                              ],
+                            ),
+                          ),
+                          const Spacer(),
+                          Text(
+                            '${_filteredEvents.length} results',
+                            style: TextStyle(
+                              color: Theme.of(context).colorScheme.onSurfaceVariant,
+                              fontWeight: FontWeight.w500,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+
+                    if (_filteredEvents.isEmpty)
+                      Expanded(
+                        child: Center(
+                          child: Column(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Icon(Icons.event_busy, size: 64, color: Theme.of(context).hintColor),
+                              const SizedBox(height: 16),
+                              Text(
+                                'No events found',
+                                style: TextStyle(fontSize: 16, color: Theme.of(context).colorScheme.onSurfaceVariant),
+                              ),
+                            ],
                           ),
                         ),
-                      ],
-                    ),
-                  );
-                }
-
-                return ListView.builder(
-                  padding: const EdgeInsets.all(16),
-                  itemCount: _filteredEvents.length,
-                  itemBuilder: (context, index) {
+                      )
+                    else
+                      Expanded(
+                        child: ListView.builder(
+                          padding: const EdgeInsets.all(16),
+                          itemCount: _filteredEvents.length,
+                          itemBuilder: (context, index) {
                     final event = _filteredEvents[index];
                     return Padding(
                       padding: const EdgeInsets.only(bottom: 12),
@@ -331,10 +372,13 @@ class _EventListScreenState extends State<EventListScreen> {
                           : _EventListItem(event: event, onDelete: null),
                     );
                   },
-                );
-              },
-            ),
-          ),
+                ),
+              ),
+            ],
+          );
+        },
+      ),
+    ),
         ],
       ),
       floatingActionButton: _permissionService.canCreateEvent
@@ -344,11 +388,11 @@ class _EventListScreenState extends State<EventListScreen> {
                 onPressed: () {
                   Navigator.of(context).pushNamed('/event/create');
                 },
-                backgroundColor: Colors.black,
-                icon: const Icon(Icons.add, color: Colors.white),
-                label: const Text(
+                backgroundColor: Theme.of(context).colorScheme.onSurface,
+                icon: Icon(Icons.add, color: Theme.of(context).colorScheme.surface),
+                label: Text(
                   'New Event',
-                  style: TextStyle(color: Colors.white),
+                  style: TextStyle(color: Theme.of(context).colorScheme.surface),
                 ),
               ),
             )
@@ -358,19 +402,28 @@ class _EventListScreenState extends State<EventListScreen> {
 
   Widget _buildFilterChip(EventStatus? status, String label) {
     final isSelected = _filterStatus == status;
+    final chipColor = _filterChipColor(status);
     return Padding(
       padding: const EdgeInsets.only(right: 8),
       child: FilterChip(
         label: Text(label),
         selected: isSelected,
         onSelected: (_) => setState(() => _filterStatus = status),
-        selectedColor: _filterChipColor(status),
+        selectedColor: chipColor,
         checkmarkColor: Colors.white,
         labelStyle: TextStyle(
-          color: isSelected ? Colors.white : Colors.black87,
+          color: isSelected
+              ? Colors.white
+              : Theme.of(context).colorScheme.onSurface,
           fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
         ),
-        backgroundColor: Colors.grey[100],
+        backgroundColor: Theme.of(context).colorScheme.surfaceContainerHighest,
+        side: isSelected
+            ? BorderSide.none
+            : BorderSide(
+                color: Theme.of(context).colorScheme.outline,
+                width: 1,
+              ),
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
       ),
     );
@@ -383,7 +436,7 @@ class _EventListScreenState extends State<EventListScreen> {
       case EventStatus.inProgress: return Colors.orange;
       case EventStatus.completed: return Colors.green;
       case EventStatus.cancelled: return Colors.red;
-      default: return Colors.black87;
+      default: return Theme.of(context).colorScheme.primary;
     }
   }
 
@@ -430,12 +483,12 @@ class _EventListScreenState extends State<EventListScreen> {
                   ),
                   const Divider(),
                   const SizedBox(height: 8),
-                  const Text(
+                  Text(
                     'Sort by',
                     style: TextStyle(
                       fontSize: 14,
                       fontWeight: FontWeight.w500,
-                      color: Colors.grey,
+                      color: Theme.of(context).colorScheme.onSurfaceVariant,
                     ),
                   ),
                   const SizedBox(height: 8),
@@ -444,12 +497,12 @@ class _EventListScreenState extends State<EventListScreen> {
                   _buildSortOption('priority', 'Priority', Icons.flag, setModalState),
                   _buildSortOption('status', 'Status', Icons.info_outline, setModalState),
                   const SizedBox(height: 16),
-                  const Text(
+                  Text(
                     'Order',
                     style: TextStyle(
                       fontSize: 14,
                       fontWeight: FontWeight.w500,
-                      color: Colors.grey,
+                      color: Theme.of(context).colorScheme.onSurfaceVariant,
                     ),
                   ),
                   const SizedBox(height: 8),
@@ -488,18 +541,18 @@ class _EventListScreenState extends State<EventListScreen> {
           color: isSelected ? Colors.blue.withOpacity(0.1) : Colors.transparent,
           borderRadius: BorderRadius.circular(8),
           border: Border.all(
-            color: isSelected ? Colors.blue : Colors.grey[300]!,
+            color: isSelected ? Colors.blue : Theme.of(context).dividerColor,
           ),
         ),
         child: Row(
           children: [
-            Icon(icon, size: 20, color: isSelected ? Colors.blue : Colors.grey[600]),
+            Icon(icon, size: 20, color: isSelected ? Colors.blue : Theme.of(context).colorScheme.onSurfaceVariant),
             const SizedBox(width: 12),
             Text(
               label,
               style: TextStyle(
                 fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
-                color: isSelected ? Colors.blue : Colors.black87,
+                color: isSelected ? Colors.blue : Theme.of(context).colorScheme.onSurface,
               ),
             ),
             const Spacer(),
@@ -524,7 +577,7 @@ class _EventListScreenState extends State<EventListScreen> {
           color: isSelected ? Colors.blue.withOpacity(0.1) : Colors.transparent,
           borderRadius: BorderRadius.circular(8),
           border: Border.all(
-            color: isSelected ? Colors.blue : Colors.grey[300]!,
+            color: isSelected ? Colors.blue : Theme.of(context).dividerColor,
           ),
         ),
         child: Row(
@@ -533,14 +586,14 @@ class _EventListScreenState extends State<EventListScreen> {
             Icon(
               ascending ? Icons.arrow_upward : Icons.arrow_downward,
               size: 18,
-              color: isSelected ? Colors.blue : Colors.grey[600],
+              color: isSelected ? Colors.blue : Theme.of(context).colorScheme.onSurfaceVariant,
             ),
             const SizedBox(width: 8),
             Text(
               ascending ? 'Ascending' : 'Descending',
               style: TextStyle(
                 fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
-                color: isSelected ? Colors.blue : Colors.black87,
+                color: isSelected ? Colors.blue : Theme.of(context).colorScheme.onSurface,
               ),
             ),
           ],
@@ -580,7 +633,7 @@ class _EventListItem extends StatelessWidget {
       elevation: 0,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(12),
-        side: BorderSide(color: Colors.grey[200]!),
+        side: BorderSide(color: Theme.of(context).dividerColor),
       ),
       child: InkWell(
         borderRadius: BorderRadius.circular(12),
@@ -658,7 +711,7 @@ class _EventListItem extends StatelessWidget {
                       event.location.isVirtual ? 'Virtual Meeting' : 'Physical Meeting',
                       style: TextStyle(
                         fontSize: 14,
-                        color: Colors.grey[600],
+                        color: Theme.of(context).colorScheme.onSurfaceVariant,
                       ),
                     ),
                     if (isUrgent) ...[
@@ -666,14 +719,14 @@ class _EventListItem extends StatelessWidget {
                       Container(
                         padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                         decoration: BoxDecoration(
-                          color: Colors.grey[200],
+                          color: Theme.of(context).colorScheme.surfaceContainerHighest,
                           borderRadius: BorderRadius.circular(12),
                         ),
                         child: Text(
                           'Urgent',
                           style: TextStyle(
                             fontSize: 11,
-                            color: Colors.grey[700],
+                            color: Theme.of(context).colorScheme.onSurfaceVariant,
                           ),
                         ),
                       ),
@@ -681,26 +734,39 @@ class _EventListItem extends StatelessWidget {
                     const SizedBox(height: 8),
                     Row(
                       children: [
-                        Icon(Icons.access_time, size: 14, color: Colors.grey[600]),
+                        Icon(Icons.access_time, size: 14, color: Theme.of(context).colorScheme.onSurfaceVariant),
                         const SizedBox(width: 4),
-                        Text(
-                          '${event.startTime.hour.toString().padLeft(2, '0')}:${event.startTime.minute.toString().padLeft(2, '0')}',
-                          style: TextStyle(
-                            fontSize: 12,
-                            color: Colors.grey[600],
+                        Flexible(
+                          child: Text(
+                            () {
+                              final s = event.startTime;
+                              final sh = s.hour == 0 ? 12 : (s.hour > 12 ? s.hour - 12 : s.hour);
+                              final sm = s.minute.toString().padLeft(2, '0');
+                              final sp = s.hour >= 12 ? 'PM' : 'AM';
+                              final e = event.endTime;
+                              final eh = e.hour == 0 ? 12 : (e.hour > 12 ? e.hour - 12 : e.hour);
+                              final em = e.minute.toString().padLeft(2, '0');
+                              final ep = e.hour >= 12 ? 'PM' : 'AM';
+                              return '$sh:$sm $sp - $eh:$em $ep';
+                            }(),
+                            style: TextStyle(
+                              fontSize: 12,
+                              color: Theme.of(context).colorScheme.onSurfaceVariant,
+                            ),
+                            overflow: TextOverflow.ellipsis,
                           ),
                         ),
-                        const SizedBox(width: 16),
-                        Icon(Icons.location_on, size: 14, color: Colors.grey[600]),
+                        const SizedBox(width: 8),
+                        Icon(Icons.location_on, size: 14, color: Theme.of(context).colorScheme.onSurfaceVariant),
                         const SizedBox(width: 4),
                         Expanded(
                           child: Text(
-                            event.location.isVirtual 
+                            event.location.isVirtual
                                 ? (event.location.virtualLink ?? 'Virtual')
                                 : event.location.name,
                             style: TextStyle(
                               fontSize: 12,
-                              color: Colors.grey[600],
+                              color: Theme.of(context).colorScheme.onSurfaceVariant,
                             ),
                             overflow: TextOverflow.ellipsis,
                           ),
@@ -712,9 +778,9 @@ class _EventListItem extends StatelessWidget {
               ),
             ),
             // Centered chevron arrow
-            const Padding(
-              padding: EdgeInsets.only(right: 12),
-              child: Icon(Icons.chevron_right, color: Colors.grey),
+            Padding(
+              padding: const EdgeInsets.only(right: 12),
+              child: Icon(Icons.chevron_right, color: Theme.of(context).colorScheme.onSurfaceVariant),
             ),
           ],
         ),

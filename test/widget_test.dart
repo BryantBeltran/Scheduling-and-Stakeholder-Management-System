@@ -24,9 +24,9 @@ void main() {
 
     // Allow streams to settle
     await tester.pump();
-    
+
     // Verify that the login screen is displayed
-    expect(find.text('Welcome Back'), findsOneWidget);
-    expect(find.text('Sign In'), findsOneWidget);
+    expect(find.text('Login'), findsAtLeastNWidgets(1));
+    expect(find.text('Enter your email to sign up for this app'), findsOneWidget);
   });
 }

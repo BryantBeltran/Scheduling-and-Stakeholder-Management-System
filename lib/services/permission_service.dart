@@ -173,8 +173,26 @@ class PermissionService {
   // DISPLAY HELPERS
   // ============================================================
 
-  /// Get display name based on user's highest permission level
-  static String getDisplayRole(List<Permission> permissions) {
+  /// Get display name based on the user's explicit role.
+  /// Falls back to permission-based inference when [role] is null.
+  static String getDisplayRole(
+    List<Permission> permissions, [
+    UserRole? role,
+  ]) {
+    // Prefer the explicit role stored on the user document
+    if (role != null) {
+      switch (role) {
+        case UserRole.admin:
+          return 'Admin';
+        case UserRole.manager:
+          return 'Manager';
+        case UserRole.member:
+          return 'Member';
+        case UserRole.viewer:
+          return 'Viewer';
+      }
+    }
+    // Fallback: infer from permissions
     if (permissions.contains(Permission.root)) {
       return 'Root';
     } else if (permissions.contains(Permission.admin)) {

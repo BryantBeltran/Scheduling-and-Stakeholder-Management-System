@@ -46,6 +46,7 @@ class _EventDetailsScreenState extends State<EventDetailsScreen> {
   }
 
   Future<void> _loadEvent() async {
+    if (!mounted) return;
     setState(() {
       _isLoading = true;
       _errorMessage = null;
@@ -53,6 +54,7 @@ class _EventDetailsScreenState extends State<EventDetailsScreen> {
 
     try {
       final event = await _eventService.getEventById(widget.eventId);
+      if (!mounted) return;
       if (event == null) {
         setState(() {
           _errorMessage = 'Event not found';
@@ -65,6 +67,7 @@ class _EventDetailsScreenState extends State<EventDetailsScreen> {
         _isLoading = false;
       });
     } catch (e) {
+      if (!mounted) return;
       setState(() {
         _errorMessage = 'Error loading event: $e';
         _isLoading = false;
@@ -95,12 +98,11 @@ class _EventDetailsScreenState extends State<EventDetailsScreen> {
     try {
       final updatedEvent = _event!.copyWith(status: newStatus);
       await _eventService.updateEvent(updatedEvent);
+      if (!mounted) return;
       setState(() => _event = updatedEvent);
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Status updated to ${newStatus.name}')),
-        );
-      }
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Status updated to ${newStatus.name}')),
+      );
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -176,9 +178,30 @@ class _EventDetailsScreenState extends State<EventDetailsScreen> {
       ),
     );
 
+    if (!mounted) return;
     if (result != null) {
       setState(() => _event = result);
     }
+  }
+
+  bool _canEditThisEvent() {
+    if (_event == null) return false;
+    final uid = _permissionService.currentUser?.id;
+    if (uid == null) return false;
+    // Admins/super-admins can edit any event
+    if (_permissionService.isSuperAdmin) return true;
+    // Otherwise must have editEvent permission AND be owner or assigned manager
+    return _permissionService.canEditEvent &&
+        (_event!.ownerId == uid || _event!.managerId == uid);
+  }
+
+  bool _canDeleteThisEvent() {
+    if (_event == null) return false;
+    final uid = _permissionService.currentUser?.id;
+    if (uid == null) return false;
+    if (_permissionService.isSuperAdmin) return true;
+    return _permissionService.canDeleteEvent &&
+        (_event!.ownerId == uid || _event!.managerId == uid);
   }
 
   @override
@@ -195,16 +218,14 @@ class _EventDetailsScreenState extends State<EventDetailsScreen> {
         ),
         centerTitle: true,
         elevation: 0,
-        backgroundColor: Colors.white,
-        foregroundColor: Colors.black,
         actions: [
-          if (_event != null && _permissionService.canEditEvent)
+          if (_canEditThisEvent())
             IconButton(
               icon: const Icon(Icons.edit),
               onPressed: _navigateToEdit,
               tooltip: 'Edit Event',
             ),
-          if (_event != null && _permissionService.canDeleteEvent)
+          if (_canDeleteThisEvent())
             PopupMenuButton<String>(
               icon: const Icon(Icons.more_vert),
               onSelected: (value) {
@@ -241,11 +262,11 @@ class _EventDetailsScreenState extends State<EventDetailsScreen> {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(Icons.error_outline, size: 64, color: Colors.grey[400]),
+            Icon(Icons.error_outline, size: 64, color: Theme.of(context).hintColor),
             const SizedBox(height: 16),
             Text(
               _errorMessage!,
-              style: TextStyle(fontSize: 16, color: Colors.grey[600]),
+              style: TextStyle(fontSize: 16, color: Theme.of(context).colorScheme.onSurfaceVariant),
             ),
             const SizedBox(height: 16),
             ElevatedButton(
@@ -307,7 +328,7 @@ class _EventDetailsScreenState extends State<EventDetailsScreen> {
       elevation: 0,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(16),
-        side: BorderSide(color: Colors.grey[200]!),
+        side: BorderSide(color: Theme.of(context).dividerColor),
       ),
       child: Padding(
         padding: const EdgeInsets.all(20),
@@ -359,7 +380,7 @@ class _EventDetailsScreenState extends State<EventDetailsScreen> {
       elevation: 0,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(16),
-        side: BorderSide(color: Colors.grey[200]!),
+        side: BorderSide(color: Theme.of(context).dividerColor),
       ),
       child: Padding(
         padding: const EdgeInsets.all(20),
@@ -368,7 +389,7 @@ class _EventDetailsScreenState extends State<EventDetailsScreen> {
           children: [
             Row(
               children: [
-                Icon(Icons.schedule, color: Colors.grey[600]),
+                Icon(Icons.schedule, color: Theme.of(context).colorScheme.onSurfaceVariant),
                 const SizedBox(width: 8),
                 const Text(
                   'Date & Time',
@@ -386,13 +407,13 @@ class _EventDetailsScreenState extends State<EventDetailsScreen> {
             const Divider(height: 24),
             Row(
               children: [
-                Icon(Icons.timelapse, size: 20, color: Colors.grey[600]),
+                Icon(Icons.timelapse, size: 20, color: Theme.of(context).colorScheme.onSurfaceVariant),
                 const SizedBox(width: 8),
                 Text(
                   'Duration: ${_formatDuration(duration)}',
                   style: TextStyle(
                     fontSize: 14,
-                    color: Colors.grey[700],
+                    color: Theme.of(context).colorScheme.onSurfaceVariant,
                   ),
                 ),
               ],
@@ -412,7 +433,7 @@ class _EventDetailsScreenState extends State<EventDetailsScreen> {
             label,
             style: TextStyle(
               fontSize: 14,
-              color: Colors.grey[600],
+              color: Theme.of(context).colorScheme.onSurfaceVariant,
             ),
           ),
         ),
@@ -431,7 +452,7 @@ class _EventDetailsScreenState extends State<EventDetailsScreen> {
                 _formatTime(dateTime),
                 style: TextStyle(
                   fontSize: 13,
-                  color: Colors.grey[600],
+                  color: Theme.of(context).colorScheme.onSurfaceVariant,
                 ),
               ),
             ],
@@ -448,7 +469,7 @@ class _EventDetailsScreenState extends State<EventDetailsScreen> {
       elevation: 0,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(16),
-        side: BorderSide(color: Colors.grey[200]!),
+        side: BorderSide(color: Theme.of(context).dividerColor),
       ),
       child: Padding(
         padding: const EdgeInsets.all(20),
@@ -459,7 +480,7 @@ class _EventDetailsScreenState extends State<EventDetailsScreen> {
               children: [
                 Icon(
                   location.isVirtual ? Icons.videocam : Icons.location_on,
-                  color: Colors.grey[600],
+                  color: Theme.of(context).colorScheme.onSurfaceVariant,
                 ),
                 const SizedBox(width: 8),
                 const Text(
@@ -485,7 +506,7 @@ class _EventDetailsScreenState extends State<EventDetailsScreen> {
                 location.address!,
                 style: TextStyle(
                   fontSize: 14,
-                  color: Colors.grey[600],
+                  color: Theme.of(context).colorScheme.onSurfaceVariant,
                 ),
               ),
             ],
@@ -544,7 +565,7 @@ class _EventDetailsScreenState extends State<EventDetailsScreen> {
       elevation: 0,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(16),
-        side: BorderSide(color: Colors.grey[200]!),
+        side: BorderSide(color: Theme.of(context).dividerColor),
       ),
       child: Padding(
         padding: const EdgeInsets.all(20),
@@ -553,7 +574,7 @@ class _EventDetailsScreenState extends State<EventDetailsScreen> {
           children: [
             Row(
               children: [
-                Icon(Icons.description, color: Colors.grey[600]),
+                Icon(Icons.description, color: Theme.of(context).colorScheme.onSurfaceVariant),
                 const SizedBox(width: 8),
                 const Text(
                   'Description',
@@ -569,7 +590,7 @@ class _EventDetailsScreenState extends State<EventDetailsScreen> {
               _event!.description!,
               style: TextStyle(
                 fontSize: 14,
-                color: Colors.grey[800],
+                color: Theme.of(context).colorScheme.onSurfaceVariant,
                 height: 1.5,
               ),
             ),
@@ -584,7 +605,7 @@ class _EventDetailsScreenState extends State<EventDetailsScreen> {
       elevation: 0,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(16),
-        side: BorderSide(color: Colors.grey[200]!),
+        side: BorderSide(color: Theme.of(context).dividerColor),
       ),
       child: Padding(
         padding: const EdgeInsets.all(20),
@@ -596,7 +617,7 @@ class _EventDetailsScreenState extends State<EventDetailsScreen> {
               children: [
                 Row(
                   children: [
-                    Icon(Icons.people, color: Colors.grey[600]),
+                    Icon(Icons.people, color: Theme.of(context).colorScheme.onSurfaceVariant),
                     const SizedBox(width: 8),
                     const Text(
                       'Stakeholders',
@@ -611,7 +632,7 @@ class _EventDetailsScreenState extends State<EventDetailsScreen> {
                   '${_event!.stakeholderIds.length}',
                   style: TextStyle(
                     fontSize: 14,
-                    color: Colors.grey[600],
+                    color: Theme.of(context).colorScheme.onSurfaceVariant,
                     fontWeight: FontWeight.w500,
                   ),
                 ),
@@ -623,7 +644,7 @@ class _EventDetailsScreenState extends State<EventDetailsScreen> {
                 'No stakeholders assigned',
                 style: TextStyle(
                   fontSize: 14,
-                  color: Colors.grey[500],
+                  color: Theme.of(context).hintColor,
                   fontStyle: FontStyle.italic,
                 ),
               )
@@ -654,7 +675,7 @@ class _EventDetailsScreenState extends State<EventDetailsScreen> {
                         ),
                       ),
                       label: Text(stakeholder?.name ?? 'Unknown'),
-                      backgroundColor: Colors.grey[100],
+                      backgroundColor: Theme.of(context).colorScheme.surfaceContainerHighest,
                     ),
                   );
                 }).toList(),
@@ -670,7 +691,7 @@ class _EventDetailsScreenState extends State<EventDetailsScreen> {
       elevation: 0,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(16),
-        side: BorderSide(color: Colors.grey[200]!),
+        side: BorderSide(color: Theme.of(context).dividerColor),
       ),
       child: Padding(
         padding: const EdgeInsets.all(20),
@@ -679,7 +700,7 @@ class _EventDetailsScreenState extends State<EventDetailsScreen> {
           children: [
             Row(
               children: [
-                Icon(Icons.flag, color: Colors.grey[600]),
+                Icon(Icons.flag, color: Theme.of(context).colorScheme.onSurfaceVariant),
                 const SizedBox(width: 8),
                 const Text(
                   'Update Status',
@@ -704,9 +725,9 @@ class _EventDetailsScreenState extends State<EventDetailsScreen> {
                       _updateStatus(status);
                     }
                   },
-                  selectedColor: _getStatusColor(status).withOpacity(0.3),
+                  selectedColor: _getStatusColor(status).withValues(alpha: 0.3),
                   labelStyle: TextStyle(
-                    color: isSelected ? _getStatusColor(status) : Colors.grey[700],
+                    color: isSelected ? _getStatusColor(status) : Theme.of(context).colorScheme.onSurfaceVariant,
                     fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
                   ),
                 );
@@ -723,7 +744,7 @@ class _EventDetailsScreenState extends State<EventDetailsScreen> {
       elevation: 0,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(16),
-        side: BorderSide(color: Colors.grey[200]!),
+        side: BorderSide(color: Theme.of(context).dividerColor),
       ),
       child: Padding(
         padding: const EdgeInsets.all(20),
@@ -732,7 +753,7 @@ class _EventDetailsScreenState extends State<EventDetailsScreen> {
           children: [
             Row(
               children: [
-                Icon(Icons.info_outline, color: Colors.grey[600]),
+                Icon(Icons.info_outline, color: Theme.of(context).colorScheme.onSurfaceVariant),
                 const SizedBox(width: 8),
                 const Text(
                   'Event Information',
@@ -767,7 +788,7 @@ class _EventDetailsScreenState extends State<EventDetailsScreen> {
               label,
               style: TextStyle(
                 fontSize: 12,
-                color: Colors.grey[600],
+                color: Theme.of(context).colorScheme.onSurfaceVariant,
               ),
             ),
           ),
@@ -789,7 +810,7 @@ class _EventDetailsScreenState extends State<EventDetailsScreen> {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
       decoration: BoxDecoration(
-        color: _getStatusColor(status).withOpacity(0.15),
+        color: _getStatusColor(status).withValues(alpha: 0.15),
         borderRadius: BorderRadius.circular(20),
       ),
       child: Text(
@@ -807,7 +828,7 @@ class _EventDetailsScreenState extends State<EventDetailsScreen> {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
       decoration: BoxDecoration(
-        color: _getPriorityColor(priority).withOpacity(0.15),
+        color: _getPriorityColor(priority).withValues(alpha: 0.15),
         borderRadius: BorderRadius.circular(20),
       ),
       child: Row(

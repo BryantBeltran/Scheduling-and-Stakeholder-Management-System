@@ -95,8 +95,6 @@ class _StakeholderCreateScreenState extends State<StakeholderCreateScreen> {
         ),
         centerTitle: true,
         elevation: 0,
-        backgroundColor: Colors.white,
-        foregroundColor: Colors.black,
       ),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(16),
@@ -175,20 +173,20 @@ class _StakeholderCreateScreenState extends State<StakeholderCreateScreen> {
               ElevatedButton(
                 onPressed: _isLoading ? null : _createStakeholder,
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.black,
-                  foregroundColor: Colors.white,
+                  backgroundColor: Theme.of(context).colorScheme.onSurface,
+                  foregroundColor: Theme.of(context).colorScheme.surface,
                   padding: const EdgeInsets.symmetric(vertical: 16),
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(12),
                   ),
                 ),
                 child: _isLoading
-                    ? const SizedBox(
+                    ? SizedBox(
                         height: 20,
                         width: 20,
                         child: CircularProgressIndicator(
                           strokeWidth: 2,
-                          valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                          valueColor: AlwaysStoppedAnimation<Color>(Theme.of(context).colorScheme.surface),
                         ),
                       )
                     : const Text(
@@ -221,9 +219,9 @@ class _StakeholderCreateScreenState extends State<StakeholderCreateScreen> {
       maxLines: maxLines,
       decoration: InputDecoration(
         labelText: label,
-        prefixIcon: Icon(icon, color: Colors.grey[600]),
+        prefixIcon: Icon(icon, color: Theme.of(context).colorScheme.onSurfaceVariant),
         filled: true,
-        fillColor: Colors.grey[100],
+        fillColor: Theme.of(context).colorScheme.surfaceContainerHighest,
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),
           borderSide: BorderSide.none,
@@ -234,7 +232,7 @@ class _StakeholderCreateScreenState extends State<StakeholderCreateScreen> {
         ),
         focusedBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),
-          borderSide: const BorderSide(color: Colors.black, width: 2),
+          borderSide: BorderSide(color: Theme.of(context).colorScheme.onSurface, width: 2),
         ),
         errorBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),
@@ -250,9 +248,9 @@ class _StakeholderCreateScreenState extends State<StakeholderCreateScreen> {
       value: _selectedType,
       decoration: InputDecoration(
         labelText: 'Stakeholder Type',
-        prefixIcon: Icon(Icons.category, color: Colors.grey[600]),
+        prefixIcon: Icon(Icons.category, color: Theme.of(context).colorScheme.onSurfaceVariant),
         filled: true,
-        fillColor: Colors.grey[100],
+        fillColor: Theme.of(context).colorScheme.surfaceContainerHighest,
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),
           borderSide: BorderSide.none,
@@ -278,9 +276,9 @@ class _StakeholderCreateScreenState extends State<StakeholderCreateScreen> {
       value: _selectedRelationship,
       decoration: InputDecoration(
         labelText: 'Relationship Type',
-        prefixIcon: Icon(Icons.handshake, color: Colors.grey[600]),
+        prefixIcon: Icon(Icons.handshake, color: Theme.of(context).colorScheme.onSurfaceVariant),
         filled: true,
-        fillColor: Colors.grey[100],
+        fillColor: Theme.of(context).colorScheme.surfaceContainerHighest,
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),
           borderSide: BorderSide.none,

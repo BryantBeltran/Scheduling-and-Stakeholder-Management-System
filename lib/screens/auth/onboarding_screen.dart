@@ -145,8 +145,11 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
         final currentUser = AuthService().currentUser;
         if (currentUser != null) {
           userId = currentUser.id;
+          final updatedUser = currentUser.copyWith(
+            displayName: _displayNameController.text.trim(),
+          );
           await _userService.completeOnboarding(
-            currentUser,
+            updatedUser,
             organization: _organizationController.text.trim(),
             phone: _phoneController.text.trim(),
           );
@@ -183,8 +186,10 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
         }
       }
 
-      // Trigger branded welcome email via Cloud Function
-      await _inviteService.notifyOnboardingComplete();
+      // Trigger branded welcome email via Cloud Function (non-blocking)
+      _inviteService.notifyOnboardingComplete().catchError((e) {
+        debugPrint('Welcome email failed (non-critical): $e');
+      });
 
       if (mounted) {
         // Navigate to home screen
@@ -194,10 +199,12 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
         );
       }
     } catch (e) {
-      setState(() {
-        _errorMessage = 'Failed to complete setup: ${e.toString()}';
-        _isLoading = false;
-      });
+      if (mounted) {
+        setState(() {
+          _errorMessage = 'Failed to complete setup: ${e.toString()}';
+          _isLoading = false;
+        });
+      }
     }
   }
 

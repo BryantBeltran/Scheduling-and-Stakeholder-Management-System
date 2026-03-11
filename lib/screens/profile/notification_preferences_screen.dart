@@ -16,6 +16,8 @@ class _NotificationPreferencesScreenState
 
   bool _pushEnabled = true;
   bool _emailEnabled = true;
+  bool _eventRemindersEnabled = true;
+  bool _inviteNotificationsEnabled = true;
   int _defaultReminderMinutes = 30;
   bool _isLoading = true;
   bool _isSaving = false;
@@ -45,7 +47,12 @@ class _NotificationPreferencesScreenState
       setState(() {
         _pushEnabled = prefs['pushEnabled'] as bool? ?? true;
         _emailEnabled = prefs['emailEnabled'] as bool? ?? true;
-        _defaultReminderMinutes = prefs['defaultReminderMinutes'] as int? ?? 30;
+        _eventRemindersEnabled =
+            prefs['eventRemindersEnabled'] as bool? ?? true;
+        _inviteNotificationsEnabled =
+            prefs['inviteNotificationsEnabled'] as bool? ?? true;
+        _defaultReminderMinutes =
+            prefs['defaultReminderMinutes'] as int? ?? 30;
         _isLoading = false;
       });
     } catch (e) {
@@ -63,6 +70,8 @@ class _NotificationPreferencesScreenState
         userId: userId,
         pushEnabled: _pushEnabled,
         emailEnabled: _emailEnabled,
+        eventRemindersEnabled: _eventRemindersEnabled,
+        inviteNotificationsEnabled: _inviteNotificationsEnabled,
         defaultReminderMinutes: _defaultReminderMinutes,
       );
       if (mounted) {
@@ -95,8 +104,6 @@ class _NotificationPreferencesScreenState
         ),
         centerTitle: true,
         elevation: 0,
-        backgroundColor: Colors.white,
-        foregroundColor: Colors.black,
       ),
       body: _isLoading
           ? const Center(child: CircularProgressIndicator())
@@ -109,7 +116,7 @@ class _NotificationPreferencesScreenState
                   elevation: 0,
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(12),
-                    side: BorderSide(color: Colors.grey[200]!),
+                    side: BorderSide(color: Theme.of(context).dividerColor),
                   ),
                   child: SwitchListTile(
                     title: const Text('Push notifications'),
@@ -126,7 +133,7 @@ class _NotificationPreferencesScreenState
                   elevation: 0,
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(12),
-                    side: BorderSide(color: Colors.grey[200]!),
+                    side: BorderSide(color: Theme.of(context).dividerColor),
                   ),
                   child: SwitchListTile(
                     title: const Text('Email notifications'),
@@ -137,13 +144,47 @@ class _NotificationPreferencesScreenState
                 ),
                 const SizedBox(height: 16),
 
+                // Notification types section
+                _SectionHeader(title: 'Notification Types'),
+                Card(
+                  elevation: 0,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    side: BorderSide(color: Theme.of(context).dividerColor),
+                  ),
+                  child: Column(
+                    children: [
+                      SwitchListTile(
+                        title: const Text('Event reminders'),
+                        subtitle: const Text(
+                          'Reminders before events you manage or are invited to',
+                        ),
+                        value: _eventRemindersEnabled,
+                        onChanged: (v) =>
+                            setState(() => _eventRemindersEnabled = v),
+                      ),
+                      Divider(height: 1, color: Theme.of(context).dividerColor),
+                      SwitchListTile(
+                        title: const Text('Invites & event updates'),
+                        subtitle: const Text(
+                          'Notify when you are invited to an event or event details change',
+                        ),
+                        value: _inviteNotificationsEnabled,
+                        onChanged: (v) =>
+                            setState(() => _inviteNotificationsEnabled = v),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 16),
+
                 // Default reminder time section
                 _SectionHeader(title: 'Event Reminders'),
                 Card(
                   elevation: 0,
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(12),
-                    side: BorderSide(color: Colors.grey[200]!),
+                    side: BorderSide(color: Theme.of(context).dividerColor),
                   ),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
@@ -154,19 +195,26 @@ class _NotificationPreferencesScreenState
                           'Default reminder time',
                           style: TextStyle(
                             fontSize: 14,
-                            color: Colors.grey[700],
+                            color: Theme.of(context).colorScheme.onSurfaceVariant,
                           ),
                         ),
                       ),
                       RadioGroup<int>(
                         groupValue: _defaultReminderMinutes,
-                        onChanged: (v) {
-                          if (v != null) setState(() => _defaultReminderMinutes = v);
-                        },
+                        onChanged: _eventRemindersEnabled
+                            ? (v) => setState(() => _defaultReminderMinutes = v ?? _defaultReminderMinutes)
+                            : (_) {},
                         child: Column(
                           children: _reminderOptions.map((opt) {
                             return RadioListTile<int>(
-                              title: Text(opt.label),
+                              title: Text(
+                                opt.label,
+                                style: TextStyle(
+                                  color: _eventRemindersEnabled
+                                      ? null
+                                      : Theme.of(context).hintColor,
+                                ),
+                              ),
                               value: opt.minutes,
                               dense: true,
                             );
@@ -185,25 +233,26 @@ class _NotificationPreferencesScreenState
                   child: ElevatedButton(
                     onPressed: _isSaving ? null : _savePreferences,
                     style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.black,
-                      foregroundColor: Colors.white,
+                      backgroundColor: Theme.of(context).colorScheme.onSurface,
+                      foregroundColor: Theme.of(context).colorScheme.surface,
                       padding: const EdgeInsets.symmetric(vertical: 14),
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(10),
                       ),
                     ),
                     child: _isSaving
-                        ? const SizedBox(
+                        ? SizedBox(
                             width: 20,
                             height: 20,
                             child: CircularProgressIndicator(
                               strokeWidth: 2,
-                              color: Colors.white,
+                              color: Theme.of(context).colorScheme.surface,
                             ),
                           )
                         : const Text(
                             'Save Preferences',
-                            style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+                            style: TextStyle(
+                                fontSize: 16, fontWeight: FontWeight.w600),
                           ),
                   ),
                 ),
@@ -223,11 +272,11 @@ class _SectionHeader extends StatelessWidget {
       padding: const EdgeInsets.only(bottom: 8),
       child: Text(
         title,
-        style: const TextStyle(
+        style: TextStyle(
           fontSize: 13,
           fontWeight: FontWeight.w600,
           letterSpacing: 0.5,
-          color: Colors.black54,
+          color: Theme.of(context).colorScheme.onSurfaceVariant,
         ),
       ),
     );

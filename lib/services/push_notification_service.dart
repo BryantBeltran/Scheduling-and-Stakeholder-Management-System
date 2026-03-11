@@ -18,7 +18,6 @@
 
 import 'dart:convert';
 import 'dart:io';
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
@@ -231,10 +230,16 @@ class PushNotificationService {
       }
 
       // Listen for token refreshes
-      _messaging.onTokenRefresh.listen((newToken) {
-        _saveToken(userId, newToken);
-        debugPrint('FCM token refreshed for user: $userId');
-      });
+      _messaging.onTokenRefresh.listen(
+        (newToken) async {
+          try {
+            await _saveToken(userId, newToken);
+            debugPrint('FCM token refreshed for user: $userId');
+          } catch (e) {
+            debugPrint('Error saving refreshed FCM token: $e');
+          }
+        },
+      );
     } catch (e) {
       debugPrint('Error registering FCM token: $e');
     }
@@ -465,23 +470,39 @@ class PushNotificationService {
     required String userId,
     bool? pushEnabled,
     bool? emailEnabled,
+    bool? eventRemindersEnabled,
+    bool? inviteNotificationsEnabled,
     int? defaultReminderMinutes,
     List<String>? mutedEventIds,
   }) async {
     if (!AppConfig.instance.useFirebase) return;
 
     try {
-      final prefs = <String, dynamic>{};
-      if (pushEnabled != null) prefs['pushEnabled'] = pushEnabled;
-      if (emailEnabled != null) prefs['emailEnabled'] = emailEnabled;
-      if (defaultReminderMinutes != null) {
-        prefs['defaultReminderMinutes'] = defaultReminderMinutes;
+      final updates = <String, dynamic>{};
+      if (pushEnabled != null) {
+        updates['notificationPreferences.pushEnabled'] = pushEnabled;
       }
-      if (mutedEventIds != null) prefs['mutedEventIds'] = mutedEventIds;
+      if (emailEnabled != null) {
+        updates['notificationPreferences.emailEnabled'] = emailEnabled;
+      }
+      if (eventRemindersEnabled != null) {
+        updates['notificationPreferences.eventRemindersEnabled'] =
+            eventRemindersEnabled;
+      }
+      if (inviteNotificationsEnabled != null) {
+        updates['notificationPreferences.inviteNotificationsEnabled'] =
+            inviteNotificationsEnabled;
+      }
+      if (defaultReminderMinutes != null) {
+        updates['notificationPreferences.defaultReminderMinutes'] =
+            defaultReminderMinutes;
+      }
+      if (mutedEventIds != null) {
+        updates['notificationPreferences.mutedEventIds'] = mutedEventIds;
+      }
 
-      await _firestore.collection('users').doc(userId).update({
-        'notificationPreferences': prefs,
-      });
+      if (updates.isEmpty) return;
+      await _firestore.collection('users').doc(userId).update(updates);
     } catch (e) {
       debugPrint('Error updating notification preferences: $e');
     }

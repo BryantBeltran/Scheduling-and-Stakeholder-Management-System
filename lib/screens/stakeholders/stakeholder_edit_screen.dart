@@ -161,8 +161,6 @@ class _StakeholderEditScreenState extends State<StakeholderEditScreen> {
           ),
           centerTitle: true,
           elevation: 0,
-          backgroundColor: Colors.white,
-          foregroundColor: Colors.black,
         ),
         body: Form(
           key: _formKey,
@@ -329,20 +327,20 @@ class _StakeholderEditScreenState extends State<StakeholderEditScreen> {
               ElevatedButton(
                 onPressed: _isLoading ? null : _updateStakeholder,
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.black,
-                  foregroundColor: Colors.white,
+                  backgroundColor: Theme.of(context).colorScheme.onSurface,
+                  foregroundColor: Theme.of(context).colorScheme.surface,
                   padding: const EdgeInsets.symmetric(vertical: 16),
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(12),
                   ),
                 ),
                 child: _isLoading
-                    ? const SizedBox(
+                    ? SizedBox(
                         height: 20,
                         width: 20,
                         child: CircularProgressIndicator(
                           strokeWidth: 2,
-                          valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                          valueColor: AlwaysStoppedAnimation<Color>(Theme.of(context).colorScheme.surface),
                         ),
                       )
                     : const Text(

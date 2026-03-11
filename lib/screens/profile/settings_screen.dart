@@ -1,6 +1,11 @@
+import 'dart:convert';
+import 'dart:io';
+
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart' as firebase_auth;
+import 'package:path_provider/path_provider.dart';
+import 'package:share_plus/share_plus.dart';
 import '../../config/app_config.dart';
 import '../../services/services.dart';
 
@@ -12,21 +17,24 @@ class SettingsScreen extends StatefulWidget {
 }
 
 class _SettingsScreenState extends State<SettingsScreen> {
+  final _settingsService = SettingsService();
+
   // Notification settings
   bool _emailNotifications = true;
   bool _pushNotifications = true;
   bool _eventReminders = true;
   bool _stakeholderUpdates = true;
-  
+
   // Privacy settings
   bool _profileVisibility = true;
   bool _showOnlineStatus = true;
-  
+
   // Appearance
   String _theme = 'System';
   String _language = 'English';
 
   bool _isLoading = true;
+  bool _isExporting = false;
 
   @override
   void initState() {
@@ -46,19 +54,35 @@ class _SettingsScreenState extends State<SettingsScreen> {
           .collection('users')
           .doc(user.id)
           .get();
-      final settings = doc.data()?['settings'] as Map<String, dynamic>? ?? {};
+      final data = doc.data() ?? {};
+
+      // Notification prefs live under 'notificationPreferences'
+      final notifPrefs =
+          data['notificationPreferences'] as Map<String, dynamic>? ?? {};
+      // General settings live under 'settings'
+      final settings =
+          data['settings'] as Map<String, dynamic>? ?? {};
 
       setState(() {
-        _emailNotifications = settings['emailNotifications'] as bool? ?? true;
-        _pushNotifications = settings['pushNotifications'] as bool? ?? true;
-        _eventReminders = settings['eventReminders'] as bool? ?? true;
-        _stakeholderUpdates = settings['stakeholderUpdates'] as bool? ?? true;
-        _profileVisibility = settings['profileVisibility'] as bool? ?? true;
-        _showOnlineStatus = settings['showOnlineStatus'] as bool? ?? true;
+        _emailNotifications =
+            notifPrefs['emailEnabled'] as bool? ?? true;
+        _pushNotifications =
+            notifPrefs['pushEnabled'] as bool? ?? true;
+        _eventReminders =
+            notifPrefs['eventRemindersEnabled'] as bool? ?? true;
+        _stakeholderUpdates =
+            notifPrefs['inviteNotificationsEnabled'] as bool? ?? true;
+        _profileVisibility =
+            settings['profileVisibility'] as bool? ?? true;
+        _showOnlineStatus =
+            settings['showOnlineStatus'] as bool? ?? true;
         _theme = settings['theme'] as String? ?? 'System';
         _language = settings['language'] as String? ?? 'English';
         _isLoading = false;
       });
+      // Sync loaded values to the app-wide settings service
+      _settingsService.setThemeModeFromString(_theme);
+      _settingsService.setLanguage(_language);
     } catch (e) {
       debugPrint('Error loading settings: $e');
       setState(() => _isLoading = false);
@@ -74,16 +98,17 @@ class _SettingsScreenState extends State<SettingsScreen> {
           .collection('users')
           .doc(user.id)
           .update({
-        'settings': {
-          'emailNotifications': _emailNotifications,
-          'pushNotifications': _pushNotifications,
-          'eventReminders': _eventReminders,
-          'stakeholderUpdates': _stakeholderUpdates,
-          'profileVisibility': _profileVisibility,
-          'showOnlineStatus': _showOnlineStatus,
-          'theme': _theme,
-          'language': _language,
-        },
+        // Notification prefs under 'notificationPreferences'
+        'notificationPreferences.emailEnabled': _emailNotifications,
+        'notificationPreferences.pushEnabled': _pushNotifications,
+        'notificationPreferences.eventRemindersEnabled': _eventReminders,
+        'notificationPreferences.inviteNotificationsEnabled':
+            _stakeholderUpdates,
+        // General settings under 'settings'
+        'settings.profileVisibility': _profileVisibility,
+        'settings.showOnlineStatus': _showOnlineStatus,
+        'settings.theme': _theme,
+        'settings.language': _language,
         'updatedAt': FieldValue.serverTimestamp(),
       });
     } catch (e) {
@@ -102,6 +127,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
   void _updateSetting(VoidCallback update) {
     setState(update);
     _saveSettings();
+    // Propagate theme/language to the app-wide service
+    _settingsService.setThemeModeFromString(_theme);
+    _settingsService.setLanguage(_language);
   }
 
   /// Handles the Push Notifications toggle.
@@ -134,8 +162,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
           ),
           centerTitle: true,
           elevation: 0,
-          backgroundColor: Colors.white,
-          foregroundColor: Colors.black,
         ),
         body: const Center(child: CircularProgressIndicator()),
       );
@@ -149,8 +175,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
         ),
         centerTitle: true,
         elevation: 0,
-        backgroundColor: Colors.white,
-        foregroundColor: Colors.black,
       ),
       body: ListView(
         children: [
@@ -219,15 +243,15 @@ class _SettingsScreenState extends State<SettingsScreen> {
             trailing: Container(
               padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
               decoration: BoxDecoration(
-                color: Colors.grey[200],
+                color: Theme.of(context).colorScheme.surfaceContainerHighest,
                 borderRadius: BorderRadius.circular(12),
               ),
-              child: const Text(
+              child: Text(
                 'Coming Soon',
                 style: TextStyle(
                   fontSize: 11,
                   fontWeight: FontWeight.w600,
-                  color: Colors.black54,
+                  color: Theme.of(context).colorScheme.onSurfaceVariant,
                 ),
               ),
             ),
@@ -268,14 +292,10 @@ class _SettingsScreenState extends State<SettingsScreen> {
           _SettingsTile(
             icon: Icons.download_outlined,
             title: 'Download My Data',
-            subtitle: 'Export your data in JSON format',
-            onTap: () {
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(
-                  content: Text('Data export feature coming soon!'),
-                ),
-              );
-            },
+            subtitle: _isExporting
+                ? 'Exporting...'
+                : 'Export your data in JSON format',
+            onTap: _isExporting ? () {} : _exportUserData,
           ),
           _SettingsTile(
             icon: Icons.delete_outline,
@@ -438,26 +458,148 @@ class _SettingsScreenState extends State<SettingsScreen> {
     );
   }
 
+  Future<void> _exportUserData() async {
+    final user = AuthService().currentUser;
+    if (user == null || !AppConfig.instance.useFirebase) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Unable to export data')),
+        );
+      }
+      return;
+    }
+
+    setState(() => _isExporting = true);
+
+    try {
+      final firestore = FirebaseFirestore.instance;
+
+      // Fetch user profile
+      final userDoc = await firestore
+          .collection('users').doc(user.id).get();
+      final userData = userDoc.data() ?? {};
+
+      // Fetch user's events
+      final eventsSnap = await firestore
+          .collection('events')
+          .where('ownerId', isEqualTo: user.id)
+          .get();
+      final events = eventsSnap.docs
+          .map((d) => {'id': d.id, ...d.data()})
+          .toList();
+
+      // Fetch stakeholders
+      final stakeholdersSnap = await firestore
+          .collection('stakeholders').get();
+      final stakeholders = stakeholdersSnap.docs
+          .map((d) => {'id': d.id, ...d.data()})
+          .toList();
+
+      // Fetch notifications
+      final notifsSnap = await firestore
+          .collection('notifications')
+          .where('userId', isEqualTo: user.id)
+          .get();
+      final notifications = notifsSnap.docs
+          .map((d) => {'id': d.id, ...d.data()})
+          .toList();
+
+      final exportData = {
+        'exportedAt': DateTime.now().toIso8601String(),
+        'profile': userData,
+        'events': events,
+        'stakeholders': stakeholders,
+        'notifications': notifications,
+      };
+
+      final jsonString = const JsonEncoder.withIndent('  ')
+          .convert(exportData);
+
+      // Write to a temp file and share
+      final dir = await getTemporaryDirectory();
+      final file = File('${dir.path}/ssms_data_export.json');
+      await file.writeAsString(jsonString);
+
+      await SharePlus.instance.share(
+        ShareParams(
+          files: [XFile(file.path)],
+          subject: 'SSMS Data Export',
+        ),
+      );
+    } catch (e) {
+      debugPrint('Error exporting data: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Export failed: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _isExporting = false);
+    }
+  }
+
   void _showClearCacheDialog() {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
         title: const Text('Clear Cache'),
-        content: const Text('This will clear all cached data. Continue?'),
+        content: const Text(
+          'This will clear cached data and images. '
+          'You may notice slower loading temporarily.',
+        ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
             child: const Text('Cancel'),
           ),
           ElevatedButton(
-            onPressed: () {
+            onPressed: () async {
               Navigator.pop(context);
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(
-                  content: Text('Cache cleared successfully'),
-                  backgroundColor: Colors.green,
-                ),
-              );
+              try {
+                // Clear Firestore persistence cache
+                await FirebaseFirestore.instance
+                    .clearPersistence();
+
+                // Clear image cache
+                PaintingBinding.instance.imageCache.clear();
+                PaintingBinding.instance.imageCache
+                    .clearLiveImages();
+
+                // Clear temp files
+                final tempDir = await getTemporaryDirectory();
+                if (tempDir.existsSync()) {
+                  for (final entity in tempDir.listSync()) {
+                    try {
+                      entity.deleteSync(recursive: true);
+                    } catch (_) {}
+                  }
+                }
+
+                if (mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                      content: Text('Cache cleared successfully'),
+                      backgroundColor: Colors.green,
+                    ),
+                  );
+                }
+              } catch (e) {
+                debugPrint('Error clearing cache: $e');
+                // Firestore clearPersistence may fail if client
+                // is active — still clear images and temp files
+                PaintingBinding.instance.imageCache.clear();
+                if (mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                      content: Text('Partial cache cleared'),
+                      backgroundColor: Colors.orange,
+                    ),
+                  );
+                }
+              }
             },
             child: const Text('Clear'),
           ),
@@ -546,7 +688,7 @@ class _SectionHeader extends StatelessWidget {
         style: TextStyle(
           fontSize: 13,
           fontWeight: FontWeight.w600,
-          color: Colors.grey[600],
+          color: Theme.of(context).colorScheme.onSurfaceVariant,
           letterSpacing: 0.5,
         ),
       ),
@@ -573,7 +715,7 @@ class _SettingsTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final color = isDestructive ? Colors.red : Colors.black87;
+    final color = isDestructive ? Colors.red : Theme.of(context).colorScheme.onSurface;
 
     return InkWell(
       onTap: onTap,
@@ -601,7 +743,7 @@ class _SettingsTile extends StatelessWidget {
                       subtitle!,
                       style: TextStyle(
                         fontSize: 13,
-                        color: Colors.grey[600],
+                        color: Theme.of(context).colorScheme.onSurfaceVariant,
                       ),
                     ),
                   ],
@@ -611,7 +753,7 @@ class _SettingsTile extends StatelessWidget {
             if (trailing != null)
               trailing!
             else
-              Icon(Icons.chevron_right, color: Colors.grey[400]),
+              Icon(Icons.chevron_right, color: Theme.of(context).hintColor),
           ],
         ),
       ),
@@ -644,10 +786,10 @@ class _SwitchTile extends StatelessWidget {
               children: [
                 Text(
                   title,
-                  style: const TextStyle(
+                  style: TextStyle(
                     fontSize: 16,
                     fontWeight: FontWeight.w400,
-                    color: Colors.black87,
+                    color: Theme.of(context).colorScheme.onSurface,
                   ),
                 ),
                 const SizedBox(height: 4),
@@ -655,7 +797,7 @@ class _SwitchTile extends StatelessWidget {
                   subtitle,
                   style: TextStyle(
                     fontSize: 13,
-                    color: Colors.grey[600],
+                    color: Theme.of(context).colorScheme.onSurfaceVariant,
                   ),
                 ),
               ],
@@ -704,7 +846,7 @@ class _SelectionTile extends StatelessWidget {
                 width: 40,
                 height: 4,
                 decoration: BoxDecoration(
-                  color: Colors.grey[300],
+                  color: Theme.of(context).dividerColor,
                   borderRadius: BorderRadius.circular(2),
                 ),
               ),
@@ -736,15 +878,15 @@ class _SelectionTile extends StatelessWidget {
         padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
         child: Row(
           children: [
-            Icon(icon, color: Colors.black87, size: 24),
+            Icon(icon, color: Theme.of(context).colorScheme.onSurface, size: 24),
             const SizedBox(width: 16),
             Expanded(
               child: Text(
                 title,
-                style: const TextStyle(
+                style: TextStyle(
                   fontSize: 16,
                   fontWeight: FontWeight.w400,
-                  color: Colors.black87,
+                  color: Theme.of(context).colorScheme.onSurface,
                 ),
               ),
             ),
@@ -752,11 +894,11 @@ class _SelectionTile extends StatelessWidget {
               value,
               style: TextStyle(
                 fontSize: 14,
-                color: Colors.grey[600],
+                color: Theme.of(context).colorScheme.onSurfaceVariant,
               ),
             ),
             const SizedBox(width: 8),
-            Icon(Icons.chevron_right, color: Colors.grey[400]),
+            Icon(Icons.chevron_right, color: Theme.of(context).hintColor),
           ],
         ),
       ),

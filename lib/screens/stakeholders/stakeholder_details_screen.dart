@@ -179,9 +179,9 @@ class _StakeholderDetailsScreenState extends State<StakeholderDetailsScreen>
         content: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            const Text(
+            Text(
               'Choose the role this stakeholder will have when they create their account:',
-              style: TextStyle(fontSize: 14, color: Colors.grey),
+              style: TextStyle(fontSize: 14, color: Theme.of(context).hintColor),
             ),
             const SizedBox(height: 16),
             _RoleOption(
@@ -240,7 +240,7 @@ class _StakeholderDetailsScreenState extends State<StakeholderDetailsScreen>
             const SizedBox(height: 12),
             Text(
               'The invite expires in 7 days.',
-              style: TextStyle(fontSize: 12, color: Colors.grey[600]),
+              style: TextStyle(fontSize: 12, color: Theme.of(context).colorScheme.onSurfaceVariant),
             ),
           ],
         ),
@@ -269,8 +269,6 @@ class _StakeholderDetailsScreenState extends State<StakeholderDetailsScreen>
           ),
           centerTitle: true,
           elevation: 0,
-          backgroundColor: Colors.white,
-          foregroundColor: Colors.black,
         ),
         body: const Center(child: CircularProgressIndicator()),
       );
@@ -291,8 +289,6 @@ class _StakeholderDetailsScreenState extends State<StakeholderDetailsScreen>
           ),
           centerTitle: true,
           elevation: 0,
-          backgroundColor: Colors.white,
-          foregroundColor: Colors.black,
         ),
         body: const Center(child: Text('Stakeholder not found')),
       );
@@ -310,8 +306,6 @@ class _StakeholderDetailsScreenState extends State<StakeholderDetailsScreen>
         ),
         centerTitle: true,
         elevation: 0,
-        backgroundColor: Colors.white,
-        foregroundColor: Colors.black,
         actions: [
           IconButton(
             icon: const Icon(Icons.edit),
@@ -339,7 +333,7 @@ class _StakeholderDetailsScreenState extends State<StakeholderDetailsScreen>
             elevation: 0,
             shape: RoundedRectangleBorder(
               borderRadius: BorderRadius.circular(12),
-              side: BorderSide(color: Colors.grey[200]!),
+              side: BorderSide(color: Theme.of(context).dividerColor),
             ),
             child: Padding(
               padding: const EdgeInsets.all(16),
@@ -371,7 +365,7 @@ class _StakeholderDetailsScreenState extends State<StakeholderDetailsScreen>
                       stakeholder.title!,
                       style: TextStyle(
                         fontSize: 16,
-                        color: Colors.grey[600],
+                        color: Theme.of(context).colorScheme.onSurfaceVariant,
                       ),
                     ),
                   ],
@@ -381,7 +375,7 @@ class _StakeholderDetailsScreenState extends State<StakeholderDetailsScreen>
                       stakeholder.organization!,
                       style: TextStyle(
                         fontSize: 14,
-                        color: Colors.grey[600],
+                        color: Theme.of(context).colorScheme.onSurfaceVariant,
                       ),
                     ),
                   ],
@@ -405,7 +399,7 @@ class _StakeholderDetailsScreenState extends State<StakeholderDetailsScreen>
             elevation: 0,
             shape: RoundedRectangleBorder(
               borderRadius: BorderRadius.circular(12),
-              side: BorderSide(color: Colors.grey[200]!),
+              side: BorderSide(color: Theme.of(context).dividerColor),
             ),
             child: Padding(
               padding: const EdgeInsets.all(16),
@@ -568,17 +562,17 @@ class _StakeholderDetailsScreenState extends State<StakeholderDetailsScreen>
                     Container(
                       padding: const EdgeInsets.all(12),
                       decoration: BoxDecoration(
-                        color: Colors.grey[100],
+                        color: Theme.of(context).colorScheme.surfaceContainerHighest,
                         borderRadius: BorderRadius.circular(8),
                       ),
                       child: Row(
                         children: [
-                          Icon(Icons.person_off, color: Colors.grey[600]),
+                          Icon(Icons.person_off, color: Theme.of(context).colorScheme.onSurfaceVariant),
                           const SizedBox(width: 12),
                           Expanded(
                             child: Text(
                               'No account linked',
-                              style: TextStyle(color: Colors.grey[600]),
+                              style: TextStyle(color: Theme.of(context).colorScheme.onSurfaceVariant),
                             ),
                           ),
                         ],
@@ -596,7 +590,7 @@ class _StakeholderDetailsScreenState extends State<StakeholderDetailsScreen>
             elevation: 0,
             shape: RoundedRectangleBorder(
               borderRadius: BorderRadius.circular(12),
-              side: BorderSide(color: Colors.grey[200]!),
+              side: BorderSide(color: Theme.of(context).dividerColor),
             ),
             child: Padding(
               padding: const EdgeInsets.all(16),
@@ -635,7 +629,7 @@ class _StakeholderDetailsScreenState extends State<StakeholderDetailsScreen>
             elevation: 0,
             shape: RoundedRectangleBorder(
               borderRadius: BorderRadius.circular(12),
-              side: BorderSide(color: Colors.grey[200]!),
+              side: BorderSide(color: Theme.of(context).dividerColor),
             ),
             child: Padding(
               padding: const EdgeInsets.all(16),
@@ -672,7 +666,7 @@ class _StakeholderDetailsScreenState extends State<StakeholderDetailsScreen>
               elevation: 0,
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(12),
-                side: BorderSide(color: Colors.grey[200]!),
+                side: BorderSide(color: Theme.of(context).dividerColor),
               ),
               child: Padding(
                 padding: const EdgeInsets.all(16),
@@ -690,7 +684,7 @@ class _StakeholderDetailsScreenState extends State<StakeholderDetailsScreen>
                     Text(
                       stakeholder.notes!,
                       style: TextStyle(
-                        color: Colors.grey[700],
+                        color: Theme.of(context).colorScheme.onSurfaceVariant,
                       ),
                     ),
                   ],
@@ -757,7 +751,7 @@ class _RoleOption extends StatelessWidget {
         padding: const EdgeInsets.all(12),
         margin: const EdgeInsets.only(bottom: 8),
         decoration: BoxDecoration(
-          border: Border.all(color: Colors.grey[300]!),
+          border: Border.all(color: Theme.of(context).dividerColor),
           borderRadius: BorderRadius.circular(8),
         ),
         child: Row(
@@ -772,12 +766,12 @@ class _RoleOption extends StatelessWidget {
                   ),
                   Text(
                     description,
-                    style: TextStyle(fontSize: 12, color: Colors.grey[600]),
+                    style: TextStyle(fontSize: 12, color: Theme.of(context).colorScheme.onSurfaceVariant),
                   ),
                 ],
               ),
             ),
-            const Icon(Icons.chevron_right, color: Colors.grey),
+            Icon(Icons.chevron_right, color: Theme.of(context).hintColor),
           ],
         ),
       ),
@@ -800,7 +794,7 @@ class _InfoRow extends StatelessWidget {
   Widget build(BuildContext context) {
     return Row(
       children: [
-        Icon(icon, size: 20, color: Colors.grey[600]),
+        Icon(icon, size: 20, color: Theme.of(context).colorScheme.onSurfaceVariant),
         const SizedBox(width: 12),
         Expanded(
           child: Column(
@@ -810,7 +804,7 @@ class _InfoRow extends StatelessWidget {
                 label,
                 style: TextStyle(
                   fontSize: 12,
-                  color: Colors.grey[600],
+                  color: Theme.of(context).colorScheme.onSurfaceVariant,
                 ),
               ),
               const SizedBox(height: 2),
