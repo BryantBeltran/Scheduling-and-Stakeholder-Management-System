@@ -1,5 +1,6 @@
 import {onCall} from "firebase-functions/v2/https";
 import * as admin from "firebase-admin";
+import * as logger from "firebase-functions/logger";
 import {HttpsError, hasPermission, PERMISSIONS} from "./shared";
 
 // =============================================================================
@@ -10,11 +11,24 @@ export const getAuditLogs = onCall(
   {enforceAppCheck: false},
   async (request) => {
     const callerUid = request.auth?.uid;
+    logger.info("getAuditLogs called", {callerUid});
     if (!callerUid) {
       throw new HttpsError("unauthenticated", "Authentication required.");
     }
 
-    const canView = await hasPermission(callerUid, PERMISSIONS.admin);
+    // Debug: read user doc directly
+    const userDoc = await admin.firestore()
+      .collection("users").doc(callerUid).get();
+    logger.info("User doc", {
+      exists: userDoc.exists,
+      role: userDoc.data()?.role,
+      permissions: userDoc.data()?.permissions,
+    });
+
+    const canView = await hasPermission(
+      callerUid, PERMISSIONS.admin
+    );
+    logger.info("hasPermission result", {canView});
     if (!canView) {
       throw new HttpsError(
         "permission-denied",
