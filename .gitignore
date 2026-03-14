@@ -12,10 +12,17 @@
 .swiftpm/
 migrate_working_dir/
 .env
+.env.*
 node_modules/
 functions/node_modules/
 functions/lib/
 functions/.env
+functions/.env.*
+
+# Firebase config files with embedded API keys (regenerate via FlutterFire CLI)
+android/app/google-services.json
+ios/Runner/GoogleService-Info.plist
+lib/firebase_options.dart
 Thumbs.db
 .clj-kondo/
 .lsp/

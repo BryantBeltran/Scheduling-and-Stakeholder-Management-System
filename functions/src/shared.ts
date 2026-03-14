@@ -556,5 +556,42 @@ export async function sendPushAndInAppNotification(
   }
 }
 
+// ---------------------------------------------------------------------------
+// AUDIT LOG HELPER
+// ---------------------------------------------------------------------------
+
+/**
+ * Write an audit log entry to the auditLogs Firestore collection.
+ * @param {string} actorId - UID of the user who performed the action
+ * @param {string} actorName - Display name of the actor
+ * @param {string} action - Action type (create_event, delete_stakeholder, etc.)
+ * @param {string} resourceType - Resource type (event, stakeholder, user)
+ * @param {string | null} resourceId - ID of the affected resource
+ * @param {string} description - Human-readable description
+ * @return {Promise<void>}
+ */
+export async function writeAuditLog(
+  actorId: string,
+  actorName: string,
+  action: string,
+  resourceType: string,
+  resourceId: string | null,
+  description: string
+): Promise<void> {
+  try {
+    await admin.firestore().collection("auditLogs").add({
+      actorId,
+      actorName,
+      action,
+      resourceType,
+      resourceId: resourceId || null,
+      description,
+      createdAt: admin.firestore.FieldValue.serverTimestamp(),
+    });
+  } catch (error) {
+    logger.error("Failed to write audit log:", error);
+  }
+}
+
 // Re-export HttpsError so modules can import it from shared
 export {HttpsError};

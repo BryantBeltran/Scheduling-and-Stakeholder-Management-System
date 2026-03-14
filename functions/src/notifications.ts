@@ -2,7 +2,7 @@ import {onCall} from "firebase-functions/v2/https";
 import {onSchedule} from "firebase-functions/v2/scheduler";
 import * as logger from "firebase-functions/logger";
 import * as admin from "firebase-admin";
-import {HttpsError, sendPushAndInAppNotification} from "./shared";
+import {HttpsError, sendPushAndInAppNotification, getMailTransporter} from "./shared";
 
 // =============================================================================
 // IN-APP NOTIFICATION CRUD
@@ -355,6 +355,144 @@ export const autoTransitionEventStatus = onSchedule(
       );
     } catch (error) {
       logger.error("Error in autoTransitionEventStatus:", error);
+    }
+  }
+);
+
+// =============================================================================
+// SCHEDULED: EMAIL REMINDERS TO STAKEHOLDERS (every hour)
+// =============================================================================
+
+/**
+ * Runs every hour. Finds events starting in ~24 hours, looks up assigned
+ * stakeholders' emails, and sends a branded reminder email via SMTP.
+ * Uses a per-stakeholder dedup key: emailRemindersSent.{stakeholderId}
+ */
+export const sendStakeholderEmailReminders = onSchedule(
+  "every 1 hours",
+  async () => {
+    const transporter = getMailTransporter();
+    if (!transporter) {
+      logger.info(
+        "SMTP not configured — skipping stakeholder email reminders."
+      );
+      return;
+    }
+
+    try {
+      const now = new Date();
+      const targetStart = new Date(now.getTime() + 23 * 60 * 60 * 1000);
+      const targetEnd = new Date(now.getTime() + 25 * 60 * 60 * 1000);
+
+      const eventsSnapshot = await admin
+        .firestore()
+        .collection("events")
+        .where("status", "==", "scheduled")
+        .where("startTime", ">=", targetStart.toISOString())
+        .where("startTime", "<", targetEnd.toISOString())
+        .get();
+
+      if (eventsSnapshot.empty) {
+        logger.info("No events in 24-hour window for email reminders.");
+        return;
+      }
+
+      const senderEmail =
+        process.env.SMTP_FROM || "no-reply@managemateapp.me";
+      let emailsSent = 0;
+
+      for (const eventDoc of eventsSnapshot.docs) {
+        const eventData = eventDoc.data();
+        const stakeholderIds: string[] = eventData.stakeholderIds || [];
+        const emailRemindersSent = eventData.emailRemindersSent || {};
+
+        if (stakeholderIds.length === 0) continue;
+
+        const startDate = new Date(eventData.startTime);
+        const formattedDate = startDate.toLocaleDateString("en-US", {
+          weekday: "long",
+          year: "numeric",
+          month: "long",
+          day: "numeric",
+        });
+        const formattedTime = startDate.toLocaleTimeString("en-US", {
+          hour: "numeric",
+          minute: "2-digit",
+          hour12: true,
+        });
+        const locationName =
+          eventData.location?.name || "Location not specified";
+
+        for (const shId of stakeholderIds) {
+          if (emailRemindersSent[shId]) continue;
+
+          try {
+            const shDoc = await admin
+              .firestore()
+              .collection("stakeholders")
+              .doc(shId)
+              .get();
+            const shData = shDoc.data();
+            if (!shData?.email) continue;
+
+            const recipientName = shData.name || "there";
+
+            /* eslint-disable max-len */
+            await transporter.sendMail({
+              from: `"SSMS" <${senderEmail}>`,
+              to: shData.email,
+              subject: `Reminder: ${eventData.title} — Tomorrow`,
+              html: `
+                <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+                  <div style="background-color: #000; color: #fff; padding: 24px; text-align: center;">
+                    <h1 style="margin: 0; font-size: 24px;">Scheduling &amp; Stakeholder Management</h1>
+                  </div>
+                  <div style="padding: 32px 24px;">
+                    <h2 style="color: #333;">Hi ${recipientName}!</h2>
+                    <p style="color: #555; font-size: 16px; line-height: 1.6;">
+                      This is a friendly reminder that the following event is coming up tomorrow:
+                    </p>
+                    <div style="background-color: #f9f9f9; border-left: 4px solid #2563eb; border-radius: 4px; padding: 20px; margin: 24px 0;">
+                      <h3 style="margin: 0 0 12px; color: #333;">${eventData.title}</h3>
+                      <p style="margin: 4px 0; color: #555;">📅 ${formattedDate}</p>
+                      <p style="margin: 4px 0; color: #555;">🕐 ${formattedTime}</p>
+                      <p style="margin: 4px 0; color: #555;">📍 ${locationName}</p>
+                    </div>
+                    <p style="color: #888; font-size: 13px;">
+                      Open the SSMS app for full event details and updates.
+                    </p>
+                  </div>
+                </div>
+              `,
+              text:
+                `Hi ${recipientName}! Reminder: "${eventData.title}" ` +
+                `is scheduled for ${formattedDate} at ${formattedTime} ` +
+                `at ${locationName}. Open the SSMS app for details.`,
+            });
+            /* eslint-enable max-len */
+
+            await eventDoc.ref.update({
+              [`emailRemindersSent.${shId}`]: true,
+            });
+
+            emailsSent++;
+            logger.info(
+              `Email reminder sent to ${shData.email} for event ${eventDoc.id}`
+            );
+          } catch (err) {
+            logger.error(
+              `Failed to send email reminder to stakeholder ${shId}:`,
+              err
+            );
+          }
+        }
+      }
+
+      logger.info(
+        `sendStakeholderEmailReminders: ${emailsSent} email(s) sent.`
+      );
+    } catch (error) {
+      logger.error("Error in sendStakeholderEmailReminders:", error);
     }
   }
 );

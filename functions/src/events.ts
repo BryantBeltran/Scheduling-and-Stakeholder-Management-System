@@ -7,6 +7,7 @@ import {
   hasPermission,
   PERMISSIONS,
   sendPushAndInAppNotification,
+  writeAuditLog,
 } from "./shared";
 
 // =============================================================================
@@ -171,6 +172,11 @@ export const createEvent = onCall(async (request) => {
 
     logger.info(`Event created: ${title}`, {id: eventRef.id});
 
+    await writeAuditLog(
+      callerUid, ownerName || callerUid, "create_event",
+      "event", eventRef.id, `Created event "${title}"`
+    );
+
     const assignedIds: string[] = stakeholderIds || [];
     for (const shId of assignedIds) {
       try {
@@ -330,6 +336,16 @@ export const updateEvent = onCall(async (request) => {
 
     await admin.firestore().collection("events").doc(id).update(updateData);
     logger.info(`Event updated: ${id}`);
+
+    const callerDoc = await admin
+      .firestore().collection("users").doc(callerUid).get();
+    const callerName = callerDoc.data()?.displayName || callerUid;
+    await writeAuditLog(
+      callerUid, callerName, "update_event",
+      "event", id,
+      `Updated event "${title || existingData?.title}"`
+    );
+
     return {success: true};
   } catch (error) {
     if (error instanceof HttpsError) throw error;
@@ -413,6 +429,16 @@ export const deleteEvent = onCall(async (request) => {
 
     await batch.commit();
     logger.info(`Event deleted: ${id}`);
+
+    const callerDoc = await admin
+      .firestore().collection("users").doc(callerUid).get();
+    const callerName = callerDoc.data()?.displayName || callerUid;
+    await writeAuditLog(
+      callerUid, callerName, "delete_event",
+      "event", id,
+      `Deleted event "${eventData?.title}"`
+    );
+
     return {success: true};
   } catch (error) {
     if (error instanceof HttpsError) throw error;

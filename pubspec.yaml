@@ -64,6 +64,12 @@ dependencies:
   path_provider: ^2.1.5
   share_plus: ^12.0.1
 
+  # Calendar view (stretch S1)
+  table_calendar: ^3.2.0
+
+  # CSV export (stretch S3)
+  csv: ^6.0.0
+
 dev_dependencies:
   flutter_test:
     sdk: flutter

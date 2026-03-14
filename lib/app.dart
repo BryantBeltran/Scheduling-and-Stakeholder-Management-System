@@ -24,6 +24,7 @@ import 'screens/events/event_details_screen.dart';
 import 'screens/events/event_edit_screen.dart';
 import 'screens/stakeholders/stakeholder_details_screen.dart';
 import 'screens/admin/user_management_screen.dart';
+import 'screens/admin/audit_log_screen.dart';
 import 'screens/profile/notifications_screen.dart';
 import 'screens/profile/notification_preferences_screen.dart';
 import 'widgets/protected_route.dart';
@@ -156,8 +157,23 @@ class SchedulingApp extends StatelessWidget {
             ),
           );
         }
+        if (settings.name == '/admin/audit-log') {
+          return MaterialPageRoute(
+            builder: (context) => ProtectedRoute.userManagement(
+              child: const AuditLogScreen(),
+            ),
+          );
+        }
         return null;
       },
+      onUnknownRoute: (settings) => MaterialPageRoute(
+        builder: (context) => Scaffold(
+          appBar: AppBar(title: const Text('Not Found')),
+          body: Center(
+            child: Text('Route not found: ${settings.name}'),
+          ),
+        ),
+      ),
       // Add a banner for non-prod environments
       builder: (context, child) {
         if (config.isDev || config.isStaging) {

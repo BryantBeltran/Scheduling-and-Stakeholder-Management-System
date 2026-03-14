@@ -179,6 +179,14 @@ class ProfileScreen extends StatelessWidget {
                         Navigator.of(context).pushNamed('/admin/users');
                       },
                     ),
+                    Divider(height: 1, color: Theme.of(context).dividerColor),
+                    _ProfileMenuItem(
+                      icon: Icons.history,
+                      title: 'Audit Log',
+                      onTap: () {
+                        Navigator.of(context).pushNamed('/admin/audit-log');
+                      },
+                    ),
                   ],
                 ),
               

@@ -36,6 +36,7 @@ import 'package:flutter/material.dart';
 import '../../models/models.dart';
 import '../../services/services.dart';
 import '../events/event_list_screen.dart';
+import '../events/calendar_screen.dart';
 import '../stakeholders/stakeholder_list_screen.dart';
 import '../stakeholders/stakeholder_dashboard_screen.dart';
 import '../profile/profile_screen.dart';
@@ -72,13 +73,14 @@ class _HomeScreenState extends State<HomeScreen> {
   final List<Widget> _screens = const [
     DashboardScreen(),
     EventListScreen(),
+    CalendarScreen(),
     StakeholderListScreen(),
     ProfileScreen(),
   ];
 
   void _onNavTap(int index) {
-    // Check permission for Stakeholders tab (index 2)
-    if (index == 2 && !_canAccessStakeholders) {
+    // Check permission for Stakeholders tab (index 3)
+    if (index == 3 && !_canAccessStakeholders) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text('You do not have permission to view stakeholders'),
@@ -106,7 +108,11 @@ class _HomeScreenState extends State<HomeScreen> {
             label: '',
           ),
           BottomNavigationBarItem(
-            icon: Icon(Icons.calendar_today),
+            icon: Icon(Icons.event_note),
+            label: '',
+          ),
+          BottomNavigationBarItem(
+            icon: Icon(Icons.calendar_month),
             label: '',
           ),
           BottomNavigationBarItem(

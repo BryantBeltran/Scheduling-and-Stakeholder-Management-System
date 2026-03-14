@@ -60,6 +60,7 @@ export {
   cleanupExpiredInvites,
   sendTestNotification,
   autoTransitionEventStatus,
+  sendStakeholderEmailReminders,
 } from "./notifications";
 
 export {
@@ -67,6 +68,10 @@ export {
   onOnboardingComplete,
   requestPasswordReset,
 } from "./config";
+
+export {
+  getAuditLogs,
+} from "./audit";
 
 // Shared helpers exported for use by the Firebase Admin SDK itself
 // (e.g. in integration tests or admin tooling)

@@ -1,8 +1,12 @@
 // ignore_for_file: deprecated_member_use
 
 import 'dart:async';
+import 'dart:io';
 import 'package:connectivity_plus/connectivity_plus.dart';
+import 'package:csv/csv.dart';
 import 'package:flutter/material.dart';
+import 'package:path_provider/path_provider.dart';
+import 'package:share_plus/share_plus.dart';
 import '../../models/models.dart';
 import '../../services/services.dart';
 
@@ -123,6 +127,58 @@ class _EventListScreenState extends State<EventListScreen> {
     return sorted;
   }
 
+  Future<void> _exportFilteredEventsAsCsv() async {
+    if (_filteredEvents.isEmpty) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('No events to export')),
+        );
+      }
+      return;
+    }
+
+    try {
+      final rows = <List<String>>[
+        ['Title', 'Date', 'Start Time', 'End Time', 'Status', 'Priority', 'Location'],
+        ..._filteredEvents.map((e) {
+          final date = '${e.startTime.year}-${e.startTime.month.toString().padLeft(2, '0')}-${e.startTime.day.toString().padLeft(2, '0')}';
+          String fmtTime(DateTime t) {
+            final h = t.hour % 12 == 0 ? 12 : t.hour % 12;
+            final m = t.minute.toString().padLeft(2, '0');
+            final p = t.hour >= 12 ? 'PM' : 'AM';
+            return '$h:$m $p';
+          }
+          return [
+            e.title,
+            date,
+            fmtTime(e.startTime),
+            fmtTime(e.endTime),
+            e.status.name,
+            e.priority.name,
+            e.location.isVirtual
+                ? (e.location.virtualLink ?? 'Virtual')
+                : e.location.name,
+          ];
+        }),
+      ];
+
+      final csvData = const ListToCsvConverter().convert(rows);
+      final dir = await getTemporaryDirectory();
+      final file = File('${dir.path}/ssms_events_export.csv');
+      await file.writeAsString(csvData);
+
+      await SharePlus.instance.share(
+        ShareParams(files: [XFile(file.path)]),
+      );
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Export failed: $e')),
+        );
+      }
+    }
+  }
+
   // Delete event with validation
   Future<void> _deleteEvent(String eventId) async {
     // Find the event to validate
@@ -194,6 +250,13 @@ class _EventListScreenState extends State<EventListScreen> {
         ),
         centerTitle: true,
         elevation: 0,
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.file_download_outlined),
+            tooltip: 'Export CSV',
+            onPressed: _exportFilteredEventsAsCsv,
+          ),
+        ],
       ),
       body: Column(
         children: [
