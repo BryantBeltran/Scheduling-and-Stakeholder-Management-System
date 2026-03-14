@@ -63,20 +63,19 @@ class _LoginScreenState extends State<LoginScreen> {
     try {
       final user = await _authService.signInWithGoogle();
       
-      if (mounted) {
-        // Check if user needs onboarding
-        final needsOnboarding = await _userService.needsOnboarding(user.id);
-        
-        if (needsOnboarding) {
-          // New user - go to onboarding
-          Navigator.of(context).pushNamed(
-            '/onboarding',
-            arguments: {'user': user},
-          );
-        } else {
-          // Existing user with complete profile - go to home
-          Navigator.of(context).pushReplacementNamed('/home');
-        }
+      // Check if user needs onboarding
+      final needsOnboarding = await _userService.needsOnboarding(user.id);
+
+      if (!mounted) return;
+      if (needsOnboarding) {
+        // New user - go to onboarding
+        Navigator.of(context).pushNamed(
+          '/onboarding',
+          arguments: {'user': user},
+        );
+      } else {
+        // Existing user with complete profile - go to home
+        Navigator.of(context).pushReplacementNamed('/home');
       }
     } on AuthException catch (e) {
       setState(() => _errorMessage = e.message);

@@ -52,8 +52,13 @@ class _AuditLogScreenState extends State<AuditLogScreen> {
         _isLoading = false;
       });
     } catch (e) {
+      final msg = e.toString();
       setState(() {
-        _error = e.toString();
+        _error = msg.contains('unauthenticated') || msg.contains('UNAUTHENTICATED')
+            ? 'You must be signed in as an admin to view audit logs.'
+            : msg.contains('permission-denied') || msg.contains('PERMISSION_DENIED')
+                ? 'Access denied. Admin role required.'
+                : 'Could not load audit logs. Please try again.';
         _isLoading = false;
       });
     }
@@ -77,7 +82,7 @@ class _AuditLogScreenState extends State<AuditLogScreen> {
                   child: Padding(
                     padding: const EdgeInsets.all(24),
                     child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
+                      mainAxisSize: MainAxisSize.min,
                       children: [
                         const Icon(Icons.error_outline,
                             size: 48, color: Colors.red),
@@ -91,8 +96,9 @@ class _AuditLogScreenState extends State<AuditLogScreen> {
                           _error!,
                           textAlign: TextAlign.center,
                           style: TextStyle(
-                            color:
-                                Theme.of(context).colorScheme.onSurfaceVariant,
+                            color: Theme.of(context)
+                                .colorScheme
+                                .onSurfaceVariant,
                           ),
                         ),
                         const SizedBox(height: 16),

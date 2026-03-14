@@ -134,16 +134,18 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
         );
         
         await _userService.updateUser(updatedUser);
-        
+
+        if (!mounted) return;
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text('Updated ${user.displayName}\'s role to ${PermissionService.getRoleName(newRole)}'),
             backgroundColor: Colors.green,
           ),
         );
-        
+
         _loadUsers();
       } catch (e) {
+        if (!mounted) return;
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text('Error updating user: $e'),
@@ -184,7 +186,8 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
       try {
         final updatedUser = user.copyWith(isActive: !user.isActive);
         await _userService.updateUser(updatedUser);
-        
+
+        if (!mounted) return;
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(
@@ -195,9 +198,10 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
             backgroundColor: Colors.green,
           ),
         );
-        
+
         _loadUsers();
       } catch (e) {
+        if (!mounted) return;
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text('Error updating user status: $e'),
@@ -339,7 +343,7 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
           _filteredUsers = _applyFilters(_users);
         });
       },
-      selectedColor: Colors.blue.withOpacity(0.2),
+      selectedColor: Colors.blue.withValues(alpha: 0.2),
       checkmarkColor: Colors.blue,
       labelStyle: TextStyle(
         color: isSelected ? Colors.blue : Theme.of(context).colorScheme.onSurfaceVariant,
@@ -477,7 +481,7 @@ class _UserListItem extends StatelessWidget {
               width: 50,
               height: 50,
               decoration: BoxDecoration(
-                color: _getDisplayColor(user.role, user.permissions).withOpacity(0.2),
+                color: _getDisplayColor(user.role, user.permissions).withValues(alpha: 0.2),
                 shape: BoxShape.circle,
                 image: user.photoUrl != null
                     ? DecorationImage(
@@ -526,7 +530,7 @@ class _UserListItem extends StatelessWidget {
                             vertical: 2,
                           ),
                           decoration: BoxDecoration(
-                            color: Colors.red.withOpacity(0.1),
+                            color: Colors.red.withValues(alpha: 0.1),
                             borderRadius: BorderRadius.circular(10),
                           ),
                           child: const Text(
@@ -560,7 +564,7 @@ class _UserListItem extends StatelessWidget {
                             vertical: 2,
                           ),
                           decoration: BoxDecoration(
-                            color: Colors.teal.withOpacity(0.1),
+                            color: Colors.teal.withValues(alpha: 0.1),
                             borderRadius: BorderRadius.circular(10),
                           ),
                           child: const Row(
@@ -654,7 +658,7 @@ class _UserListItem extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
       decoration: BoxDecoration(
-        color: badgeColor.withOpacity(0.2),
+        color: badgeColor.withValues(alpha: 0.2),
         borderRadius: BorderRadius.circular(12),
       ),
       child: Text(

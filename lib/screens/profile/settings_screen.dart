@@ -432,7 +432,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
                   if (context.mounted) {
                     Navigator.pop(context);
-                    ScaffoldMessenger.of(this.context).showSnackBar(
+                    ScaffoldMessenger.of(context).showSnackBar(
                       const SnackBar(
                         content: Text('Password changed successfully'),
                         backgroundColor: Colors.green,
@@ -542,8 +542,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
   }
 
   void _showClearCacheDialog() {
+    final outerContext = context;
     showDialog(
-      context: context,
+      context: outerContext,
       builder: (context) => AlertDialog(
         title: const Text('Clear Cache'),
         content: const Text(
@@ -578,8 +579,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   }
                 }
 
-                if (mounted) {
-                  ScaffoldMessenger.of(context).showSnackBar(
+                if (outerContext.mounted) {
+                  ScaffoldMessenger.of(outerContext).showSnackBar(
                     const SnackBar(
                       content: Text('Cache cleared successfully'),
                       backgroundColor: Colors.green,
@@ -591,8 +592,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 // Firestore clearPersistence may fail if client
                 // is active — still clear images and temp files
                 PaintingBinding.instance.imageCache.clear();
-                if (mounted) {
-                  ScaffoldMessenger.of(context).showSnackBar(
+                if (outerContext.mounted) {
+                  ScaffoldMessenger.of(outerContext).showSnackBar(
                     const SnackBar(
                       content: Text('Partial cache cleared'),
                       backgroundColor: Colors.orange,

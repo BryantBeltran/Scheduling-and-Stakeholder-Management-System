@@ -72,7 +72,9 @@ class _CalendarScreenState extends State<CalendarScreen> {
       ),
       body: Column(
         children: [
-          TableCalendar<EventModel>(
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 8),
+            child: TableCalendar<EventModel>(
             firstDay: DateTime.utc(2020, 1, 1),
             lastDay: DateTime.utc(2030, 12, 31),
             focusedDay: _focusedDay,
@@ -80,7 +82,12 @@ class _CalendarScreenState extends State<CalendarScreen> {
             selectedDayPredicate: (day) => isSameDay(_selectedDay, day),
             eventLoader: _getEventsForDay,
             startingDayOfWeek: StartingDayOfWeek.sunday,
+            daysOfWeekStyle: const DaysOfWeekStyle(
+              weekdayStyle: TextStyle(fontSize: 12),
+              weekendStyle: TextStyle(fontSize: 12),
+            ),
             calendarStyle: CalendarStyle(
+              outsideDaysVisible: false,
               markerDecoration: BoxDecoration(
                 color: Theme.of(context).colorScheme.primary,
                 shape: BoxShape.circle,
@@ -96,9 +103,32 @@ class _CalendarScreenState extends State<CalendarScreen> {
                 shape: BoxShape.circle,
               ),
             ),
-            headerStyle: const HeaderStyle(
+            availableCalendarFormats: const {
+              CalendarFormat.month: 'Month',
+              CalendarFormat.twoWeeks: '2 Weeks',
+              CalendarFormat.week: 'Week',
+            },
+            headerStyle: HeaderStyle(
               formatButtonVisible: true,
               titleCentered: true,
+              titleTextStyle: const TextStyle(
+                fontSize: 16,
+                fontWeight: FontWeight.w600,
+              ),
+              formatButtonDecoration: BoxDecoration(
+                border: Border.all(color: Colors.grey.shade400),
+                borderRadius: BorderRadius.circular(20),
+              ),
+              formatButtonTextStyle: const TextStyle(fontSize: 12),
+              formatButtonPadding: const EdgeInsets.symmetric(
+                horizontal: 8,
+                vertical: 5,
+              ),
+              leftChevronMargin: EdgeInsets.zero,
+              rightChevronMargin: EdgeInsets.zero,
+              leftChevronPadding: const EdgeInsets.symmetric(horizontal: 8),
+              rightChevronPadding: const EdgeInsets.symmetric(horizontal: 8),
+              headerMargin: const EdgeInsets.only(bottom: 8),
             ),
             onDaySelected: (selectedDay, focusedDay) {
               setState(() {
@@ -112,6 +142,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
             onPageChanged: (focusedDay) {
               _focusedDay = focusedDay;
             },
+          ),
           ),
           const SizedBox(height: 8),
           Padding(
