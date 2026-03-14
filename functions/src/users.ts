@@ -9,6 +9,7 @@ import {
   HttpsError,
   isValidRole,
   getDefaultPermissions,
+  writeAuditLog,
 } from "./shared";
 
 // =============================================================================
@@ -233,6 +234,13 @@ export const updateUserRole = onCall(async (request) => {
     });
 
     logger.info(`User role updated: ${uid} to ${role} by ${callerUid}`);
+
+    await writeAuditLog(
+      callerUid, callerData?.displayName || callerUid,
+      "update_role", "user", uid,
+      `Changed user ${uid} role to "${role}"`
+    );
+
     return {success: true, role, permissions: finalPermissions};
   } catch (error) {
     if (error instanceof HttpsError) throw error;

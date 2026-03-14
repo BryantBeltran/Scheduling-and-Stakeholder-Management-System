@@ -126,25 +126,24 @@ class _RegisterScreenState extends State<RegisterScreen> {
         );
       }
       
-      if (mounted) {
-        // Check if user needs onboarding
-        final needsOnboarding = await _userService.needsOnboarding(user.id);
-        
-        if (needsOnboarding) {
-          // New user - go to onboarding, carrying invite context
-          Navigator.of(context).pushNamed(
-            '/onboarding',
-            arguments: {
-              'user': user,
-              'inviteToken': _inviteToken,
-              'stakeholderId': _inviteStakeholderId,
-              'defaultRole': _inviteDefaultRole,
-            },
-          );
-        } else {
-          // User already completed onboarding - go to home
-          Navigator.of(context).pushReplacementNamed('/home');
-        }
+      // Check if user needs onboarding
+      final needsOnboarding = await _userService.needsOnboarding(user.id);
+
+      if (!mounted) return;
+      if (needsOnboarding) {
+        // New user - go to onboarding, carrying invite context
+        Navigator.of(context).pushNamed(
+          '/onboarding',
+          arguments: {
+            'user': user,
+            'inviteToken': _inviteToken,
+            'stakeholderId': _inviteStakeholderId,
+            'defaultRole': _inviteDefaultRole,
+          },
+        );
+      } else {
+        // User already completed onboarding - go to home
+        Navigator.of(context).pushReplacementNamed('/home');
       }
     } on AuthException catch (e) {
       setState(() => _errorMessage = e.message);
@@ -175,20 +174,19 @@ class _RegisterScreenState extends State<RegisterScreen> {
         );
       }
       
-      if (mounted) {
-        // Check if user already has a complete profile
-        final existingUser = await _userService.getUser(user.id);
-        
-        if (existingUser != null && existingUser.id.isNotEmpty) {
-          // User already exists - just sign them in
-          Navigator.of(context).pushReplacementNamed('/home');
-        } else {
-          // New user - go to onboarding
-          Navigator.of(context).pushNamed(
-            '/onboarding',
-            arguments: {'user': user},
-          );
-        }
+      // Check if user already has a complete profile
+      final existingUser = await _userService.getUser(user.id);
+
+      if (!mounted) return;
+      if (existingUser != null && existingUser.id.isNotEmpty) {
+        // User already exists - just sign them in
+        Navigator.of(context).pushReplacementNamed('/home');
+      } else {
+        // New user - go to onboarding
+        Navigator.of(context).pushNamed(
+          '/onboarding',
+          arguments: {'user': user},
+        );
       }
     } on AuthException catch (e) {
       setState(() => _errorMessage = e.message);

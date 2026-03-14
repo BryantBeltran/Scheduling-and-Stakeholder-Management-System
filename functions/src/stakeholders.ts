@@ -9,6 +9,7 @@ import {
   sendInviteEmail,
   sendAccountLinkedEmail,
   sendPushAndInAppNotification,
+  writeAuditLog,
 } from "./shared";
 
 // =============================================================================
@@ -57,6 +58,15 @@ export const createStakeholder = onCall(async (request) => {
       });
 
     logger.info(`Stakeholder created: ${name}`, {id: stakeholderRef.id});
+
+    const callerDoc = await admin
+      .firestore().collection("users").doc(callerUid).get();
+    await writeAuditLog(
+      callerUid, callerDoc.data()?.displayName || callerUid,
+      "create_stakeholder", "stakeholder", stakeholderRef.id,
+      `Created stakeholder "${name}"`
+    );
+
     return {id: stakeholderRef.id};
   } catch (error) {
     logger.error("Error creating stakeholder:", error);
@@ -124,6 +134,15 @@ export const updateStakeholder = onCall(async (request) => {
     await admin
       .firestore().collection("stakeholders").doc(id).update(updateData);
     logger.info(`Stakeholder updated: ${id}`);
+
+    const callerDoc = await admin
+      .firestore().collection("users").doc(callerUid).get();
+    await writeAuditLog(
+      callerUid, callerDoc.data()?.displayName || callerUid,
+      "update_stakeholder", "stakeholder", id,
+      `Updated stakeholder "${name || id}"`
+    );
+
     return {success: true};
   } catch (error) {
     logger.error("Error updating stakeholder:", error);
@@ -168,6 +187,15 @@ export const deleteStakeholder = onCall(async (request) => {
     await batch.commit();
 
     logger.info(`Stakeholder deleted: ${id}`);
+
+    const callerDoc = await admin
+      .firestore().collection("users").doc(callerUid).get();
+    await writeAuditLog(
+      callerUid, callerDoc.data()?.displayName || callerUid,
+      "delete_stakeholder", "stakeholder", id,
+      `Deleted stakeholder "${id}"`
+    );
+
     return {success: true};
   } catch (error) {
     logger.error("Error deleting stakeholder:", error);
@@ -556,6 +584,18 @@ export const addStakeholderToEvent = onCall(async (request) => {
     }
 
     logger.info(`Stakeholder ${stakeholderId} added to event ${eventId}`);
+
+    const assignCallerUid = request.auth?.uid;
+    if (assignCallerUid) {
+      const callerDoc = await admin
+        .firestore().collection("users").doc(assignCallerUid).get();
+      await writeAuditLog(
+        assignCallerUid, callerDoc.data()?.displayName || assignCallerUid,
+        "assign_stakeholder", "event", eventId,
+        `Assigned stakeholder ${stakeholderId} to event "${eventTitle}"`
+      );
+    }
+
     return {success: true};
   } catch (error) {
     logger.error("Error adding stakeholder to event:", error);

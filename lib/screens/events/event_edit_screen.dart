@@ -305,7 +305,7 @@ class _EventEditScreenState extends State<EventEditScreen> {
       onPopInvokedWithResult: (didPop, result) async {
         if (didPop) return;
         final shouldPop = await _onWillPop();
-        if (shouldPop && mounted) {
+        if (shouldPop && context.mounted) {
           Navigator.of(context).pop();
         }
       },
@@ -315,7 +315,7 @@ class _EventEditScreenState extends State<EventEditScreen> {
             icon: const Icon(Icons.close),
             onPressed: () async {
               if (await _onWillPop()) {
-                if (mounted) Navigator.of(context).pop();
+                if (context.mounted) Navigator.of(context).pop();
               }
             },
           ),
@@ -835,7 +835,7 @@ class _EventEditScreenState extends State<EventEditScreen> {
             width: isSelected ? 2 : 1,
           ),
           borderRadius: BorderRadius.circular(12),
-          color: isSelected ? Colors.blue.withOpacity(0.1) : Theme.of(context).colorScheme.surface,
+          color: isSelected ? Colors.blue.withValues(alpha: 0.1) : Theme.of(context).colorScheme.surface,
         ),
         child: Row(
           mainAxisAlignment: MainAxisAlignment.center,
