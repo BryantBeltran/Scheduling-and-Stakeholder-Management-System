@@ -2,7 +2,9 @@ import {onCall} from "firebase-functions/v2/https";
 import {onSchedule} from "firebase-functions/v2/scheduler";
 import * as logger from "firebase-functions/logger";
 import * as admin from "firebase-admin";
-import {HttpsError, sendPushAndInAppNotification, getMailTransporter} from "./shared";
+import {
+  HttpsError, sendPushAndInAppNotification, getMailTransporter,
+} from "./shared";
 
 // =============================================================================
 // IN-APP NOTIFICATION CRUD
