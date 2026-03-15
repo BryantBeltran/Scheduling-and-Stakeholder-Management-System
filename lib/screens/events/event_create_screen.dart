@@ -24,7 +24,7 @@ class _EventCreateScreenState extends State<EventCreateScreen> {
   DateTime? _selectedEndDate;
   TimeOfDay? _selectedEndTime;
   EventStatus _selectedStatus = EventStatus.scheduled;
-  final EventPriority _selectedPriority = EventPriority.medium;
+  EventPriority _selectedPriority = EventPriority.medium;
   List<String> _selectedStakeholderIds = [];
   Map<String, StakeholderModel> _stakeholderCache = {};
   bool _isVirtualLocation = false;
@@ -732,6 +732,39 @@ class _EventCreateScreenState extends State<EventCreateScreen> {
                     ],
                     
                     const SizedBox(height: 24),
+                    // Priority
+                    DropdownButtonFormField<EventPriority>(
+                      initialValue: _selectedPriority,
+                      decoration: InputDecoration(
+                        labelText: 'Priority',
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                      ),
+                      items: EventPriority.values.map((priority) {
+                        return DropdownMenuItem(
+                          value: priority,
+                          child: Row(
+                            children: [
+                              Container(
+                                width: 12,
+                                height: 12,
+                                decoration: BoxDecoration(
+                                  color: _getPriorityColor(priority),
+                                  shape: BoxShape.circle,
+                                ),
+                              ),
+                              const SizedBox(width: 8),
+                              Text(priority.name.toUpperCase()),
+                            ],
+                          ),
+                        );
+                      }).toList(),
+                      onChanged: (value) {
+                        setState(() => _selectedPriority = value!);
+                      },
+                    ),
+                    const SizedBox(height: 24),
                     // Publish Status
                     Container(
                       padding: const EdgeInsets.all(16),
@@ -880,5 +913,18 @@ class _EventCreateScreenState extends State<EventCreateScreen> {
         ),
       ),
     );
+  }
+
+  Color _getPriorityColor(EventPriority priority) {
+    switch (priority) {
+      case EventPriority.low:
+        return Colors.green;
+      case EventPriority.medium:
+        return Colors.orange;
+      case EventPriority.high:
+        return Colors.red;
+      case EventPriority.urgent:
+        return Colors.purple;
+    }
   }
 }
