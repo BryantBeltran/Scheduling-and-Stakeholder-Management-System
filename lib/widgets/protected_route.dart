@@ -75,8 +75,8 @@ class ProtectedRoute extends StatelessWidget {
     );
   }
 
-  /// Creates a protected route requiring user management access
-  /// Allows: manageUsers permission, admin permission, or root permission
+  /// Creates a protected route requiring admin or root access
+  /// Allows: admin permission or root permission only
   factory ProtectedRoute.userManagement({
     Key? key,
     required Widget child,
@@ -84,7 +84,7 @@ class ProtectedRoute extends StatelessWidget {
   }) {
     return ProtectedRoute(
       key: key,
-      anyOfPermissions: [Permission.manageUsers, Permission.admin, Permission.root],
+      anyOfPermissions: [Permission.admin, Permission.root],
       accessDeniedWidget: accessDeniedWidget,
       child: child,
     );

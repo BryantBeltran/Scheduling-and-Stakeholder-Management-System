@@ -121,10 +121,8 @@ class PermissionService {
   // ADMIN PERMISSIONS
   // ============================================================
   
-  /// Manage users: manageUsers OR admin/root
-  bool get canManageUsers => 
-      hasPermission(Permission.manageUsers) ||
-      isSuperAdmin;
+  /// Manage users: admin or root only
+  bool get canManageUsers => isSuperAdmin;
 
   /// View reports: viewReports OR admin/root
   bool get canViewReports => 

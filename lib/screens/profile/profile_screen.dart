@@ -287,8 +287,7 @@ class ProfileScreen extends StatelessWidget {
 
   bool _canManageUsers(UserModel user) {
     return user.permissions.contains(Permission.admin) ||
-           user.permissions.contains(Permission.root) ||
-           user.permissions.contains(Permission.manageUsers);
+           user.permissions.contains(Permission.root);
   }
 }
 
