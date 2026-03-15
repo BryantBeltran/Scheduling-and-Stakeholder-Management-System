@@ -127,13 +127,12 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
       try {
         final newRole = result['role'] as UserRole;
         final newPermissions = result['permissions'] as List<Permission>;
-        
-        final updatedUser = user.copyWith(
+
+        await _userService.updateUserRole(
+          uid: user.id,
           role: newRole,
           permissions: newPermissions,
         );
-        
-        await _userService.updateUser(updatedUser);
 
         if (!mounted) return;
         ScaffoldMessenger.of(context).showSnackBar(
