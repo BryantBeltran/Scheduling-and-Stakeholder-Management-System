@@ -43,17 +43,18 @@ class LocationAutocompleteField extends StatefulWidget {
   State<LocationAutocompleteField> createState() => _LocationAutocompleteFieldState();
 }
 
-class _LocationAutocompleteFieldState extends State<LocationAutocompleteField> {
+class _LocationAutocompleteFieldState extends State<LocationAutocompleteField>
+    with WidgetsBindingObserver {
   late TextEditingController _controller;
   final FocusNode _focusNode = FocusNode();
   final LayerLink _layerLink = LayerLink();
-  
+
   OverlayEntry? _overlayEntry;
   List<PlacePrediction> _predictions = [];
   bool _isLoading = false;
   String? _errorMessage;
   Timer? _debounce;
-  
+
   final PlacesService _placesService = PlacesService();
 
   @override
@@ -61,10 +62,12 @@ class _LocationAutocompleteFieldState extends State<LocationAutocompleteField> {
     super.initState();
     _controller = widget.controller ?? TextEditingController(text: widget.initialValue);
     _focusNode.addListener(_onFocusChanged);
+    WidgetsBinding.instance.addObserver(this);
   }
 
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     _debounce?.cancel();
     _focusNode.removeListener(_onFocusChanged);
     _focusNode.dispose();
@@ -73,6 +76,19 @@ class _LocationAutocompleteFieldState extends State<LocationAutocompleteField> {
       _controller.dispose();
     }
     super.dispose();
+  }
+
+  /// Re-position the overlay when the keyboard slides in or out.
+  @override
+  void didChangeMetrics() {
+    if (_overlayEntry != null) {
+      // Rebuild after the next frame so the new viewInsets are in effect.
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted && _overlayEntry != null) {
+          _showOverlay();
+        }
+      });
+    }
   }
 
   void _onFocusChanged() {
@@ -96,16 +112,20 @@ class _LocationAutocompleteFieldState extends State<LocationAutocompleteField> {
     final size = renderBox.size;
     final offset = renderBox.localToGlobal(Offset.zero);
     
-    // Calculate available space below and above the text field
-    final screenHeight = MediaQuery.of(context).size.height;
-    final spaceBelow = screenHeight - offset.dy - size.height;
+    // Calculate available space below and above the text field.
+    // viewInsets.bottom is the keyboard height — must be subtracted from spaceBelow.
+    final mq = MediaQuery.of(context);
+    final screenHeight = mq.size.height;
+    final keyboardHeight = mq.viewInsets.bottom;
+    final visibleBottom = screenHeight - keyboardHeight;
+    final spaceBelow = visibleBottom - offset.dy - size.height;
     final spaceAbove = offset.dy;
-    
-    // Determine if dropdown should appear above or below
-    final showAbove = spaceBelow < 250 && spaceAbove > spaceBelow;
-    final maxHeight = showAbove 
-        ? (spaceAbove - 8).clamp(100.0, 250.0)
-        : (spaceBelow - 8).clamp(100.0, 250.0);
+
+    // Show above when there isn't enough room below (keyboard is likely open).
+    final showAbove = spaceBelow < 200 && spaceAbove > spaceBelow;
+    final maxHeight = showAbove
+        ? (spaceAbove - 8).clamp(120.0, 280.0)
+        : (spaceBelow - 8).clamp(120.0, 280.0);
 
     _overlayEntry = OverlayEntry(
       builder: (context) => Positioned(
@@ -158,18 +178,18 @@ class _LocationAutocompleteFieldState extends State<LocationAutocompleteField> {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(Icons.error_outline, color: Colors.orange[700], size: 32),
+            Icon(Icons.error_outline, color: Theme.of(context).colorScheme.error, size: 32),
             const SizedBox(height: 8),
             Text(
               _errorMessage!,
-              style: TextStyle(color: Colors.grey[700]),
+              style: TextStyle(color: Theme.of(context).colorScheme.onSurfaceVariant),
               textAlign: TextAlign.center,
             ),
             if (_errorMessage == 'Google Maps API key not configured') ...[
               const SizedBox(height: 8),
               Text(
                 'See console for setup instructions',
-                style: TextStyle(color: Colors.grey[600], fontSize: 12),
+                style: TextStyle(color: Theme.of(context).colorScheme.onSurfaceVariant, fontSize: 12),
                 textAlign: TextAlign.center,
               ),
             ],

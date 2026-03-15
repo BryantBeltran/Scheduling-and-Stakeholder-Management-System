@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../../models/models.dart';
 import '../../services/services.dart';
+import '../../theme/app_theme.dart';
 import 'profile_edit_screen.dart';
 import 'settings_screen.dart';
 import 'notifications_screen.dart';
@@ -41,7 +42,7 @@ class ProfileScreen extends StatelessWidget {
                       height: 120,
                       decoration: BoxDecoration(
                         shape: BoxShape.circle,
-                        color: const Color(0xFF5B7C99),
+                        color: AppTheme.avatarBackground,
                         image: (user?.photoUrl != null && user!.photoUrl!.isNotEmpty)
                             ? DecorationImage(
                                 image: NetworkImage(user.photoUrl!),
@@ -57,7 +58,7 @@ class ProfileScreen extends StatelessWidget {
                                     : 'U',
                                 style: const TextStyle(
                                   fontSize: 48,
-                                  color: Colors.white,
+                                  color: Colors.white, // always white on avatarBackground
                                   fontWeight: FontWeight.bold,
                                 ),
                               ),
@@ -79,13 +80,13 @@ class ProfileScreen extends StatelessWidget {
                     Container(
                       padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 10),
                       decoration: BoxDecoration(
-                        color: _getRoleColor(user?.role, user?.permissions),
+                        color: _getRoleColor(context, user?.role, user?.permissions),
                         borderRadius: BorderRadius.circular(24),
                       ),
                       child: Text(
                         _getRoleDisplayName(user?.role, user?.permissions),
                         style: TextStyle(
-                          color: Theme.of(context).colorScheme.onSurface,
+                          color: AppTheme.roleOnColor(context),
                           fontWeight: FontWeight.w600,
                           fontSize: 16,
                         ),
@@ -134,7 +135,7 @@ class ProfileScreen extends StatelessWidget {
                     return Container(
                       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                       decoration: BoxDecoration(
-                        color: Colors.red,
+                        color: Theme.of(context).colorScheme.error,
                         borderRadius: BorderRadius.circular(12),
                       ),
                       child: Text(
@@ -252,30 +253,25 @@ class ProfileScreen extends StatelessWidget {
     );
   }
 
-  Color _getRoleColor(UserRole? role, List<Permission>? permissions) {
+  Color _getRoleColor(BuildContext context, UserRole? role, List<Permission>? permissions) {
     // Prefer explicit role for color
+    if (permissions != null) {
+      if (permissions.contains(Permission.root)) return AppTheme.roleRootColor(context);
+      if (permissions.contains(Permission.admin)) return AppTheme.roleAdminColor(context);
+    }
     if (role != null) {
       switch (role) {
         case UserRole.admin:
-          return const Color(0xFFFFCDD2); // Light red
+          return AppTheme.roleAdminColor(context);
         case UserRole.manager:
-          return const Color(0xFFBBDEFB); // Light blue
+          return AppTheme.roleManagerColor(context);
         case UserRole.member:
-          return const Color(0xFF80CBC4); // Teal
+          return AppTheme.roleMemberColor(context);
         case UserRole.viewer:
-          return const Color(0xFFE0E0E0); // Grey
+          return AppTheme.roleViewerColor(context);
       }
     }
-    // Fallback: infer from permissions
-    if (permissions != null) {
-      if (permissions.contains(Permission.root)) {
-        return const Color(0xFFFFD700); // Gold for root
-      }
-      if (permissions.contains(Permission.admin)) {
-        return const Color(0xFFFFCDD2);
-      }
-    }
-    return const Color(0xFFE0E0E0);
+    return AppTheme.roleViewerColor(context);
   }
 
   String _getRoleDisplayName(UserRole? role, List<Permission>? permissions) {

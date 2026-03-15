@@ -35,6 +35,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import '../../models/models.dart';
 import '../../services/services.dart';
+import '../../theme/app_theme.dart';
 import '../events/event_list_screen.dart';
 import '../events/calendar_screen.dart';
 import '../stakeholders/stakeholder_list_screen.dart';
@@ -239,7 +240,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                 final hasPhoto = photoUrl != null && photoUrl.isNotEmpty;
                 return CircleAvatar(
                     radius: 18,
-                    backgroundColor: const Color(0xFF5B7C99),
+                    backgroundColor: AppTheme.avatarBackground,
                     backgroundImage: hasPhoto ? NetworkImage(photoUrl) : null,
                     child: hasPhoto
                         ? null
@@ -248,7 +249,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                                 ? user!.displayName[0].toUpperCase()
                                 : 'U',
                             style: const TextStyle(
-                              color: Colors.white,
+                              color: Colors.white, // always white on avatarBackground
                               fontWeight: FontWeight.bold,
                               fontSize: 14,
                             ),
@@ -608,7 +609,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                                     backgroundColor: _statusColor(event.status),
                                     child: Icon(
                                       _statusIcon(event.status),
-                                      color: Colors.white,
+                                      color: Colors.white, // always white on status color background
                                       size: 18,
                                     ),
                                   ),
@@ -745,9 +746,9 @@ class _DashboardScreenState extends State<DashboardScreen> {
       elevation: 0,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(12),
-        side: BorderSide(color: const Color(0xFF5B7C99).withValues(alpha: 0.3)),
+        side: BorderSide(color: AppTheme.avatarBackground.withValues(alpha: 0.3)),
       ),
-      color: const Color(0xFF5B7C99).withValues(alpha: 0.05),
+      color: AppTheme.avatarBackground.withValues(alpha: 0.05),
       child: InkWell(
         onTap: () {
           Navigator.push(
@@ -765,12 +766,12 @@ class _DashboardScreenState extends State<DashboardScreen> {
               Container(
                 padding: const EdgeInsets.all(12),
                 decoration: BoxDecoration(
-                  color: const Color(0xFF5B7C99).withValues(alpha: 0.15),
+                  color: AppTheme.avatarBackground.withValues(alpha: 0.15),
                   borderRadius: BorderRadius.circular(12),
                 ),
                 child: const Icon(
                   Icons.event_available,
-                  color: Color(0xFF5B7C99),
+                  color: AppTheme.avatarBackground,
                   size: 28,
                 ),
               ),
@@ -799,7 +800,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
               ),
               const Icon(
                 Icons.chevron_right,
-                color: Color(0xFF5B7C99),
+                color: AppTheme.avatarBackground,
               ),
             ],
           ),

@@ -23,6 +23,11 @@ functions/.env.*
 android/app/google-services.json
 ios/Runner/GoogleService-Info.plist
 lib/firebase_options.dart
+
+# Service account keys — never commit these
+*serviceAccount*.json
+*service_account*.json
+*service-account*.json
 Thumbs.db
 .clj-kondo/
 .lsp/

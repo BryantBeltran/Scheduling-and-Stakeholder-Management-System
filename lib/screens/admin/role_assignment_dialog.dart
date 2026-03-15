@@ -8,6 +8,7 @@
 import 'package:flutter/material.dart';
 import '../../models/models.dart';
 import '../../services/services.dart';
+import '../../theme/app_theme.dart';
 
 /// Dialog for assigning roles and permissions to users
 class RoleAssignmentDialog extends StatefulWidget {
@@ -217,9 +218,9 @@ class _RoleAssignmentDialogState extends State<RoleAssignmentDialog> {
                       Container(
                         padding: const EdgeInsets.all(12),
                         decoration: BoxDecoration(
-                          color: Colors.blue.withValues(alpha: 0.05),
+                          color: Theme.of(context).colorScheme.primaryContainer.withValues(alpha: 0.3),
                           borderRadius: BorderRadius.circular(8),
-                          border: Border.all(color: Colors.blue.withValues(alpha: 0.2)),
+                          border: Border.all(color: Theme.of(context).colorScheme.primary.withValues(alpha: 0.3)),
                         ),
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
@@ -287,8 +288,8 @@ class _RoleAssignmentDialogState extends State<RoleAssignmentDialog> {
                         });
                       },
                       style: ElevatedButton.styleFrom(
-                        backgroundColor: Colors.blue,
-                        foregroundColor: Colors.white,
+                        backgroundColor: Theme.of(context).colorScheme.primary,
+                        foregroundColor: Theme.of(context).colorScheme.onPrimary,
                         padding: const EdgeInsets.symmetric(vertical: 14),
                         shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(8),
@@ -336,7 +337,7 @@ class _RoleAssignmentDialogState extends State<RoleAssignmentDialog> {
                 color: isSelected ? _getRoleColor(role) : null,
               ),
               child: isSelected
-                  ? const Icon(Icons.check, size: 16, color: Colors.white)
+                  ? Icon(Icons.check, size: 16, color: Theme.of(context).colorScheme.onPrimary)
                   : null,
             ),
             const SizedBox(width: 12),
@@ -404,7 +405,7 @@ class _RoleAssignmentDialogState extends State<RoleAssignmentDialog> {
                 PermissionService.getPermissionName(permission),
                 style: TextStyle(
                   fontSize: 12,
-                  color: isEnabled ? Colors.white : Theme.of(context).colorScheme.onSurfaceVariant,
+                  color: isEnabled ? Theme.of(context).colorScheme.onPrimary : Theme.of(context).colorScheme.onSurfaceVariant,
                 ),
               ),
               selected: isEnabled,
@@ -417,8 +418,8 @@ class _RoleAssignmentDialogState extends State<RoleAssignmentDialog> {
                   }
                 });
               },
-              selectedColor: Colors.blue,
-              checkmarkColor: Colors.white,
+              selectedColor: Theme.of(context).colorScheme.primary,
+              checkmarkColor: Theme.of(context).colorScheme.onPrimary,
               backgroundColor: Theme.of(context).colorScheme.surfaceContainerHighest,
             );
           }).toList(),
@@ -430,13 +431,13 @@ class _RoleAssignmentDialogState extends State<RoleAssignmentDialog> {
   Color _getRoleColor(UserRole role) {
     switch (role) {
       case UserRole.admin:
-        return Colors.purple;
+        return AppTheme.roleAdminColor(context);
       case UserRole.manager:
-        return Colors.blue;
+        return AppTheme.roleManagerColor(context);
       case UserRole.member:
-        return Colors.green;
+        return AppTheme.roleMemberColor(context);
       case UserRole.viewer:
-        return Colors.grey;
+        return AppTheme.roleViewerColor(context);
     }
   }
 }
