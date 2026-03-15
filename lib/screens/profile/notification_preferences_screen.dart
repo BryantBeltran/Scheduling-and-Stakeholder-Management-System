@@ -123,14 +123,6 @@ class _NotificationPreferencesScreenState
                     subtitle: const Text('Receive alerts on your device'),
                     value: _pushEnabled,
                     onChanged: (v) => setState(() => _pushEnabled = v),
-                    thumbColor: WidgetStateProperty.resolveWith((states) =>
-                        states.contains(WidgetState.selected)
-                            ? Colors.white
-                            : Colors.grey.shade400),
-                    trackColor: WidgetStateProperty.resolveWith((states) =>
-                        states.contains(WidgetState.selected)
-                            ? Colors.blue
-                            : Colors.grey.shade700),
                   ),
                 ),
                 const SizedBox(height: 16),
@@ -148,14 +140,6 @@ class _NotificationPreferencesScreenState
                     subtitle: const Text('Receive updates by email'),
                     value: _emailEnabled,
                     onChanged: (v) => setState(() => _emailEnabled = v),
-                    thumbColor: WidgetStateProperty.resolveWith((states) =>
-                        states.contains(WidgetState.selected)
-                            ? Colors.white
-                            : Colors.grey.shade400),
-                    trackColor: WidgetStateProperty.resolveWith((states) =>
-                        states.contains(WidgetState.selected)
-                            ? Colors.blue
-                            : Colors.grey.shade700),
                   ),
                 ),
                 const SizedBox(height: 16),
@@ -178,14 +162,6 @@ class _NotificationPreferencesScreenState
                         value: _eventRemindersEnabled,
                         onChanged: (v) =>
                             setState(() => _eventRemindersEnabled = v),
-                        thumbColor: WidgetStateProperty.resolveWith((states) =>
-                            states.contains(WidgetState.selected)
-                                ? Colors.white
-                                : Colors.grey.shade400),
-                        trackColor: WidgetStateProperty.resolveWith((states) =>
-                            states.contains(WidgetState.selected)
-                                ? Colors.blue
-                                : Colors.grey.shade700),
                       ),
                       Divider(height: 1, color: Theme.of(context).dividerColor),
                       SwitchListTile(
@@ -196,14 +172,6 @@ class _NotificationPreferencesScreenState
                         value: _inviteNotificationsEnabled,
                         onChanged: (v) =>
                             setState(() => _inviteNotificationsEnabled = v),
-                        thumbColor: WidgetStateProperty.resolveWith((states) =>
-                            states.contains(WidgetState.selected)
-                                ? Colors.white
-                                : Colors.grey.shade400),
-                        trackColor: WidgetStateProperty.resolveWith((states) =>
-                            states.contains(WidgetState.selected)
-                                ? Colors.blue
-                                : Colors.grey.shade700),
                       ),
                     ],
                   ),

@@ -418,10 +418,10 @@ class _EventListScreenState extends State<EventListScreen> {
                                 alignment: Alignment.centerRight,
                                 padding: const EdgeInsets.symmetric(horizontal: 20),
                                 decoration: BoxDecoration(
-                                  color: Colors.red,
+                                  color: Theme.of(context).colorScheme.error,
                                   borderRadius: BorderRadius.circular(12),
                                 ),
-                                child: const Icon(Icons.delete, color: Colors.white),
+                                child: Icon(Icons.delete, color: Theme.of(context).colorScheme.onError),
                               ),
                               confirmDismiss: (direction) async {
                                 _deleteEvent(event.id);
@@ -473,10 +473,10 @@ class _EventListScreenState extends State<EventListScreen> {
         selected: isSelected,
         onSelected: (_) => setState(() => _filterStatus = status),
         selectedColor: chipColor,
-        checkmarkColor: Colors.white,
+        checkmarkColor: Theme.of(context).colorScheme.onPrimary,
         labelStyle: TextStyle(
           color: isSelected
-              ? Colors.white
+              ? Theme.of(context).colorScheme.onPrimary
               : Theme.of(context).colorScheme.onSurface,
           fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
         ),

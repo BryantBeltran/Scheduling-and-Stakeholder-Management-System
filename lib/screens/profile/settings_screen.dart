@@ -349,12 +349,12 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 Container(
                   padding: const EdgeInsets.all(8),
                   decoration: BoxDecoration(
-                    color: Colors.red[50],
+                    color: Theme.of(context).colorScheme.errorContainer,
                     borderRadius: BorderRadius.circular(8),
                   ),
                   child: Text(
                     errorMessage!,
-                    style: TextStyle(color: Colors.red[700], fontSize: 13),
+                    style: TextStyle(color: Theme.of(context).colorScheme.onErrorContainer, fontSize: 13),
                   ),
                 ),
                 const SizedBox(height: 12),
@@ -433,9 +433,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   if (context.mounted) {
                     Navigator.pop(context);
                     ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(
-                        content: Text('Password changed successfully'),
-                        backgroundColor: Colors.green,
+                      SnackBar(
+                        content: const Text('Password changed successfully'),
+                        backgroundColor: Theme.of(context).colorScheme.primary,
                       ),
                     );
                   }
@@ -532,7 +532,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text('Export failed: $e'),
-            backgroundColor: Colors.red,
+            backgroundColor: Theme.of(context).colorScheme.error,
           ),
         );
       }
@@ -581,9 +581,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
                 if (outerContext.mounted) {
                   ScaffoldMessenger.of(outerContext).showSnackBar(
-                    const SnackBar(
-                      content: Text('Cache cleared successfully'),
-                      backgroundColor: Colors.green,
+                    SnackBar(
+                      content: const Text('Cache cleared successfully'),
+                      backgroundColor: Theme.of(outerContext).colorScheme.primary,
                     ),
                   );
                 }
@@ -594,9 +594,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 PaintingBinding.instance.imageCache.clear();
                 if (outerContext.mounted) {
                   ScaffoldMessenger.of(outerContext).showSnackBar(
-                    const SnackBar(
-                      content: Text('Partial cache cleared'),
-                      backgroundColor: Colors.orange,
+                    SnackBar(
+                      content: const Text('Partial cache cleared'),
+                      backgroundColor: Theme.of(outerContext).colorScheme.tertiary,
                     ),
                   );
                 }
@@ -632,7 +632,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
               );
             },
             style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.orange,
+              backgroundColor: Theme.of(context).colorScheme.error,
+              foregroundColor: Theme.of(context).colorScheme.onError,
             ),
             child: const Text('Deactivate'),
           ),
@@ -658,14 +659,15 @@ class _SettingsScreenState extends State<SettingsScreen> {
             onPressed: () {
               Navigator.pop(context);
               ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(
-                  content: Text('Account deletion coming soon!'),
-                  backgroundColor: Colors.red,
+                SnackBar(
+                  content: const Text('Account deletion coming soon!'),
+                  backgroundColor: Theme.of(context).colorScheme.error,
                 ),
               );
             },
             style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.red,
+              backgroundColor: Theme.of(context).colorScheme.error,
+              foregroundColor: Theme.of(context).colorScheme.onError,
             ),
             child: const Text('Delete'),
           ),

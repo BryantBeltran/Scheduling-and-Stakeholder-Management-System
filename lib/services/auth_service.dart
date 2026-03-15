@@ -99,8 +99,8 @@ class AuthService {
       email: firebaseUser.email ?? '',
       displayName: firebaseUser.displayName ?? firebaseUser.email?.split('@').first ?? 'User',
       photoUrl: firebaseUser.photoURL,
-      role: UserRole.member, // Default role, should be fetched from Firestore
-      permissions: UserModel.getDefaultPermissions(UserRole.member),
+      role: UserRole.viewer, // Default role, should be fetched from Firestore
+      permissions: UserModel.getDefaultPermissions(UserRole.viewer),
       createdAt: firebaseUser.metadata.creationTime ?? DateTime.now(),
       lastLoginAt: firebaseUser.metadata.lastSignInTime ?? DateTime.now(),
     );
@@ -219,8 +219,8 @@ class AuthService {
         id: 'user_${DateTime.now().millisecondsSinceEpoch}',
         email: email,
         displayName: email.split('@').first,
-        role: UserRole.member,
-        permissions: UserModel.getDefaultPermissions(UserRole.member),
+        role: UserRole.viewer,
+        permissions: UserModel.getDefaultPermissions(UserRole.viewer),
         createdAt: DateTime.now(),
         lastLoginAt: DateTime.now(),
       );
@@ -309,8 +309,8 @@ class AuthService {
         id: 'user_${DateTime.now().millisecondsSinceEpoch}',
         email: email,
         displayName: displayName,
-        role: UserRole.member,
-        permissions: UserModel.getDefaultPermissions(UserRole.member),
+        role: UserRole.viewer,
+        permissions: UserModel.getDefaultPermissions(UserRole.viewer),
         createdAt: DateTime.now(),
         lastLoginAt: DateTime.now(),
       );
@@ -381,8 +381,8 @@ class AuthService {
         email: 'google.user@example.com',
         displayName: 'Google User',
         photoUrl: 'https://via.placeholder.com/150',
-        role: UserRole.member,
-        permissions: UserModel.getDefaultPermissions(UserRole.member),
+        role: UserRole.viewer,
+        permissions: UserModel.getDefaultPermissions(UserRole.viewer),
         createdAt: DateTime.now(),
         lastLoginAt: DateTime.now(),
       );
@@ -477,8 +477,8 @@ class AuthService {
         email: 'apple.user@example.com',
         displayName: 'Apple User',
         photoUrl: 'https://via.placeholder.com/150',
-        role: UserRole.member,
-        permissions: UserModel.getDefaultPermissions(UserRole.member),
+        role: UserRole.viewer,
+        permissions: UserModel.getDefaultPermissions(UserRole.viewer),
         createdAt: DateTime.now(),
         lastLoginAt: DateTime.now(),
       );

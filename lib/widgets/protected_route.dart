@@ -75,8 +75,8 @@ class ProtectedRoute extends StatelessWidget {
     );
   }
 
-  /// Creates a protected route requiring user management access
-  /// Allows: manageUsers permission, admin permission, or root permission
+  /// Creates a protected route requiring admin or root access
+  /// Allows: admin permission or root permission only
   factory ProtectedRoute.userManagement({
     Key? key,
     required Widget child,
@@ -84,7 +84,7 @@ class ProtectedRoute extends StatelessWidget {
   }) {
     return ProtectedRoute(
       key: key,
-      anyOfPermissions: [Permission.manageUsers, Permission.admin, Permission.root],
+      anyOfPermissions: [Permission.admin, Permission.root],
       accessDeniedWidget: accessDeniedWidget,
       child: child,
     );
@@ -269,13 +269,13 @@ class AccessDeniedView extends StatelessWidget {
               Container(
                 padding: const EdgeInsets.all(24),
                 decoration: BoxDecoration(
-                  color: Colors.red.withValues(alpha: 0.1),
+                  color: Theme.of(context).colorScheme.error.withValues(alpha: 0.1),
                   shape: BoxShape.circle,
                 ),
                 child: Icon(
                   showLoginButton ? Icons.lock_outline : Icons.block,
                   size: 64,
-                  color: Colors.red[400],
+                  color: Theme.of(context).colorScheme.error,
                 ),
               ),
               const SizedBox(height: 24),
@@ -296,7 +296,7 @@ class AccessDeniedView extends StatelessWidget {
                 message,
                 style: TextStyle(
                   fontSize: 16,
-                  color: Colors.grey[600],
+                  color: Theme.of(context).colorScheme.onSurfaceVariant,
                 ),
                 textAlign: TextAlign.center,
               ),
@@ -310,7 +310,7 @@ class AccessDeniedView extends StatelessWidget {
                     vertical: 8,
                   ),
                   decoration: BoxDecoration(
-                    color: Colors.grey[100],
+                    color: Theme.of(context).colorScheme.surfaceContainerHighest,
                     borderRadius: BorderRadius.circular(20),
                   ),
                   child: Row(
@@ -319,13 +319,13 @@ class AccessDeniedView extends StatelessWidget {
                       Icon(
                         Icons.person_outline,
                         size: 18,
-                        color: Colors.grey[600],
+                        color: Theme.of(context).colorScheme.onSurfaceVariant,
                       ),
                       const SizedBox(width: 8),
                       Text(
                         'Your role: ${PermissionService.getRoleName(userRole!)}',
                         style: TextStyle(
-                          color: Colors.grey[600],
+                          color: Theme.of(context).colorScheme.onSurfaceVariant,
                           fontWeight: FontWeight.w500,
                         ),
                       ),
@@ -347,8 +347,6 @@ class AccessDeniedView extends StatelessWidget {
                     icon: const Icon(Icons.login),
                     label: const Text('Go to Login'),
                     style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.blue,
-                      foregroundColor: Colors.white,
                       padding: const EdgeInsets.symmetric(vertical: 16),
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(10),

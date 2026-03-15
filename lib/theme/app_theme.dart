@@ -37,32 +37,69 @@ class AppTheme {
   static const Color primaryColor = Color(0xFF1976D2);
   static const Color primaryDark = Color(0xFF1565C0);
   static const Color primaryLight = Color(0xFF42A5F5);
-  
+
   // Accent colors
   static const Color accentColor = Color(0xFF00BCD4);
   static const Color accentDark = Color(0xFF0097A7);
-  
+
   // Status colors
   static const Color successColor = Color(0xFF4CAF50);
   static const Color warningColor = Color(0xFFFFA726);
   static const Color errorColor = Color(0xFFE53935);
   static const Color infoColor = Color(0xFF29B6F6);
-  
+
   // Priority colors
   static const Color priorityLow = Color(0xFF81C784);
   static const Color priorityMedium = Color(0xFFFFB74D);
   static const Color priorityHigh = Color(0xFFFF8A65);
   static const Color priorityUrgent = Color(0xFFE57373);
-  
+
   // Text colors
   static const Color textPrimary = Color(0xFF212121);
   static const Color textSecondary = Color(0xFF757575);
   static const Color textHint = Color(0xFFBDBDBD);
-  
+
   // Background colors
   static const Color backgroundLight = Color(0xFFF5F5F5);
   static const Color backgroundWhite = Color(0xFFFFFFFF);
   static const Color cardBackground = Color(0xFFFFFFFF);
+
+  // Avatar / brand accent — visible on both light and dark
+  static const Color avatarBackground = Color(0xFF5B7C99);
+
+  // Role colors — theme-aware variants
+  // Light: pastel tones; Dark: richer/deeper tones, all with white text
+  static Color roleAdminColor(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    return isDark ? const Color(0xFF7B1FA2) : const Color(0xFFCE93D8);
+  }
+
+  static Color roleManagerColor(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    return isDark ? const Color(0xFF1565C0) : const Color(0xFF90CAF9);
+  }
+
+  static Color roleMemberColor(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    return isDark ? const Color(0xFF00695C) : const Color(0xFF80CBC4);
+  }
+
+  static Color roleViewerColor(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    return isDark ? const Color(0xFF424242) : const Color(0xFFE0E0E0);
+  }
+
+  static Color roleRootColor(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    return isDark ? const Color(0xFFF9A825) : const Color(0xFFFFD700);
+  }
+
+  /// On-color for role badges (text/icon color on the badge background)
+  static Color roleOnColor(BuildContext context) {
+    return Theme.of(context).brightness == Brightness.dark
+        ? Colors.white
+        : Colors.black87;
+  }
   
   /// Light theme
   static ThemeData get lightTheme {

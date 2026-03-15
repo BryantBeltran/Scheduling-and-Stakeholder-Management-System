@@ -368,7 +368,6 @@ class DevModeWrapper extends StatelessWidget {
           bottom: 80,
           child: FloatingActionButton(
             mini: true,
-            backgroundColor: Colors.green,
             heroTag: 'devNavButton', // Prevent hero animation conflicts
             onPressed: () {
               Navigator.of(context).push(
@@ -377,7 +376,7 @@ class DevModeWrapper extends StatelessWidget {
                 ),
               );
             },
-            child: const Icon(Icons.build, color: Colors.white),
+            child: const Icon(Icons.build),
           ),
         ),
       ],

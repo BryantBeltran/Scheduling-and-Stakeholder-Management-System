@@ -111,7 +111,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
       case 'viewer':
         return UserRole.viewer;
       default:
-        return UserRole.member;
+        return UserRole.viewer;
     }
   }
 

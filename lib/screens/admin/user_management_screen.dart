@@ -8,6 +8,7 @@
 import 'package:flutter/material.dart';
 import '../../models/models.dart';
 import '../../services/services.dart';
+import '../../theme/app_theme.dart';
 import 'role_assignment_dialog.dart';
 
 /// Screen for managing users (Admin only)
@@ -47,9 +48,9 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
       WidgetsBinding.instance.addPostFrameCallback((_) {
         Navigator.of(context).pop();
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('You do not have permission to manage users'),
-            backgroundColor: Colors.red,
+          SnackBar(
+            content: const Text('You do not have permission to manage users'),
+            backgroundColor: Theme.of(context).colorScheme.error,
           ),
         );
       });
@@ -127,19 +128,18 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
       try {
         final newRole = result['role'] as UserRole;
         final newPermissions = result['permissions'] as List<Permission>;
-        
-        final updatedUser = user.copyWith(
+
+        await _userService.updateUserRole(
+          uid: user.id,
           role: newRole,
           permissions: newPermissions,
         );
-        
-        await _userService.updateUser(updatedUser);
 
         if (!mounted) return;
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text('Updated ${user.displayName}\'s role to ${PermissionService.getRoleName(newRole)}'),
-            backgroundColor: Colors.green,
+            backgroundColor: Theme.of(context).colorScheme.primary,
           ),
         );
 
@@ -149,7 +149,7 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text('Error updating user: $e'),
-            backgroundColor: Colors.red,
+            backgroundColor: Theme.of(context).colorScheme.error,
           ),
         );
       }
@@ -174,7 +174,7 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
           TextButton(
             onPressed: () => Navigator.pop(context, true),
             style: TextButton.styleFrom(
-              foregroundColor: user.isActive ? Colors.red : Colors.green,
+              foregroundColor: user.isActive ? Theme.of(context).colorScheme.error : Theme.of(context).colorScheme.primary,
             ),
             child: Text(user.isActive ? 'Deactivate' : 'Activate'),
           ),
@@ -195,7 +195,7 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
                   ? '${user.displayName} has been deactivated'
                   : '${user.displayName} has been activated',
             ),
-            backgroundColor: Colors.green,
+            backgroundColor: Theme.of(context).colorScheme.primary,
           ),
         );
 
@@ -205,7 +205,7 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text('Error updating user status: $e'),
-            backgroundColor: Colors.red,
+            backgroundColor: Theme.of(context).colorScheme.error,
           ),
         );
       }
@@ -313,11 +313,11 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
                   ),
                 ),
                 const Spacer(),
-                _buildRoleCount(UserRole.admin, 'Admins'),
+                _buildRoleCount(context, UserRole.admin, 'Admins'),
                 const SizedBox(width: 16),
-                _buildRoleCount(UserRole.manager, 'Managers'),
+                _buildRoleCount(context, UserRole.manager, 'Managers'),
                 const SizedBox(width: 16),
-                _buildRoleCount(UserRole.member, 'Members'),
+                _buildRoleCount(context, UserRole.member, 'Members'),
               ],
             ),
           ),
@@ -343,24 +343,30 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
           _filteredUsers = _applyFilters(_users);
         });
       },
-      selectedColor: Colors.blue.withValues(alpha: 0.2),
-      checkmarkColor: Colors.blue,
+      selectedColor: Theme.of(context).colorScheme.primaryContainer,
+      checkmarkColor: Theme.of(context).colorScheme.primary,
       labelStyle: TextStyle(
-        color: isSelected ? Colors.blue : Theme.of(context).colorScheme.onSurfaceVariant,
+        color: isSelected ? Theme.of(context).colorScheme.primary : Theme.of(context).colorScheme.onSurfaceVariant,
         fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
       ),
     );
   }
 
-  Widget _buildRoleCount(UserRole role, String label) {
+  Widget _buildRoleCount(BuildContext context, UserRole role, String label) {
     final count = _users.where((u) => u.role == role).length;
+    final dotColor = switch (role) {
+      UserRole.admin   => AppTheme.roleAdminColor(context),
+      UserRole.manager => AppTheme.roleManagerColor(context),
+      UserRole.member  => AppTheme.roleMemberColor(context),
+      UserRole.viewer  => AppTheme.roleViewerColor(context),
+    };
     return Row(
       children: [
         Container(
           width: 8,
           height: 8,
           decoration: BoxDecoration(
-            color: _getRoleColor(role),
+            color: dotColor,
             shape: BoxShape.circle,
           ),
         ),
@@ -438,18 +444,6 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
     );
   }
 
-  Color _getRoleColor(UserRole role) {
-    switch (role) {
-      case UserRole.admin:
-        return Colors.purple;
-      case UserRole.manager:
-        return Colors.blue;
-      case UserRole.member:
-        return Colors.green;
-      case UserRole.viewer:
-        return Colors.grey;
-    }
-  }
 }
 
 class _UserListItem extends StatelessWidget {
@@ -481,7 +475,7 @@ class _UserListItem extends StatelessWidget {
               width: 50,
               height: 50,
               decoration: BoxDecoration(
-                color: _getDisplayColor(user.role, user.permissions).withValues(alpha: 0.2),
+                color: _getDisplayColor(context, user.role, user.permissions).withValues(alpha: 0.2),
                 shape: BoxShape.circle,
                 image: user.photoUrl != null
                     ? DecorationImage(
@@ -499,7 +493,7 @@ class _UserListItem extends StatelessWidget {
                         style: TextStyle(
                           fontSize: 20,
                           fontWeight: FontWeight.bold,
-                          color: _getDisplayColor(user.role, user.permissions),
+                          color: _getDisplayColor(context, user.role, user.permissions),
                         ),
                       ),
                     )
@@ -530,14 +524,14 @@ class _UserListItem extends StatelessWidget {
                             vertical: 2,
                           ),
                           decoration: BoxDecoration(
-                            color: Colors.red.withValues(alpha: 0.1),
+                            color: Theme.of(context).colorScheme.errorContainer,
                             borderRadius: BorderRadius.circular(10),
                           ),
-                          child: const Text(
+                          child: Text(
                             'Inactive',
                             style: TextStyle(
                               fontSize: 10,
-                              color: Colors.red,
+                              color: Theme.of(context).colorScheme.onErrorContainer,
                               fontWeight: FontWeight.bold,
                             ),
                           ),
@@ -555,7 +549,7 @@ class _UserListItem extends StatelessWidget {
                   const SizedBox(height: 8),
                   Row(
                     children: [
-                      _buildRoleBadge(user.role, user.permissions),
+                      _buildRoleBadge(context, user.role, user.permissions),
                       if (user.stakeholderId != null) ...[
                         const SizedBox(width: 8),
                         Container(
@@ -620,7 +614,7 @@ class _UserListItem extends StatelessWidget {
                       Icon(
                         user.isActive ? Icons.block : Icons.check_circle,
                         size: 20,
-                        color: user.isActive ? Colors.red : Colors.green,
+                        color: user.isActive ? Theme.of(context).colorScheme.error : Theme.of(context).colorScheme.primary,
                       ),
                       const SizedBox(width: 8),
                       Text(user.isActive ? 'Deactivate' : 'Activate'),
@@ -635,63 +629,48 @@ class _UserListItem extends StatelessWidget {
     );
   }
 
-  Widget _buildRoleBadge(UserRole role, List<Permission> permissions) {
-    // Check permissions first for display
-    String displayName;
-    Color badgeColor;
-    Color textColor;
-    
-    if (permissions.contains(Permission.root)) {
-      displayName = 'Root';
-      badgeColor = const Color(0xFFFFD700); // Gold
-      textColor = const Color(0xFF8B6914); // Dark gold for text
-    } else if (permissions.contains(Permission.admin)) {
-      displayName = 'Admin';
-      badgeColor = Colors.purple;
-      textColor = Colors.purple;
-    } else {
-      displayName = PermissionService.getRoleName(role);
-      badgeColor = _getRoleColor(role);
-      textColor = _getRoleColor(role);
-    }
-    
+  Widget _buildRoleBadge(BuildContext context, UserRole role, List<Permission> permissions) {
+    final badgeColor = _getDisplayColor(context, role, permissions);
+    final displayName = permissions.contains(Permission.root)
+        ? 'Root'
+        : permissions.contains(Permission.admin)
+            ? 'Admin'
+            : PermissionService.getRoleName(role);
+
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
       decoration: BoxDecoration(
-        color: badgeColor.withValues(alpha: 0.2),
+        color: badgeColor.withValues(alpha: 0.25),
         borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: badgeColor.withValues(alpha: 0.5)),
       ),
       child: Text(
         displayName,
         style: TextStyle(
           fontSize: 11,
           fontWeight: FontWeight.bold,
-          color: textColor,
+          color: badgeColor,
         ),
       ),
     );
   }
 
-  /// Get display color based on permissions first, then role
-  Color _getDisplayColor(UserRole role, List<Permission> permissions) {
-    if (permissions.contains(Permission.root)) {
-      return const Color(0xFFFFD700); // Gold for root
-    } else if (permissions.contains(Permission.admin)) {
-      return Colors.purple; // Purple for admin
-    }
-    return _getRoleColor(role);
+  Color _getDisplayColor(BuildContext context, UserRole role, List<Permission> permissions) {
+    if (permissions.contains(Permission.root)) return AppTheme.roleRootColor(context);
+    if (permissions.contains(Permission.admin)) return AppTheme.roleAdminColor(context);
+    return _getRoleColor(context, role);
   }
 
-  Color _getRoleColor(UserRole role) {
+  Color _getRoleColor(BuildContext context, UserRole role) {
     switch (role) {
       case UserRole.admin:
-        return Colors.purple;
+        return AppTheme.roleAdminColor(context);
       case UserRole.manager:
-        return Colors.blue;
+        return AppTheme.roleManagerColor(context);
       case UserRole.member:
-        return Colors.green;
+        return AppTheme.roleMemberColor(context);
       case UserRole.viewer:
-        return Colors.grey;
+        return AppTheme.roleViewerColor(context);
     }
   }
 }

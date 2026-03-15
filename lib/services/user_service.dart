@@ -11,6 +11,7 @@
 // ==============================================================================
 
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:cloud_functions/cloud_functions.dart';
 import 'package:flutter/foundation.dart';
 import '../config/app_config.dart';
 import '../models/models.dart';
@@ -23,6 +24,7 @@ class UserService {
 
   // Lazy Firestore instance
   FirebaseFirestore get _firestore => FirebaseFirestore.instance;
+  FirebaseFunctions get _functions => FirebaseFunctions.instance;
 
   /// Get all users from Firestore (for admin management)
   Future<List<UserModel>> getAllUsers() async {
@@ -144,8 +146,8 @@ class UserService {
           'email': user.email,
           'displayName': user.displayName,
           'photoUrl': user.photoUrl,
-          'role': user.role.toString().split('.').last,
-          'permissions': user.permissions.map((p) => p.toString().split('.').last).toList(),
+          'role': UserRole.viewer.toString().split('.').last,
+          'permissions': UserModel.getDefaultPermissions(UserRole.viewer).map((p) => p.toString().split('.').last).toList(),
           'createdAt': FieldValue.serverTimestamp(),
           'lastLoginAt': FieldValue.serverTimestamp(),
           'updatedAt': FieldValue.serverTimestamp(),
@@ -253,6 +255,26 @@ class UserService {
       debugPrint('Error getting user from Firestore: $e');
       return null;
     }
+  }
+
+  /// Update a user's role via Cloud Function (required — Firestore rules block direct role writes)
+  Future<void> updateUserRole({
+    required String uid,
+    required UserRole role,
+    required List<Permission> permissions,
+  }) async {
+    if (!AppConfig.instance.useFirebase) {
+      debugPrint('[Dev] Mock update user role: $uid → $role');
+      return;
+    }
+
+    final callable = _functions.httpsCallable('updateUserRole');
+    await callable.call<Map<String, dynamic>>({
+      'uid': uid,
+      'role': role.name,
+      'permissions': permissions.map((p) => p.name).toList(),
+    });
+    debugPrint('Updated role for $uid to ${role.name}');
   }
 
   /// Update user profile

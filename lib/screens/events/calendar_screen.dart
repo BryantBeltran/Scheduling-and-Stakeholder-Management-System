@@ -116,7 +116,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
                 fontWeight: FontWeight.w600,
               ),
               formatButtonDecoration: BoxDecoration(
-                border: Border.all(color: Colors.grey.shade400),
+                border: Border.all(color: Theme.of(context).colorScheme.outline),
                 borderRadius: BorderRadius.circular(20),
               ),
               formatButtonTextStyle: const TextStyle(fontSize: 12),

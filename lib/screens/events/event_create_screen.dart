@@ -23,7 +23,7 @@ class _EventCreateScreenState extends State<EventCreateScreen> {
   TimeOfDay? _selectedTime;
   DateTime? _selectedEndDate;
   TimeOfDay? _selectedEndTime;
-  EventStatus _selectedStatus = EventStatus.draft;
+  EventStatus _selectedStatus = EventStatus.scheduled;
   final EventPriority _selectedPriority = EventPriority.medium;
   List<String> _selectedStakeholderIds = [];
   Map<String, StakeholderModel> _stakeholderCache = {};
