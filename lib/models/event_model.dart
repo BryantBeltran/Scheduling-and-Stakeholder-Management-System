@@ -328,10 +328,10 @@ class EventModel {
           ? List<String>.from(json['stakeholderIds'] as List<dynamic>)
           : [],
       createdAt: json['createdAt'] != null
-          ? DateTime.parse(json['createdAt'] as String)
+          ? DateTime.parse(json['createdAt'] as String).toLocal()
           : now,
       updatedAt: json['updatedAt'] != null
-          ? DateTime.parse(json['updatedAt'] as String)
+          ? DateTime.parse(json['updatedAt'] as String).toLocal()
           : now,
       recurrenceRule: json['recurrenceRule'] as String?,
       metadata: json['metadata'] as Map<String, dynamic>?,

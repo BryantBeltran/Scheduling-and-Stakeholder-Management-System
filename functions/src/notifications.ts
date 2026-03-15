@@ -195,12 +195,18 @@ export const sendEventReminders = onSchedule(
             const userReminderKey = `${window.key}_${userId}`;
             if (remindersSent[userReminderKey]) continue;
 
-            // Check user's preferred reminder time
+            // Check user's notification preferences
             const userDoc = await admin
               .firestore().collection("users").doc(userId).get();
             const prefs =
               (userDoc.data()?.notificationPreferences ?? {}) as
               Record<string, unknown>;
+
+            // Skip if user has disabled event reminders
+            const remindersEnabled =
+              (prefs.eventRemindersEnabled as boolean) ?? true;
+            if (!remindersEnabled) continue;
+
             const preferredMinutes =
               (prefs.defaultReminderMinutes as number) ?? 30;
 

@@ -881,7 +881,8 @@ class _EventCard extends StatelessWidget {
                           overflow: TextOverflow.ellipsis,
                         ),
                       ),
-                      _buildStatusBadge(event.status),
+                      const SizedBox(width: 8),
+                      Flexible(child: _buildStatusBadge(event.status)),
                     ],
                   ),
                   const SizedBox(height: 8),
@@ -889,11 +890,15 @@ class _EventCard extends StatelessWidget {
                     children: [
                       Icon(Icons.access_time, size: 14, color: Theme.of(context).colorScheme.onSurfaceVariant),
                       const SizedBox(width: 4),
-                      Text(
-                        _formatTimeRange(event.startTime, event.endTime),
-                        style: TextStyle(
-                          fontSize: 13,
-                          color: Theme.of(context).colorScheme.onSurfaceVariant,
+                      Expanded(
+                        child: Text(
+                          _formatTimeRange(event.startTime, event.endTime),
+                          style: TextStyle(
+                            fontSize: 13,
+                            color: Theme.of(context).colorScheme.onSurfaceVariant,
+                          ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
                         ),
                       ),
                     ],
