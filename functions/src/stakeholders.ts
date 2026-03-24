@@ -37,7 +37,10 @@ export const createStakeholder = onCall(async (request) => {
   }
   const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
   if (typeof email !== "string" || !emailRegex.test(email)) {
-    throw new HttpsError("invalid-argument", "A valid email address is required.");
+    throw new HttpsError(
+      "invalid-argument",
+      "A valid email address is required."
+    );
   }
 
   try {
@@ -295,7 +298,8 @@ export const inviteStakeholder = onCall(async (request) => {
         await sendPushAndInAppNotification(
           linkedUserId,
           "You've been invited to SSMS",
-          `You have been invited to the Scheduling & Stakeholder Management System.`,
+          "You have been invited to the Scheduling" +
+          " & Stakeholder Management System.",
           "invite_sent",
           null
         );
