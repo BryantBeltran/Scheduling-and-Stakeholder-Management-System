@@ -35,6 +35,10 @@ export const createStakeholder = onCall(async (request) => {
   if (!name || !email) {
     throw new HttpsError("invalid-argument", "Name and email are required.");
   }
+  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  if (typeof email !== "string" || !emailRegex.test(email)) {
+    throw new HttpsError("invalid-argument", "A valid email address is required.");
+  }
 
   try {
     const stakeholderRef = await admin
@@ -283,6 +287,25 @@ export const inviteStakeholder = onCall(async (request) => {
       inviteToken,
       stakeholderData.name || stakeholderData.displayName
     );
+
+    // Send push/in-app notification to linked user (if any)
+    const linkedUserId = stakeholderData.linkedUserId;
+    if (linkedUserId) {
+      try {
+        await sendPushAndInAppNotification(
+          linkedUserId,
+          "You've been invited to SSMS",
+          `You have been invited to the Scheduling & Stakeholder Management System.`,
+          "invite_sent",
+          null
+        );
+      } catch (notifErr) {
+        logger.warn(
+          `Could not send invite notification to user ${linkedUserId}`,
+          notifErr
+        );
+      }
+    }
 
     return {
       success: true,
@@ -547,11 +570,26 @@ export const resendInvite = onCall(async (request) => {
 // =============================================================================
 
 export const addStakeholderToEvent = onCall(async (request) => {
+  const callerUid = request.auth?.uid;
+  if (!callerUid) {
+    throw new HttpsError("unauthenticated", "Authentication required.");
+  }
+
   const {eventId, stakeholderId} = request.data;
   if (!eventId || !stakeholderId) {
     throw new HttpsError(
       "invalid-argument",
       "Event ID and Stakeholder ID are required."
+    );
+  }
+
+  const canAssign = await hasPermission(
+    callerUid, PERMISSIONS.assignStakeholder
+  );
+  if (!canAssign) {
+    throw new HttpsError(
+      "permission-denied",
+      "You don't have permission to assign stakeholders."
     );
   }
 
@@ -573,7 +611,7 @@ export const addStakeholderToEvent = onCall(async (request) => {
     const linkedUserId = stakeholderDoc.data()?.linkedUserId;
     const eventTitle = eventDoc.data()?.title ?? "an event";
 
-    if (linkedUserId) {
+    if (linkedUserId && linkedUserId !== callerUid) {
       await sendPushAndInAppNotification(
         linkedUserId,
         `Added to Event: ${eventTitle}`,
@@ -606,11 +644,26 @@ export const addStakeholderToEvent = onCall(async (request) => {
 });
 
 export const removeStakeholderFromEvent = onCall(async (request) => {
+  const callerUid = request.auth?.uid;
+  if (!callerUid) {
+    throw new HttpsError("unauthenticated", "Authentication required.");
+  }
+
   const {eventId, stakeholderId} = request.data;
   if (!eventId || !stakeholderId) {
     throw new HttpsError(
       "invalid-argument",
       "Event ID and Stakeholder ID are required."
+    );
+  }
+
+  const canAssign = await hasPermission(
+    callerUid, PERMISSIONS.assignStakeholder
+  );
+  if (!canAssign) {
+    throw new HttpsError(
+      "permission-denied",
+      "You don't have permission to manage stakeholder assignments."
     );
   }
 
@@ -632,7 +685,7 @@ export const removeStakeholderFromEvent = onCall(async (request) => {
       ]);
       const linkedUserId = shDoc.data()?.linkedUserId;
       const eventTitle = evDoc.data()?.title ?? "an event";
-      if (linkedUserId) {
+      if (linkedUserId && linkedUserId !== callerUid) {
         await sendPushAndInAppNotification(
           linkedUserId,
           `Removed from Event: ${eventTitle}`,

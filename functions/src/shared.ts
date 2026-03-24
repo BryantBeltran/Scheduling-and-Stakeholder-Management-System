@@ -3,6 +3,9 @@ import * as logger from "firebase-functions/logger";
 import * as admin from "firebase-admin";
 import * as nodemailer from "nodemailer";
 
+const INVITE_BASE_URL =
+  process.env.INVITE_BASE_URL || "https://managemateapp.me";
+
 // ---------------------------------------------------------------------------
 // ROLES & PERMISSIONS
 // ---------------------------------------------------------------------------
@@ -182,7 +185,7 @@ export async function sendInviteEmail(
   if (!transporter) {
     logger.info(
       "Email sending skipped (SMTP not configured). " +
-      `Invite link: https://ssms.app/invite?token=${inviteToken}`
+      `Invite link: ${INVITE_BASE_URL}/invite?token=${inviteToken}`
     );
     return false;
   }
@@ -191,7 +194,7 @@ export async function sendInviteEmail(
   const recipientName = stakeholderName || "there";
 
   try {
-    const deepLink = `https://managemateapp.me/invite?token=${inviteToken}`;
+    const deepLink = `${INVITE_BASE_URL}/invite?token=${inviteToken}`;
     /* eslint-disable max-len */
     await transporter.sendMail({
       from: `"SSMS" <${senderEmail}>`,
