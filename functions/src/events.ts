@@ -24,7 +24,11 @@ export const onEventCreated = onDocumentCreated(
 
     logger.info(`New event created: ${eventData.title}`, {eventId});
 
+    const notifiedUserIds = new Set<string>();
+    const ownerId: string | undefined = eventData.ownerId;
+
     try {
+      // Notify assigned stakeholders
       if (eventData.stakeholderIds && eventData.stakeholderIds.length > 0) {
         for (const stakeholderId of eventData.stakeholderIds) {
           const stakeholderDoc = await admin
@@ -35,7 +39,7 @@ export const onEventCreated = onDocumentCreated(
           const stakeholder = stakeholderDoc.data();
           const linkedUserId = stakeholder?.linkedUserId;
 
-          if (linkedUserId) {
+          if (linkedUserId && linkedUserId !== ownerId) {
             await sendPushAndInAppNotification(
               linkedUserId,
               "New Event Assigned",
@@ -43,7 +47,8 @@ export const onEventCreated = onDocumentCreated(
               "event_assignment",
               eventId
             );
-          } else {
+            notifiedUserIds.add(linkedUserId);
+          } else if (!linkedUserId) {
             await admin.firestore().collection("notifications").add({
               userId: stakeholderId,
               title: "New Event Assigned",
@@ -55,8 +60,31 @@ export const onEventCreated = onDocumentCreated(
             });
           }
         }
-        logger.info(`Notifications sent for event: ${eventId}`);
       }
+
+      // Notify assigned manager (if different from owner
+      // and not already notified as a stakeholder)
+      const managerId: string | undefined =
+        eventData.managerId;
+      if (
+        managerId &&
+        managerId !== ownerId &&
+        !notifiedUserIds.has(managerId)
+      ) {
+        await sendPushAndInAppNotification(
+          managerId,
+          "Manager Role Assigned",
+          `You've been assigned as manager for: ${eventData.title}`,
+          "event_assignment",
+          eventId
+        );
+        notifiedUserIds.add(managerId);
+      }
+
+      logger.info(
+        `Notifications sent for event: ${eventId}`,
+        {notified: notifiedUserIds.size}
+      );
     } catch (error) {
       logger.error(`Error sending event notifications: ${eventId}`, error);
     }
@@ -76,7 +104,7 @@ export const createEvent = onCall(async (request) => {
   const {
     title, description, startTime, endTime, location,
     ownerId, ownerName, status, priority, stakeholderIds,
-    recurrenceRule, metadata,
+    managerId, recurrenceRule, metadata,
   } = request.data;
 
   if (ownerId !== callerUid) {
@@ -164,6 +192,7 @@ export const createEvent = onCall(async (request) => {
       status: status || "draft",
       priority: priority || "medium",
       stakeholderIds: stakeholderIds || [],
+      managerId: managerId || null,
       recurrenceRule: recurrenceRule || null,
       metadata: metadata || null,
       createdAt: now,
@@ -177,25 +206,8 @@ export const createEvent = onCall(async (request) => {
       "event", eventRef.id, `Created event "${title}"`
     );
 
-    const assignedIds: string[] = stakeholderIds || [];
-    for (const shId of assignedIds) {
-      try {
-        const shDoc = await admin
-          .firestore().collection("stakeholders").doc(shId).get();
-        const linkedUserId = shDoc.data()?.linkedUserId;
-        if (linkedUserId && linkedUserId !== callerUid) {
-          await sendPushAndInAppNotification(
-            linkedUserId,
-            `You've been invited to: ${title}`,
-            `You have been added to the event "${title}".`,
-            "event_assignment",
-            eventRef.id
-          );
-        }
-      } catch (err) {
-        logger.warn(`Failed to notify stakeholder ${shId} for new event`, err);
-      }
-    }
+    // Stakeholder & manager notifications are handled by the
+    // onEventCreated Firestore trigger to avoid duplicates.
 
     return {id: eventRef.id};
   } catch (error) {
@@ -251,7 +263,7 @@ export const getAllEvents = onCall(async (request) => {
 export const updateEvent = onCall(async (request) => {
   const {
     id, title, description, startTime, endTime, location,
-    status, priority, stakeholderIds, ownerName,
+    status, priority, stakeholderIds, managerId, ownerName,
     recurrenceRule, metadata,
   } = request.data;
 
@@ -299,6 +311,9 @@ export const updateEvent = onCall(async (request) => {
     if (stakeholderIds !== undefined) {
       updateData.stakeholderIds = stakeholderIds;
     }
+    if (managerId !== undefined) {
+      updateData.managerId = managerId;
+    }
     if (recurrenceRule !== undefined) {
       updateData.recurrenceRule = recurrenceRule;
     }
@@ -334,12 +349,33 @@ export const updateEvent = onCall(async (request) => {
       }
     }
 
-    await admin.firestore().collection("events").doc(id).update(updateData);
+    await admin.firestore()
+      .collection("events").doc(id).update(updateData);
     logger.info(`Event updated: ${id}`);
 
-    const callerDoc = await admin
-      .firestore().collection("users").doc(callerUid).get();
-    const callerName = callerDoc.data()?.displayName || callerUid;
+    // Notify new manager if managerId changed
+    const oldManagerId = existingData?.managerId;
+    if (
+      managerId !== undefined &&
+      managerId !== oldManagerId &&
+      managerId &&
+      managerId !== callerUid
+    ) {
+      const eventTitle =
+        title || existingData?.title || "Untitled";
+      await sendPushAndInAppNotification(
+        managerId,
+        "Manager Role Assigned",
+        `You've been assigned as manager for: ${eventTitle}`,
+        "event_assignment",
+        id
+      );
+    }
+
+    const callerDoc = await admin.firestore()
+      .collection("users").doc(callerUid).get();
+    const callerName =
+      callerDoc.data()?.displayName || callerUid;
     await writeAuditLog(
       callerUid, callerName, "update_event",
       "event", id,
@@ -420,12 +456,33 @@ export const deleteEvent = onCall(async (request) => {
       }
     }
 
+    // Notify manager of deletion if set
+    const delMgr: string | undefined = eventData?.managerId;
+    if (delMgr && delMgr !== callerUid) {
+      try {
+        await sendPushAndInAppNotification(
+          delMgr,
+          `Event Cancelled: ${eventData?.title}`,
+          `"${eventData?.title}" has been cancelled.`,
+          "event_update",
+          null
+        );
+      } catch (err) {
+        logger.warn(
+          "Could not notify manager of event deletion",
+          err
+        );
+      }
+    }
+
     const notifications = await admin
       .firestore()
       .collection("notifications")
       .where("eventId", "==", id)
       .get();
-    notifications.docs.forEach((doc) => batch.delete(doc.ref));
+    notifications.docs.forEach(
+      (doc) => batch.delete(doc.ref)
+    );
 
     await batch.commit();
     logger.info(`Event deleted: ${id}`);
@@ -482,6 +539,24 @@ export const notifyEventUpdate = onCall(async (request) => {
       if (linkedUserId && linkedUserId !== callerUid) {
         await sendPushAndInAppNotification(
           linkedUserId,
+          `Event Updated: ${eventData.title}`,
+          description,
+          "event_update",
+          eventId
+        );
+        notified++;
+      }
+    }
+
+    // Notify manager if set and not already notified
+    const mgr: string | undefined = eventData.managerId;
+    if (mgr && mgr !== callerUid) {
+      const alreadyNotified = stakeholderIds.some(
+        (shId: string) => shId === mgr
+      );
+      if (!alreadyNotified) {
+        await sendPushAndInAppNotification(
+          mgr,
           `Event Updated: ${eventData.title}`,
           description,
           "event_update",
