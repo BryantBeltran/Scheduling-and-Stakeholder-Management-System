@@ -62,7 +62,7 @@ class _EventListScreenState extends State<EventListScreen> {
 
     // Apply status filter
     if (_filterStatus != null) {
-      filteredEvents = filteredEvents.where((e) => e.status == _filterStatus).toList();
+      filteredEvents = filteredEvents.where((e) => e.effectiveStatus == _filterStatus).toList();
     }
 
     // Apply search filter
@@ -117,8 +117,8 @@ class _EventListScreenState extends State<EventListScreen> {
             EventStatus.completed: 3,
             EventStatus.cancelled: 4,
           };
-          final aOrder = statusOrder[a.status]!;
-          final bOrder = statusOrder[b.status]!;
+          final aOrder = statusOrder[a.effectiveStatus]!;
+          final bOrder = statusOrder[b.effectiveStatus]!;
           return _sortAscending ? aOrder.compareTo(bOrder) : bOrder.compareTo(aOrder);
         });
         break;
@@ -153,7 +153,7 @@ class _EventListScreenState extends State<EventListScreen> {
             date,
             fmtTime(e.startTime),
             fmtTime(e.endTime),
-            e.status.name,
+            e.effectiveStatus.name,
             e.priority.name,
             e.location.isVirtual
                 ? (e.location.virtualLink ?? 'Virtual')

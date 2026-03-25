@@ -271,7 +271,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
           builder: (context, authSnapshot) {
             final now = DateTime.now();
             final upcomingEvents = _events
-                .where((e) => e.startTime.isAfter(now))
+                .where((e) => e.startTime.toLocal().isAfter(now))
                 .toList()
               ..sort((a, b) => a.startTime.compareTo(b.startTime));
             final completedEvents = _events
@@ -282,11 +282,12 @@ class _DashboardScreenState extends State<DashboardScreen> {
                 .toList();
             final todayEvents = _events.where((e) {
               final today = DateTime(now.year, now.month, now.day);
+              final localStart = e.startTime.toLocal();
               final eventDay = DateTime(
-                e.startTime.year, e.startTime.month, e.startTime.day,
+                localStart.year, localStart.month, localStart.day,
               );
               // Only include events that are today AND haven't fully ended yet
-              return eventDay == today && e.endTime.isAfter(now);
+              return eventDay == today && e.endTime.toLocal().isAfter(now);
             }).toList();
 
             return ListView(

@@ -360,7 +360,7 @@ class _EventDetailsScreenState extends State<EventDetailsScreen> {
             const SizedBox(height: 16),
             Row(
               children: [
-                _buildStatusChip(_event!.status),
+                _buildStatusChip(_event!.effectiveStatus),
                 const SizedBox(width: 8),
                 _buildPriorityChip(_event!.priority),
               ],
@@ -716,7 +716,7 @@ class _EventDetailsScreenState extends State<EventDetailsScreen> {
               spacing: 8,
               runSpacing: 8,
               children: EventStatus.values.map((status) {
-                final isSelected = _event!.status == status;
+                final isSelected = _event!.effectiveStatus == status;
                 return ChoiceChip(
                   label: Text(_getStatusLabel(status)),
                   selected: isSelected,

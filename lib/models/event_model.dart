@@ -211,18 +211,18 @@ class EventModel {
   /// ```
   bool get isActive {
     final now = DateTime.now();
-    return now.isAfter(startTime) && now.isBefore(endTime);
+    return now.isAfter(startTime.toLocal()) && now.isBefore(endTime.toLocal());
   }
 
   /// Returns `true` if the event has already ended.
   ///
   /// Useful for filtering completed/past events.
-  bool get isPast => DateTime.now().isAfter(endTime);
+  bool get isPast => DateTime.now().isAfter(endTime.toLocal());
 
   /// Returns `true` if the event hasn't started yet.
   ///
   /// Useful for displaying upcoming events on dashboard.
-  bool get isUpcoming => DateTime.now().isBefore(startTime);
+  bool get isUpcoming => DateTime.now().isBefore(startTime.toLocal());
 
   /// Returns the effective status based on the device clock.
   ///
@@ -233,10 +233,12 @@ class EventModel {
   /// already correct) the stored status is returned as-is.
   EventStatus get effectiveStatus {
     final now = DateTime.now();
-    if (status == EventStatus.scheduled && now.isAfter(startTime) && now.isBefore(endTime)) {
+    final localStart = startTime.toLocal();
+    final localEnd = endTime.toLocal();
+    if (status == EventStatus.scheduled && now.isAfter(localStart) && now.isBefore(localEnd)) {
       return EventStatus.inProgress;
     }
-    if ((status == EventStatus.scheduled || status == EventStatus.inProgress) && now.isAfter(endTime)) {
+    if ((status == EventStatus.scheduled || status == EventStatus.inProgress) && now.isAfter(localEnd)) {
       return EventStatus.completed;
     }
     return status;
