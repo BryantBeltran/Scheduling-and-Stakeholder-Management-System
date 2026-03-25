@@ -14,3 +14,5 @@ export 'places_service.dart';
 export 'notification_service.dart';
 export 'push_notification_service.dart';
 export 'settings_service.dart';
+export 'conflict_detection_service.dart';
+export 'scheduling_optimizer_service.dart';
