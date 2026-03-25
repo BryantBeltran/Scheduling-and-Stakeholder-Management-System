@@ -275,10 +275,10 @@ class _DashboardScreenState extends State<DashboardScreen> {
                 .toList()
               ..sort((a, b) => a.startTime.compareTo(b.startTime));
             final completedEvents = _events
-                .where((e) => e.status == EventStatus.completed)
+                .where((e) => e.effectiveStatus == EventStatus.completed)
                 .toList();
             final inProgressEvents = _events
-                .where((e) => e.status == EventStatus.inProgress)
+                .where((e) => e.effectiveStatus == EventStatus.inProgress)
                 .toList();
             final todayEvents = _events.where((e) {
               final today = DateTime(now.year, now.month, now.day);
@@ -606,9 +606,9 @@ class _DashboardScreenState extends State<DashboardScreen> {
                                 ),
                                 ...todayEvents.map((event) => ListTile(
                                   leading: CircleAvatar(
-                                    backgroundColor: _statusColor(event.status),
+                                    backgroundColor: _statusColor(event.effectiveStatus),
                                     child: Icon(
-                                      _statusIcon(event.status),
+                                      _statusIcon(event.effectiveStatus),
                                       color: Colors.white, // always white on status color background
                                       size: 18,
                                     ),
@@ -623,13 +623,13 @@ class _DashboardScreenState extends State<DashboardScreen> {
                                   ),
                                   trailing: Chip(
                                     label: Text(
-                                      event.status.name[0].toUpperCase() + event.status.name.substring(1),
+                                      event.effectiveStatus.name[0].toUpperCase() + event.effectiveStatus.name.substring(1),
                                       style: TextStyle(
                                         fontSize: 11,
-                                        color: _statusColor(event.status),
+                                        color: _statusColor(event.effectiveStatus),
                                       ),
                                     ),
-                                    backgroundColor: _statusColor(event.status).withValues(alpha: 0.1),
+                                    backgroundColor: _statusColor(event.effectiveStatus).withValues(alpha: 0.1),
                                     side: BorderSide.none,
                                     padding: EdgeInsets.zero,
                                     visualDensity: VisualDensity.compact,
@@ -882,7 +882,7 @@ class _EventCard extends StatelessWidget {
                         ),
                       ),
                       const SizedBox(width: 8),
-                      Flexible(child: _buildStatusBadge(event.status)),
+                      Flexible(child: _buildStatusBadge(event.effectiveStatus)),
                     ],
                   ),
                   const SizedBox(height: 8),

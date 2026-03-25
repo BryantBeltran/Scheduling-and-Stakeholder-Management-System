@@ -224,6 +224,24 @@ class EventModel {
   /// Useful for displaying upcoming events on dashboard.
   bool get isUpcoming => DateTime.now().isBefore(startTime);
 
+  /// Returns the effective status based on the device clock.
+  ///
+  /// If the Firestore status is still "scheduled" but the start time has
+  /// passed, this returns [EventStatus.inProgress]. Similarly, if the status
+  /// is "scheduled" or "inProgress" but the end time has passed, this returns
+  /// [EventStatus.completed]. For all other statuses (draft, cancelled, or
+  /// already correct) the stored status is returned as-is.
+  EventStatus get effectiveStatus {
+    final now = DateTime.now();
+    if (status == EventStatus.scheduled && now.isAfter(startTime) && now.isBefore(endTime)) {
+      return EventStatus.inProgress;
+    }
+    if ((status == EventStatus.scheduled || status == EventStatus.inProgress) && now.isAfter(endTime)) {
+      return EventStatus.completed;
+    }
+    return status;
+  }
+
   /// Returns the duration of the event.
   ///
   /// Calculated as the difference between end time and start time.
