@@ -235,11 +235,14 @@ class EventModel {
     final now = DateTime.now();
     final localStart = startTime.toLocal();
     final localEnd = endTime.toLocal();
-    if (status == EventStatus.scheduled && now.isAfter(localStart) && now.isBefore(localEnd)) {
-      return EventStatus.inProgress;
-    }
     if ((status == EventStatus.scheduled || status == EventStatus.inProgress) && now.isAfter(localEnd)) {
       return EventStatus.completed;
+    }
+    if ((status == EventStatus.scheduled || status == EventStatus.inProgress) && now.isAfter(localStart) && now.isBefore(localEnd)) {
+      return EventStatus.inProgress;
+    }
+    if (status == EventStatus.inProgress && now.isBefore(localStart)) {
+      return EventStatus.scheduled;
     }
     return status;
   }
