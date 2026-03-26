@@ -318,6 +318,8 @@ class EventModel {
       'updatedAt': updatedAt.toUtc().toIso8601String(),
       'recurrenceRule': recurrenceRule,
       'metadata': metadata,
+      'timeZone': DateTime.now().timeZoneName,
+      'utcOffsetMinutes': DateTime.now().timeZoneOffset.inMinutes,
     };
   }
 
@@ -332,10 +334,10 @@ class EventModel {
       id: json['id'] as String? ?? '',
       title: json['title'] as String? ?? '',
       description: json['description'] as String?,
-      startTime: startTimeRaw != null ? DateTime.parse(startTimeRaw) : now,
+      startTime: startTimeRaw != null ? DateTime.parse(startTimeRaw).toLocal() : now,
       endTime: endTimeRaw != null
-          ? DateTime.parse(endTimeRaw)
-          : (startTimeRaw != null ? DateTime.parse(startTimeRaw).add(const Duration(hours: 1)) : now.add(const Duration(hours: 1))),
+          ? DateTime.parse(endTimeRaw).toLocal()
+          : (startTimeRaw != null ? DateTime.parse(startTimeRaw).toLocal().add(const Duration(hours: 1)) : now.add(const Duration(hours: 1))),
       location: json['location'] != null
           ? EventLocation.fromJson(json['location'] as Map<String, dynamic>)
           : const EventLocation(name: ''),

@@ -442,7 +442,8 @@ export async function sendAccountLinkedEmail(
  * @param {string} recipientName - Recipient display name
  * @param {string} eventTitle - Event title
  * @param {string} role - Assignment role ("stakeholder" or "manager")
- * @param {string} startTime - Event start time (ISO string)
+ * @param {string} startTime - Event start time (ISO string, UTC)
+ * @param {number} utcOffsetMinutes - Creator's UTC offset in minutes
  * @return {Promise<boolean>} True if email was sent
  */
 export async function sendEventAssignmentEmail(
@@ -450,7 +451,8 @@ export async function sendEventAssignmentEmail(
   recipientName: string,
   eventTitle: string,
   role: "stakeholder" | "manager",
-  startTime?: string
+  startTime?: string,
+  utcOffsetMinutes?: number
 ): Promise<boolean> {
   const transporter = getMailTransporter();
   if (!transporter) {
@@ -463,12 +465,18 @@ export async function sendEventAssignmentEmail(
   const roleLabel = role === "manager" ?
     "assigned as manager for" :
     "assigned to";
-  const formattedDate = startTime ?
-    new Date(startTime).toLocaleString("en-US", {
+  let formattedDate: string | null = null;
+  if (startTime) {
+    const utcDate = new Date(startTime);
+    // Shift UTC time by the creator's offset to display local time
+    const offsetMs = (utcOffsetMinutes ?? 0) * 60 * 1000;
+    const localDate = new Date(utcDate.getTime() + offsetMs);
+    formattedDate = localDate.toLocaleString("en-US", {
       weekday: "long", year: "numeric", month: "long",
       day: "numeric", hour: "numeric", minute: "2-digit",
-    }) :
-    null;
+      timeZone: "UTC", // format the already-shifted date as-is
+    });
+  }
 
   try {
     /* eslint-disable max-len */

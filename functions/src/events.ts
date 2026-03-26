@@ -57,7 +57,8 @@ export const onEventCreated = onDocumentCreated(
                 stakeholder.name || "there",
                 eventData.title,
                 "stakeholder",
-                eventData.startTime
+                eventData.startTime,
+                eventData.utcOffsetMinutes
               );
             }
           } else if (!linkedUserId) {
@@ -78,7 +79,8 @@ export const onEventCreated = onDocumentCreated(
                 stakeholder.name || "there",
                 eventData.title,
                 "stakeholder",
-                eventData.startTime
+                eventData.startTime,
+                eventData.utcOffsetMinutes
               );
             }
           }
@@ -113,7 +115,8 @@ export const onEventCreated = onDocumentCreated(
             managerData.displayName || "there",
             eventData.title,
             "manager",
-            eventData.startTime
+            eventData.startTime,
+            eventData.utcOffsetMinutes
           );
         }
       }
