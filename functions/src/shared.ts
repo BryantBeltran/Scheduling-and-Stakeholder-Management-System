@@ -436,6 +436,83 @@ export async function sendAccountLinkedEmail(
   }
 }
 
+/**
+ * Send an event assignment notification email.
+ * @param {string} email - Recipient email address
+ * @param {string} recipientName - Recipient display name
+ * @param {string} eventTitle - Event title
+ * @param {string} role - Assignment role ("stakeholder" or "manager")
+ * @param {string} startTime - Event start time (ISO string)
+ * @return {Promise<boolean>} True if email was sent
+ */
+export async function sendEventAssignmentEmail(
+  email: string,
+  recipientName: string,
+  eventTitle: string,
+  role: "stakeholder" | "manager",
+  startTime?: string
+): Promise<boolean> {
+  const transporter = getMailTransporter();
+  if (!transporter) {
+    logger.info("Event assignment email skipped (SMTP not configured).");
+    return false;
+  }
+
+  const senderEmail = process.env.SMTP_FROM || "no-reply@managemateapp.me";
+  const name = recipientName || "there";
+  const roleLabel = role === "manager" ?
+    "assigned as manager for" :
+    "assigned to";
+  const formattedDate = startTime ?
+    new Date(startTime).toLocaleString("en-US", {
+      weekday: "long", year: "numeric", month: "long",
+      day: "numeric", hour: "numeric", minute: "2-digit",
+    }) :
+    null;
+
+  try {
+    /* eslint-disable max-len */
+    await transporter.sendMail({
+      from: `"SSMS" <${senderEmail}>`,
+      to: email,
+      subject: `You've been ${roleLabel}: ${eventTitle}`,
+      html: `
+        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+          <div style="background-color: #000; color: #fff; padding: 24px; text-align: center;">
+            <h1 style="margin: 0; font-size: 24px;">Scheduling &amp; Stakeholder Management</h1>
+          </div>
+          <div style="padding: 32px 24px;">
+            <h2 style="color: #333;">Hi ${name}!</h2>
+            <p style="color: #555; font-size: 16px; line-height: 1.6;">
+              You've been ${roleLabel} the event <strong>${eventTitle}</strong>.
+            </p>
+            ${formattedDate ? `
+            <div style="background-color: #f0f4ff; border-left: 4px solid #3b82f6; border-radius: 4px; padding: 16px; margin: 24px 0;">
+              <p style="margin: 0; color: #1e3a5f; font-size: 14px;">
+                <strong>When:</strong> ${formattedDate}
+              </p>
+            </div>
+            ` : ""}
+            <p style="color: #555; font-size: 14px; line-height: 1.6;">
+              Open the SSMS app to view event details and collaborate with your team.
+            </p>
+            <p style="color: #888; font-size: 13px; margin-top: 24px;">
+              If you didn&rsquo;t expect this email, you can safely ignore it.
+            </p>
+          </div>
+        </div>
+      `,
+      text: `Hi ${name}! You've been ${roleLabel} the event "${eventTitle}".${formattedDate ? ` When: ${formattedDate}.` : ""} Open the SSMS app for details.`,
+    });
+    /* eslint-enable max-len */
+    logger.info(`Event assignment email sent to ${email}`);
+    return true;
+  } catch (error) {
+    logger.error(`Failed to send event assignment email to ${email}:`, error);
+    return false;
+  }
+}
+
 // ---------------------------------------------------------------------------
 // FCM + IN-APP NOTIFICATION HELPER
 // ---------------------------------------------------------------------------

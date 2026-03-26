@@ -7,6 +7,7 @@ import {
   hasPermission,
   PERMISSIONS,
   sendPushAndInAppNotification,
+  sendEventAssignmentEmail,
   writeAuditLog,
 } from "./shared";
 
@@ -48,6 +49,17 @@ export const onEventCreated = onDocumentCreated(
               eventId
             );
             notifiedUserIds.add(linkedUserId);
+
+            // Send email notification
+            if (stakeholder?.email) {
+              await sendEventAssignmentEmail(
+                stakeholder.email,
+                stakeholder.name || "there",
+                eventData.title,
+                "stakeholder",
+                eventData.startTime
+              );
+            }
           } else if (!linkedUserId) {
             await admin.firestore().collection("notifications").add({
               userId: stakeholderId,
@@ -58,6 +70,17 @@ export const onEventCreated = onDocumentCreated(
               type: "event_assignment",
               eventId,
             });
+
+            // Send email to unlinked stakeholders too
+            if (stakeholder?.email) {
+              await sendEventAssignmentEmail(
+                stakeholder.email,
+                stakeholder.name || "there",
+                eventData.title,
+                "stakeholder",
+                eventData.startTime
+              );
+            }
           }
         }
       }
@@ -79,6 +102,20 @@ export const onEventCreated = onDocumentCreated(
           eventId
         );
         notifiedUserIds.add(managerId);
+
+        // Send email to manager
+        const managerUser = await admin
+          .firestore().collection("users").doc(managerId).get();
+        const managerData = managerUser.data();
+        if (managerData?.email) {
+          await sendEventAssignmentEmail(
+            managerData.email,
+            managerData.displayName || "there",
+            eventData.title,
+            "manager",
+            eventData.startTime
+          );
+        }
       }
 
       logger.info(
