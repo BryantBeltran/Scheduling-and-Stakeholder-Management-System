@@ -493,6 +493,9 @@ export async function sendEventAssignmentEmail(
               </p>
             </div>
             ` : ""}
+            <div style="text-align: center; margin: 24px 0;">
+              <a href="https://managemateapp.me" style="display: inline-block; background-color: #3b82f6; color: #fff; text-decoration: none; padding: 12px 32px; border-radius: 6px; font-size: 16px; font-weight: bold;">Open App</a>
+            </div>
             <p style="color: #555; font-size: 14px; line-height: 1.6;">
               Open the SSMS app to view event details and collaborate with your team.
             </p>

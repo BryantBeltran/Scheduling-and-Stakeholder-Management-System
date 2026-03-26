@@ -256,8 +256,8 @@ class EventService {
 
     final snapshot = await _eventsCollection
         .where('ownerId', isEqualTo: currentUser.id)
-        .where('startTime', isGreaterThanOrEqualTo: startOfDay.toIso8601String())
-        .where('startTime', isLessThanOrEqualTo: endOfDay.toIso8601String())
+        .where('startTime', isGreaterThanOrEqualTo: startOfDay.toUtc().toIso8601String())
+        .where('startTime', isLessThanOrEqualTo: endOfDay.toUtc().toIso8601String())
         .get();
 
     return snapshot.docs
@@ -285,7 +285,7 @@ class EventService {
     final now = DateTime.now();
     final snapshot = await _eventsCollection
         .where('ownerId', isEqualTo: currentUser.id)
-        .where('startTime', isGreaterThan: now.toIso8601String())
+        .where('startTime', isGreaterThan: now.toUtc().toIso8601String())
         .orderBy('startTime')
         .limit(limit)
         .get();

@@ -305,8 +305,8 @@ class EventModel {
     return {
       'title': title,
       'description': description,
-      'startTime': startTime.toIso8601String(),
-      'endTime': endTime.toIso8601String(),
+      'startTime': startTime.toUtc().toIso8601String(),
+      'endTime': endTime.toUtc().toIso8601String(),
       'location': location.toJson(),
       'ownerId': ownerId,
       'ownerName': ownerName,
@@ -314,8 +314,8 @@ class EventModel {
       'status': status.name,
       'priority': priority.name,
       'stakeholderIds': stakeholderIds,
-      'createdAt': createdAt.toIso8601String(),
-      'updatedAt': updatedAt.toIso8601String(),
+      'createdAt': createdAt.toUtc().toIso8601String(),
+      'updatedAt': updatedAt.toUtc().toIso8601String(),
       'recurrenceRule': recurrenceRule,
       'metadata': metadata,
     };

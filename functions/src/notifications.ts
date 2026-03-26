@@ -146,7 +146,7 @@ export const removeFcmToken = onCall(async (request) => {
  * Deduplication uses a per-user key: remindersSent.{window_key}_{userId}
  */
 export const sendEventReminders = onSchedule(
-  "every 15 minutes",
+  "every 5 minutes",
   async () => {
     try {
       const now = new Date();
@@ -159,10 +159,13 @@ export const sendEventReminders = onSchedule(
       ];
 
       for (const window of windows) {
+        // Query for events starting between [now + minutesBefore] and
+        // [now + minutesBefore + 20min] to account for cron drift.
+        // Dedup keys prevent duplicate notifications.
         const targetStart = new Date(
           now.getTime() + window.minutesBefore * 60 * 1000
         );
-        const targetEnd = new Date(targetStart.getTime() + 15 * 60 * 1000);
+        const targetEnd = new Date(targetStart.getTime() + 20 * 60 * 1000);
 
         const eventsSnapshot = await admin
           .firestore()
@@ -465,6 +468,9 @@ export const sendStakeholderEmailReminders = onSchedule(
                       <p style="margin: 4px 0; color: #555;">📅 ${formattedDate}</p>
                       <p style="margin: 4px 0; color: #555;">🕐 ${formattedTime}</p>
                       <p style="margin: 4px 0; color: #555;">📍 ${locationName}</p>
+                    </div>
+                    <div style="text-align: center; margin: 16px 0;">
+                      <a href="https://managemateapp.me" style="display: inline-block; background-color: #3b82f6; color: #fff; text-decoration: none; padding: 12px 32px; border-radius: 6px; font-size: 16px; font-weight: bold;">Open App</a>
                     </div>
                     <p style="color: #888; font-size: 13px;">
                       Open the SSMS app for full event details and updates.
