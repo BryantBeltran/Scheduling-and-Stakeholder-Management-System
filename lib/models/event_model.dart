@@ -235,12 +235,17 @@ class EventModel {
     final now = DateTime.now();
     final localStart = startTime.toLocal();
     final localEnd = endTime.toLocal();
-    // Only auto-calculate for scheduled events; respect manual status changes
-    if (status == EventStatus.scheduled && now.isAfter(localEnd)) {
+    // Auto-transition: ended events become completed
+    if ((status == EventStatus.scheduled || status == EventStatus.inProgress) && now.isAfter(localEnd)) {
       return EventStatus.completed;
     }
+    // Auto-transition: scheduled events that have started become inProgress
     if (status == EventStatus.scheduled && now.isAfter(localStart) && now.isBefore(localEnd)) {
       return EventStatus.inProgress;
+    }
+    // Correct stale inProgress: if event hasn't started yet, show as scheduled
+    if (status == EventStatus.inProgress && now.isBefore(localStart)) {
+      return EventStatus.scheduled;
     }
     return status;
   }
