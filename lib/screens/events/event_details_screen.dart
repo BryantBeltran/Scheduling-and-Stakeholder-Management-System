@@ -80,7 +80,7 @@ class _EventDetailsScreenState extends State<EventDetailsScreen> {
 
     // Validate status transition
     final statusValidation = EventValidators.canChangeStatus(
-      _event!.status,
+      _event!.effectiveStatus,
       newStatus,
     );
     if (!statusValidation.isValid) {
